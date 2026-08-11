@@ -37,12 +37,24 @@ Extraído do projeto QGIS de referência de Pitangueiras (`Pitangueiras_STDBSCAN
 - 55% agrícola/colheita (falso positivo), 24% fogo real, 19% inconclusivo, 2% nuvem/sombra.
 - Pontos de atenção prioritária: **Pontal P1** (99,9 km², maior mancha, confiança média), **Amparo P2/P3** (contaminação por nuvem), **Rio Claro P2** (telhados/construções confundidos com fogo), **Altinópolis** (destoa: 4/6 pontos fogo real, ao contrário do padrão majoritário agrícola dos demais).
 
-**IoU/Jaccard vs. dNBR (20 municípios válidos):**
+**IoU/Jaccard vs. dNBR (20 municípios válidos) — validação interna (cluster ST-DBSCAN × raster dNBR, SEM MapBiomas):**
 - IoU médio ≈26% (variação 0,041–0,425).
 - Só **30% (6/20) estatisticamente significativos** (p<0,05, teste de permutação): Olímpia, Lucélia, Andradina, Alumínio, Ibitinga, Rio Claro. Na borda (p≈0,051): Altinópolis, Morro Agudo.
 - Correlação volume×IoU positiva mas não conclusiva (Pearson r=0,41 p=0,074; Spearman r=0,42 p=0,063).
-- 20% dos municípios (6/30) sem nenhum cluster em 2024 (Barra do Turvo, Apiaí, Registro, Guarulhos, Suzano, Viradouro) — falta de volume de dado, não falha do algoritmo.
-- Comparação direta com MapBiomas Fogo (Tarefa 3): script corrigido pela última vez para tratar o produto "mensal" como 1 banda/ano com valor de pixel = mês (1-12) — **resultado final dessa etapa específica não estava fechado na última conversa registrada**; conferir se já rodou.
+- Fonte: `tarefa1_iou_pixels_por_municipio.csv` + `correlacao_nfocos_iou.csv`.
+- 20% dos municípios (6/30) sem nenhum cluster em 2024 inteiro (Barra do Turvo, Apiaí, Registro, Guarulhos, Suzano, Viradouro) — falta de volume de dado, não falha do algoritmo. +4 municípios têm cluster, mas não em agosto especificamente (Terra Roxa, Tupã, Barra do Chapéu, Iporanga).
+
+**Comparação direta com MapBiomas Fogo (Tarefa 3) — ✅ confirmado rodado e com resultado (verificado 11/ago via Drive, sessão web):**
+- Fonte: `tarefa3_comparacao_mapbiomas_fogo.csv` (30 municípios), gerado em 07/ago pelo notebook `Validacao_Oficial_IoUJaccardPixels.ipynb` — **novo local**: `03_Codigos_Colab/08_Codigos_Ampliacao_Estudo_pSoftware/` (não está nas pastas `06_`/`07_` antigas).
+- **IoU dNBR×MapBiomas**: médio 6,3% (0%–45%, topo Pontes Gestal).
+- **IoU cluster(ST-DBSCAN)×MapBiomas**: médio 7,1% (0%–25,4%, topo também Pontes Gestal; só existe pros 20 municípios com cluster em agosto).
+- **Padrão-chave pra seção 7**: o método captura ≈74% da área que o MapBiomas Fogo identifica (só 128,9 km² dos 491,6 km² do MapBiomas ficam fora dos clusters), mas os clusters têm área "extra" enorme não confirmada pelo MapBiomas (3.517,9 km² dos 3.870,5 km² totais de cluster) — **alto recall, baixa precisão bruta em área**. Bate com o achado do Eixo 3 (55% da área extra é falso positivo agrícola/colheita) — é exatamente por isso que o "estilo QGIS" nunca pinta o dNBR inteiro, só os buffers validados.
+- Municípios onde o cluster já cobre quase toda a área do MapBiomas (recall ~100%): Santana de Parnaíba, Salmourão, Lucélia, Adamantina, Alumínio, Barrinha, Areiópolis.
+- ⚠️ Cuidado ao reabrir essa pasta — ver Armadilhas técnicas #6 (pasta duplicada com resultado errado).
+
+**Dois produtos MapBiomas diferentes no projeto (não confundir):**
+- **MapBiomas Fogo Coleção 4** (cicatriz de queima) — usado na Tarefa 3 acima, comparação central da tese do projeto.
+- **MapBiomas Coleção 10.1** (uso e cobertura do solo) — usado numa frente à parte (ETL de uso do solo, transição cana×soja, correlação de Pearson agronegócio×anomalias). Resultados em `02_Dados_Processados/02_Agroambiental_Sensoriamento_MapBiomas_Derivados_2026-07-07/`.
 
 ## Armadilhas técnicas já resolvidas (não repetir)
 
@@ -51,6 +63,8 @@ Extraído do projeto QGIS de referência de Pitangueiras (`Pitangueiras_STDBSCAN
 3. **MapBiomas Fogo Coleção 4** — o produto "mensal" na verdade tem só 40 bandas (1 por ano, 1985–2024), e o **valor do pixel codifica o mês** (1–12), não uma banda por mês.
 4. **Duplicatas de arquivo no Drive** (mesmo nome em pastas diferentes) — scripts devem sempre pegar o **mais recente**, não o primeiro encontrado (aconteceu com Registro).
 5. Notebook `06_09`: células 8 e 9 têm código duplicado (pendente de limpeza). `06_10` Figura 1 usa dado simulado (`np.random.normal`) só para composição visual.
+6. **Duplicata de pasta inteira com mesmo nome** — `12_validacao_iou_jaccard`, dentro de `04_Resultados_dos_Codigos/Resultados_Extras_STDBSCAN_Eventos_2026-06-30/tabelas_csv/`. Existem 2 pastas com esse nome exato: uma tem os CSVs reais e completos da Tarefa 3 (`tarefa1_iou_pixels_por_municipio.csv`, `tarefa3_comparacao_mapbiomas_fogo.csv`, `correlacao_nfocos_iou.csv` — Drive id da pasta correta: `1aICvnU47G37xn3hX4BHQurzXhlcHt0L6`); a outra tem um `tarefa3_comparacao_mapbiomas_fogo.csv` placeholder (só 2 colunas, "dado faltando", sem números). **A versão errada tem timestamp de modificação mais recente** — a regra "pega sempre o mais novo" (armadilha #4) não basta aqui; sempre confira também o número de colunas/conteúdo antes de usar.
+7. **Dois produtos MapBiomas diferentes no projeto**: **MapBiomas Fogo Coleção 4** (cicatriz de queima, usado na Tarefa 3/comparação central) vs. **MapBiomas Coleção 10.1** (uso e cobertura do solo, usado numa frente à parte de correlação agronegócio×anomalias). Não confundir ao discutir "a comparação com MapBiomas".
 
 ## ⚠️ Segurança — nunca fazer (já causou incidente real)
 
@@ -58,12 +72,14 @@ Em 07/ago, um script fornecido pelo Claude continha `shutil.rmtree('/content/gdr
 
 > **Nenhum script deve conter comando de deleção recursiva (`rmtree`, `rm -rf`, etc.) apontando para um ponto de montagem de Drive.** Para "limpar" antes de montar, usar só `drive.mount(..., force_remount=True)` (que recusa sobrescrever conteúdo real) ou pedir para o usuário apagar manualmente a pasta específica.
 
-## Próximos passos pendentes (conforme última conversa)
+## Próximos passos pendentes (conforme última conversa + verificação 11/ago)
 
-- [ ] Fechar Tarefa 3 (comparação MapBiomas Fogo) e escrever a conclusão final (seção 7 do prompt mestre: eficácia do método, onde falha, comparação com MapBiomas).
-- [ ] Exportar RGB real das 3 cidades de repescagem (Andradina, Amparo, Alumínio).
-- [ ] "Pente-fino" nos notebooks/scripts mais antigos (revisão geral).
-- [ ] Confirmar status final de Barra do Turvo/Apiaí/Tupã no mapa geral após script de correção (`06_31`).
+- [x] Tarefa 3 (comparação MapBiomas Fogo) — confirmado rodado, dado coerente com Eixo 3 (ver Resultados principais).
+- [ ] Escrever a conclusão final (seção 7 do prompt mestre: eficácia do método — alto recall/baixa precisão bruta vs. MapBiomas —, onde falha, comparação formal com MapBiomas) usando os números da Tarefa 3.
+- [x] Exportar RGB real das 3 cidades de repescagem (Andradina, Amparo, Alumínio) — confirmado em 11/ago: chips já existem em `04_Resultados_dos_Codigos/Resultados_Analise_Visual-Assistida_Comparativo_Metodo` (Andradina 6/6 pontos, Amparo ≥3, Alumínio ≥5).
+- [ ] Classificar visualmente os chips das 3 cidades de repescagem (fogo real/agrícola/inconclusivo/nuvem-sombra) e somar ao resultado do Eixo 3 (hoje 18 cidades → passa a 21).
+- [ ] "Pente-fino" nos notebooks/scripts mais antigos (revisão geral) — inclui limpar duplicação de células no `06_09` (8 e 9) e decidir sobre o dado simulado (`np.random.normal`) na Figura 1 do `06_10`.
+- [ ] Confirmar visualmente no mosaico geral (script `06_31`) o posicionamento de Barra do Turvo/Apiaí/Tupã — dado numérico de base já confirmado OK em 11/ago (Barra do Turvo e Apiaí: realmente sem cluster em 2024 inteiro, poucos focos no INPE; Tupã: 0 focos em agosto/2024 mas tem cluster fora de agosto, sinal fraco real, não bug); falta só validar a renderização no mapa.
 - [ ] Etapa "chapa-branca": dashboard Power BI didático (aquecimento para a parte de Engenharia de Software do curso).
 - [x] Notas didáticas ("+Texto" Colab) nos 12 notebooks principais — feito, organizado em ordem numérica 06_01–06_12.
 
