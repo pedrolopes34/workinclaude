@@ -34,7 +34,7 @@ Extraído do projeto QGIS de referência de Pitangueiras (`Pitangueiras_STDBSCAN
 ## Resultados principais já obtidos
 
 **Eixo 3 (validação visual, 18 cidades do piloto+expansão, 80-98 pontos classificados):**
-- 55% agrícola/colheita (falso positivo), 24% fogo real, 19% inconclusivo, 2% nuvem/sombra.
+- 55% agrícola/colheita (falso positivo), 24% fogo real, 19% inconclusivo, 2% nuvem/sombra. **Esse número é agregado das 18 cidades juntas — não existe quebra por cidade** (ver armadilha #8: tentativa de gerar essa quebra via reclassificação de imagens não é viável nesta sessão).
 - Pontos de atenção prioritária: **Pontal P1** (99,9 km², maior mancha, confiança média), **Amparo P2/P3** (contaminação por nuvem), **Rio Claro P2** (telhados/construções confundidos com fogo), **Altinópolis** (destoa: 4/6 pontos fogo real, ao contrário do padrão majoritário agrícola dos demais).
 
 **IoU/Jaccard vs. dNBR (20 municípios válidos) — validação interna (cluster ST-DBSCAN × raster dNBR, SEM MapBiomas):**
@@ -65,6 +65,7 @@ Extraído do projeto QGIS de referência de Pitangueiras (`Pitangueiras_STDBSCAN
 5. Notebook `06_09`: células 8 e 9 têm código duplicado (pendente de limpeza). `06_10` Figura 1 usa dado simulado (`np.random.normal`) só para composição visual.
 6. **Duplicata de pasta inteira com mesmo nome** — `12_validacao_iou_jaccard`, dentro de `04_Resultados_dos_Codigos/Resultados_Extras_STDBSCAN_Eventos_2026-06-30/tabelas_csv/`. Existem 2 pastas com esse nome exato: uma tem os CSVs reais e completos da Tarefa 3 (`tarefa1_iou_pixels_por_municipio.csv`, `tarefa3_comparacao_mapbiomas_fogo.csv`, `correlacao_nfocos_iou.csv` — Drive id da pasta correta: `1aICvnU47G37xn3hX4BHQurzXhlcHt0L6`); a outra tem um `tarefa3_comparacao_mapbiomas_fogo.csv` placeholder (só 2 colunas, "dado faltando", sem números). **A versão errada tem timestamp de modificação mais recente** — a regra "pega sempre o mais novo" (armadilha #4) não basta aqui; sempre confira também o número de colunas/conteúdo antes de usar.
 7. **Dois produtos MapBiomas diferentes no projeto**: **MapBiomas Fogo Coleção 4** (cicatriz de queima, usado na Tarefa 3/comparação central) vs. **MapBiomas Coleção 10.1** (uso e cobertura do solo, usado numa frente à parte de correlação agronegócio×anomalias). Não confundir ao discutir "a comparação com MapBiomas".
+8. **Classificação visual (Eixo 3) via download de imagem pela API do Drive não escala nesta sessão** — cada chip (~25KB) baixado em base64 pela ferramenta de Drive ocupa uma fatia enorme de contexto (dezenas de milhares de caracteres por imagem, ~98 chips existentes pras 17 cidades já exportadas); tentar reconstruir o arquivo copiando o base64 manualmente pode truncar/corromper sem aviso óbvio (aconteceu: um chip de 25.596 bytes virou 1.231 bytes ao ser copiado — só foi pego porque o tamanho foi conferido antes de "ler" o arquivo). **Não pedir pro Claude reclassificar chips em lote por esse caminho.** Alternativas reais: (a) classificar direto no Drive/Colab olhando as imagens (mais rápido, é literalmente o que um humano faria), ou (b) colar/anexar as imagens direto no chat pro Claude ver (anexo nativo não passa pelo mesmo gargalo de base64-via-ferramenta MCP).
 
 ## ⚠️ Segurança — nunca fazer (já causou incidente real)
 
@@ -77,7 +78,7 @@ Em 07/ago, um script fornecido pelo Claude continha `shutil.rmtree('/content/gdr
 - [x] Tarefa 3 (comparação MapBiomas Fogo) — confirmado rodado, dado coerente com Eixo 3 (ver Resultados principais).
 - [ ] Escrever a conclusão final (seção 7 do prompt mestre: eficácia do método — alto recall/baixa precisão bruta vs. MapBiomas —, onde falha, comparação formal com MapBiomas) usando os números da Tarefa 3.
 - [x] Exportar RGB real das 3 cidades de repescagem (Andradina, Amparo, Alumínio) — confirmado em 11/ago: chips já existem em `04_Resultados_dos_Codigos/Resultados_Analise_Visual-Assistida_Comparativo_Metodo` (Andradina 6/6 pontos, Amparo ≥3, Alumínio ≥5).
-- [ ] Classificar visualmente os chips das 3 cidades de repescagem (fogo real/agrícola/inconclusivo/nuvem-sombra) e somar ao resultado do Eixo 3 (hoje 18 cidades → passa a 21).
+- [ ] Classificar visualmente os chips das 3 cidades de repescagem (fogo real/agrícola/inconclusivo/nuvem-sombra) e somar ao resultado do Eixo 3 (hoje 18 cidades → passa a 21) — fazer direto no Drive/Colab ou anexando as imagens no chat (ver armadilha #8; pedir pro Claude baixar chip por chip via API não funciona bem).
 - [ ] "Pente-fino" nos notebooks/scripts mais antigos (revisão geral) — inclui limpar duplicação de células no `06_09` (8 e 9) e decidir sobre o dado simulado (`np.random.normal`) na Figura 1 do `06_10`.
 - [ ] Confirmar visualmente no mosaico geral (script `06_31`) o posicionamento de Barra do Turvo/Apiaí/Tupã — dado numérico de base já confirmado OK em 11/ago (Barra do Turvo e Apiaí: realmente sem cluster em 2024 inteiro, poucos focos no INPE; Tupã: 0 focos em agosto/2024 mas tem cluster fora de agosto, sinal fraco real, não bug); falta só validar a renderização no mapa.
 - [ ] Etapa "chapa-branca": dashboard Power BI didático (aquecimento para a parte de Engenharia de Software do curso).
