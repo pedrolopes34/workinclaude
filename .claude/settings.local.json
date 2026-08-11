@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-Command python,python3,py -ErrorAction SilentlyContinue)",
+      "mcp__d1eca845-bd29-41a5-8de8-3fe817464c2e__search_files",
+      "mcp__d1eca845-bd29-41a5-8de8-3fe817464c2e__download_file_content",
+      "Bash(python3 -c ' *)",
+      "mcp__d1eca845-bd29-41a5-8de8-3fe817464c2e__get_file_metadata",
+      "Bash(python3 -c \"import ast; ast.parse\\(open\\(r'C:\\\\Users\\\\Pedro\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Pedro-workinclaude\\\\ad9a2e61-2d73-4bfe-a6b8-835caca015fc\\\\scratchpad\\\\06_15_dNBR_Geracao_Rodada1_5cidades.py', encoding='utf-8'\\).read\\(\\)\\)\")",
+      "Bash(command -v qgis_process)",
+      "Bash(\"/c/Program Files/QGIS 3.44.11/bin/gdalinfo.exe\" -stats \"C:\\\\Users\\\\Pedro\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Pedro-workinclaude\\\\ad9a2e61-2d73-4bfe-a6b8-835caca015fc\\\\scratchpad\\\\dNBR_bruto_Registro_2024.tif\")",
+      "mcp__d1eca845-bd29-41a5-8de8-3fe817464c2e__read_file_content",
+      "Read(//c/Users/Pedro/QGIS//**)",
+      "Read(//c/Users/Pedro/QGIS/**)",
+      "Bash(mkdir -p \"/tmp/qgz_extract\")",
+      "Bash(mkdir -p qgz_extract)",
+      "Bash(unzip -o \"/c/Users/Pedro/QGIS/Pitangueiras_STDBSCAN_dNBR_periodos_essenciais.qgz\" -d qgz_extract)",
+      "Bash(awk 'NR==4558,NR==5410' \"C:\\\\Users\\\\Pedro\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Pedro-workinclaude\\\\ad9a2e61-2d73-4bfe-a6b8-835caca015fc\\\\scratchpad\\\\qgz_extract\\\\Pitangueiras_STDBSCAN_dNBR_periodos_essenciais.qgs\")",
+      "Bash(awk 'NR==4783,NR==4994' \"C:\\\\Users\\\\Pedro\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Pedro-workinclaude\\\\ad9a2e61-2d73-4bfe-a6b8-835caca015fc\\\\scratchpad\\\\qgz_extract\\\\Pitangueiras_STDBSCAN_dNBR_periodos_essenciais.qgs\")",
+      "Bash(awk -F: '$1>=4791 && $1<=4994')",
+      "Bash(\"/c/Program Files/QGIS 3.44.11/bin/gdalinfo.exe\" -stats \"C:\\\\Users\\\\Pedro\\\\Downloads\\\\dNBR_colorido_Registro_2024.tif\")",
+      "Bash(\"/c/Program Files/QGIS 3.44.11/bin/gdalinfo.exe\" -stats \"C:\\\\Users\\\\Pedro\\\\Downloads\\\\dNBR_colorido_Tupa_2024.tif\")",
+      "WebSearch",
+      "WebFetch(domain:code.earthengine.google.com)",
+      "WebFetch(domain:brasil.mapbiomas.org)",
+      "Bash(python -c \"import geopandas, rasterio, shapely, ee; print\\('geo stack + ee OK'\\)\")",
+      "Bash(python -c \"import ee; ee.Initialize\\(\\); print\\('EE initialized'\\)\")",
+      "Bash(mkdir -p \"/c/Users/Pedro/AppData/Local/Temp/claude/C--Users-Pedro-workinclaude/a1f1f194-81f4-4f92-a155-250988a937c3/scratchpad/eixo3_piloto\")",
+      "mcp__claude-in-chrome__tabs_context_mcp",
+      "mcp__claude-in-chrome__browser_batch",
+      "mcp__claude-in-chrome__computer",
+      "mcp__claude-in-chrome__tabs_close_mcp",
+      "mcp__claude-in-chrome__tabs_create_mcp",
+      "PowerShell(Start-Process powershell.exe)",
+      "PowerShell(gh --version)",
+      "PowerShell(gh auth status 2>&1)",
+      "Bash(ls -la \"$HOME/.claude/projects/\" 2>/dev/null | grep -i workinclaude)"
+    ]
+  }
+}
