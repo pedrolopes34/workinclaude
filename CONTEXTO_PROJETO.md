@@ -109,7 +109,28 @@ Dados-fonte usados: pasta Drive `12_validacao_iou_jaccard` (gerada 07/ago pelo n
   - **Achado importante**: cruzei o Top 20 (Pitangueiras, Altinópolis, Ibitinga, Sertãozinho, Olímpia, Patrocínio Paulista, Cajuru, Jaboticabal, Pontal, Pontes Gestal, Altair, Andradina, Guapiaçu, Urupês, Barrinha, Salmourão, Dourado, José Bonifácio, Onda Verde, Motuca) com a classificação de bioma (70%) e **só Altinópolis (76,8%) é Cerrado puro**. Os outros 19 são Mata_Atlantica ou Ambíguo. Ou seja, a lista de expansão já estudada na Fase 3 (Eixo 3, 92 pontos) não serve de base pra decisão "Anomalia dentro do Cerrado" da Fase 4 — precisa recalcular a anomalia SEM o corte de Top 20 e filtrando só pelos municípios Cerrado.
   - **Ação tomada**: montei `Fase4_Ranking_Anomalia_Cerrado.ipynb` (validado com `ast.parse`, enviado ao Pedro 13/ago) que reaproveita a mesma fórmula do 06_04, mas roda pra TODOS os municípios do estado, filtra só os 34 Cerrado (limiar 70%), aplica o filtro de viabilidade (>=4 focos em ago/2024) e ordena por anomalia. Saída: `03_resultados/15_selecao_municipios_fase4/ranking_anomalia_municipios_cerrado_fase4.csv` (lista final) e `anomalia_todos_municipios_cerrado_fase4.csv` (referência, sem filtro de viabilidade).
   - **v1 quebrou** (`KeyError: 'municipio_oficial'`) — o `01_SP_Focos_Master.csv` real usa coluna `municipio` (não `municipio_oficial`, herdado por engano do 06_04 original) com nomes em MAIÚSCULO ("SANTA CRUZ DAS PALMEIRAS"), e já traz `ano`/`mes` prontos (não precisa parsear `data_pas`). Descoberto lendo o cabeçalho do CSV real via Drive. **Bônus**: cada foco individual já vem com sua própria coluna `bioma` (Cerrado/Mata Atlântica) — não usamos isso na v2 (mantivemos a classificação por área/município já feita), mas é uma pista de onde os "129/136" originais podem ter vindo (classificação por ponto, não por área) — vale investigar depois se os números da v2 não baterem com a expectativa do Pedro.
-  - **v2** (13/ago): corrigida com detecção robusta de coluna + casamento de nomes à prova de maiúsculo/acento (normalização NFC+casefold). Testada localmente com uma amostra truncada do CSV real (smoke test, sem exceções) antes de reenviar. **Aguardando o Pedro rodar e mandar o resultado.**
+  - **v2** (13/ago): corrigida com detecção robusta de coluna + casamento de nomes à prova de maiúsculo/acento (normalização NFC+casefold). Testada localmente com uma amostra truncada do CSV real (smoke test, sem exceções) antes de reenviar.
+  - **RESULTADO FINAL (13/ago, rodado pelo Pedro)** — 12 municípios Cerrado viáveis (>=4 focos em ago/2024), ordenados por anomalia:
+
+    | # | Município | Focos_Ago_2024 | Média_Histórica | Anomalia (%) |
+    |---|---|---|---|---|
+    | 1 | Boa Esperança do Sul | 25 | 1,0 | 2400,0 |
+    | 2 | Altinópolis | 97 | 4,7 | 1978,6 |
+    | 3 | Arealva | 8 | 1,0 | 900,0 |
+    | 4 | Orindiúva | 8 | 1,0 | 700,0 |
+    | 5 | Trabiju | 12 | 1,5 | 700,0 |
+    | 6 | Bebedouro | 23 | 3,0 | 666,7 |
+    | 7 | Paraguaçu Paulista | 7 | 1,7 | 320,0 |
+    | 8 | Assis | 14 | 3,5 | 300,0 |
+    | 9 | Icém | 12 | 3,5 | 242,9 |
+    | 10 | Ibaté | 6 | 4,3 | 38,5 |
+    | 11 | Lençóis Paulista | 4 | 3,5 | 14,3 |
+    | 12 | Botucatu | 4 | 7,0 | **-42,9** |
+
+    **Nota**: Botucatu tem anomalia **negativa** (teve menos focos que a média histórica) — só entrou por bater o filtro de viabilidade (>=4 focos), não por ser uma anomalia de verdade. Contradiz o próprio critério de seleção ("Anomalia dentro do Cerrado"). **Recomendação: excluir Botucatu da lista final**, ficando com **11 municípios** (Boa Esperança do Sul, Altinópolis, Arealva, Orindiúva, Trabiju, Bebedouro, Paraguaçu Paulista, Assis, Icém, Ibaté, Lençóis Paulista) — todos com anomalia positiva de verdade. Lençóis Paulista é o caso mais marginal (14,3%, só 4 focos) — vale considerar deixar de fora também se o Pedro quiser um corte mais rigoroso, mas tecnicamente passa nos dois critérios (Cerrado + viável + anomalia positiva).
+    - CSV completo em `ranking_anomalia_municipios_cerrado_fase4.csv`, pasta Drive `15_selecao_municipios_fase4`.
+- [x] Fechar a seleção de municípios da Fase 4 (Cerrado paulista) — feito 13/ago, ver seção Fase 3 acima (`Fase4_Ranking_Anomalia_Cerrado.ipynb` v2, resultado rodado pelo Pedro). **Lista final recomendada: 11 municípios** (Boa Esperança do Sul, Altinópolis, Arealva, Orindiúva, Trabiju, Bebedouro, Paraguaçu Paulista, Assis, Icém, Ibaté, Lençóis Paulista) — excluindo Botucatu (anomalia negativa, não devia ter passado no critério).
+- [ ] **Fase 4 — execução**: rodar ST-DBSCAN+dNBR (limiar 0,27) nos 11 municípios da lista acima, gerar clusters, depois repetir o pipeline de validação completo (IoU/Jaccard pixel a pixel, significância por permutação com correção FDR, comparação com MapBiomas Fogo, recall por área) pra cada um — mesma estrutura usada nos municípios já estudados. Ainda não iniciado.
 - [ ] Fechar Tarefa 3 (comparação MapBiomas Fogo) e escrever a conclusão final (seção 7 do prompt mestre: eficácia do método, onde falha, comparação com MapBiomas) — agora informada pela decisão de reportar significância como sensibilidade (q<0,05 vs q<0,10).
 - [ ] Exportar RGB real das 3 cidades de repescagem (Andradina, Amparo, Alumínio).
 - [ ] "Pente-fino" nos notebooks/scripts mais antigos (revisão geral).
