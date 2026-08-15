@@ -211,6 +211,22 @@ Pedro pediu uma tabela mestre única, CSV, cobrindo **os 63 municípios sem nenh
 
 **Pendência real**: o critério de "resultado positivo" acima é uma decisão minha de conveniência pra fechar a coluna pedida — vale o Pedro revisar/ajustar o limiar (50% de recall é arbitrário) antes de usar a tabela como conclusão oficial no relatório.
 
+## Análise final consolidada — "saideira" (15/ago/2026) — LER ANTES DE COMEÇAR O SOFTWARE
+
+Fechamento da fase de comparação, feito em cima da tabela final (63 municípios) já com os comentários do Pedro. Documento completo (texto + 8 gráficos + 5 tabelas) entregue como `Analise_Final_63_Municipios.docx`, complemento da planilha mestre — os números abaixo são o resumo de bolso pra não precisar reabrir o docx toda hora.
+
+- **35/63 (55,6%) com Resultado Positivo.** Quase idêntico entre os 30 originais (53,3%) e os 33 novos (57,6%) — o método não depende de seleção "favorável" de município pra funcionar.
+- **Achado metodológico mais importante: zona cinzenta de significância.** 21 dos 52 municípios com cluster (40%) têm p-valor entre 0,03 e 0,10 — perto demais do corte de 0,05 pra que o binário Sim/Não seja tratado como definitivo. Recomendação pro software: sempre expor o p-valor real (ou percentil da permutação) ao lado de qualquer selo binário, nunca só o selo.
+- **Quase metade dos "Sim" (17/35) não tem respaldo estatístico** — entraram só por Recall≥50%, sem significância. 8/35 é o oposto (só significância, Recall baixo — ex. Adamantina, Recall 0% mas p=0,017). Reforça que "resultado positivo" é um critério de conveniência (OR), precisa vir sempre com o motivo explícito.
+- **Limitação de bioma documentada**: Mata Atlântica 65% de sucesso vs. Cerrado 27% (N=11, cautela). Hipótese não confirmada: menor biomassa/queima mais difusa no Cerrado gera sinal dNBR mais fraco.
+- **Mesorregiões com amostra robusta (N≥8)**: São José do Rio Preto 83%, Ribeirão Preto 61%, Araraquara 38% (destoa, puxada pra baixo pelos municípios Cerrado/Ambíguo da região). As outras 11 mesorregiões têm N≤4, taxas 0%/100% são anedóticas.
+- **11 municípios sem sinal do método (17,5%)** — dois grupos distintos: 4 estruturais (zero cluster em TODO 2018-2024: Apiaí, Barra do Turvo, Guarulhos, Registro) vs. 7 pontuais (tiveram cluster em outros meses/anos, só não em ago/24). Distinção importante pra não tratar os dois como equivalentes em nenhuma visualização futura.
+- **Vantagem temporal (o número de vitrine do software)**: 52/63 (82,5%) com atividade própria em ago/24; destes, 63,5% (33/52) com mais de 1 evento distinto no mês — informação que o MapBiomas mensal não representa. Média 2,42 eventos/município ativo, **Ibitinga com 8 eventos distintos num só mês** (melhor caso de demonstração).
+- **IoU × Recall**: correlação moderada (r=0,509) — não são redundantes, mas também não são independentes. Recall alto + IoU baixo (Nhandeara, Onda Verde) é a regra, não exceção — IoU baixo aqui é estrutural (cluster cobre a extensão do evento; MapBiomas é fino), não falha do método.
+- **2 correções pontuais de dado feitas na tabela final** (ver seção "Tabela final holística" acima): ValidTemp de Pitangueiras e mesorregião de Viradouro.
+
+**Fonte de verdade**: a planilha `tabela_final_holistica_63municipios` (Drive, `19_tabela_final_holistica/`, agora em .xlsx com os comentários do Pedro + versão Google Sheets). O `.docx` da análise final é complemento de leitura, nunca substituição.
+
 ## Sessões de origem
 
 Resumo gerado a partir de 3 sessões do terminal (não migram automaticamente para o Claude Code web — por isso este arquivo existe):
