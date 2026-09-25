@@ -337,6 +337,163 @@ de verdade (importante pra SEO — `docs/CHECKLIST.md` seção SEO).
 que (ou cujas rotas-filhas) chamem `notFound()`. Preferir `<Suspense>`
 local em volta só do trecho assíncrono.
 
+### 6.11 Triagem dos ~30 notebooks do Colab (Drive) — joio x trigo
+
+**Contexto:** antes de portar qualquer lógica de pesquisa pro `/pipeline`
+real, Pedro pediu pra ler todos os notebooks das duas pastas do Drive
+("Codigos Auxiliares de Mapeamento e Validacao", 14 arquivos numerados
+`06_xx`, e uma segunda pasta com 16 arquivos, prefixo interno `08_xx`)
+e separar o que vale a pena reaproveitar do que é exploratório/superado —
+"olhar todos, mas não aprofundar demais". As duas pastas somam 30
+arquivos; 28 foram lidos (leitura leve: célula markdown + início de cada
+célula de código, sem rodar nada), 2 foram deliberadamente pulados.
+
+**Método:** cada notebook foi baixado via Drive API (a maioria grande
+demais pra caber inline — foi decodificado de base64 e lido a partir do
+arquivo salvo em disco), e resumido por propósito + veredito, sem
+transcrever célula por célula.
+
+**Resultado — tabela de triagem:**
+
+**Núcleo do método (referência primária pra portar pro `/pipeline`):**
+| Notebook | Papel |
+|---|---|
+| `06_08_Focos_de_Calor.ipynb` | Ingestão INPE (zips anuais) + IBGE → gera `01_SP_Focos_Master.csv`, a base de tudo. Corresponde ao futuro `ingest-inpe.yml`. |
+| `06_11_Aplicacao_ST-DBSCAN_Geral18-24_Pitangueiras` | **Implementação de referência do ST-DBSCAN oficial.** Confirma em código: `eps_space_km=3.0`, `eps_time_days=1.0`, `min_samples=4`, reprojeção UTM 22S (EPSG:31982). Fórmula exata (corrige a descrição simplificada usada até agora neste documento): `dist_st = np.maximum(dist_espacial_km/eps_espacial, dist_temporal_dias/eps_temporal)`, depois `sklearn.DBSCAN(eps=1.0, metric='precomputed')` sobre essa matriz normalizada — ou seja, dois focos só ficam no mesmo agrupamento se **ambas** as razões (espacial e temporal) forem ≤ 1 simultaneamente. Também tem a validação dNBR por evento (buffer 500 m, `rasterstats`) e um teste de robustez variando o buffer. É o template do qual **todas** as rodadas multi-cidade abaixo derivam (dito explicitamente no cabeçalho delas). |
+| `08_11Fase4_Rodada6_STDBSCAN_dNBR.ipynb` e `08_12Grupo_Complemento_ST-DBSCAN+dNBR` | Generalização multi-cidade do template do 06_11 (33 e 12 municípios, respectivamente) — mostram como parametrizar por cidade: nome de busca, `min_samples` por cidade, recorte pelo polígono municipal real (não círculo), CRS UTM/SIRGAS2000 calculado dinamicamente pela longitude. |
+| `08_02Classificacao_Bioma_Municipios_SP.ipynb` | Utilitário genuinamente reaproveitável: classifica os 645 municípios por bioma via IBGE/geobr. Candidato a virar um script de apoio real no `/pipeline`. |
+
+**Metodologia de validação estatística (portar a lógica, não o código literal):**
+| Notebook | Papel |
+|---|---|
+| `08_09F10_dNBR_clusters_Pitangueiras.ipynb` | Mann-Whitney U + Cliff's delta comparando dNBR dentro vs. fora do agrupamento. Documenta a ressalva do município canavieiro (colheita de cana confunde com cicatriz de queima). |
+| `06_09_ST_DBSCAN_dNBR_Validacao_Pitangueiras.ipynb` | Pipeline completo de sensibilidade IoU/Jaccard por combinação buffer×limiar de dNBR — a lógica de cálculo do IoU é referência boa, **mas** usa parâmetros ST-DBSCAN diferentes dos oficiais (1 km / 3 dias / min_samples=3, via `NearestNeighbors` "na mão") e **Landsat 8/9** em vez de Sentinel-2. Parâmetros e satélite aqui estão superados pela versão oficial (ver pendência abaixo). |
+
+**Ferramentas de QA/diagnóstico visual (úteis, mas não fazem parte do pipeline automático):**
+`08_00Analise_Imagens_IdPadroes_CORRIGIDO.ipynb`, `08_06Comparativo_Visual_Fase4_Rodada6_33cidades.ipynb` e `08_08Eixo3_Pontes_Gestal.ipynb` — família "Eixo 3": amostragem de pontos na área extra (cluster − MapBiomas) e geração de chips de satélite pra checagem visual humana. Não automatizável por design (é conferência manual). `08_13Mapa_Geral_SP_Mosaico_dNBR_63cidades_v2.ipynb` — mosaico estadual com o dNBR de todas as cidades já processadas; pode inspirar o futuro mapa interativo. `08_07dNBR_testesgerais.ipynb` — além de repetir rodadas já cobertas acima, tem célula de visualização por pixel (4 faixas de severidade: <0,10 sem evidência / 0,10–0,27 fraca / 0,27–0,44 moderada / ≥0,44 forte) e overlay do dNBR sobre a imagem RGB real — boa referência pra uma futura ferramenta de diagnóstico admin.
+
+**Histórico de seleção de municípios (contexto/proveniência da amostra, não é código de pipeline):**
+`06_04_Identificacao_Anomalias_Ago_24.ipynb` (+ variante `_COMPLETO`), `06_05_Frentes_Fogo_Continuo.ipynb`, `06_06_Deteccao_MegaIncendios.ipynb`, `06_07_Top20_Agosto24.ipynb`, `06_12_Frentes_Fogo_Continuo_COMPLETO`, `08_01Analise_Vantagem_Temporal.ipynb`, `08_03Comparacao_Frequencia_Temporal_Agosto2024.ipynb`, `08_10Fase4_Ranking_Anomalia_Cerrado.ipynb`, `08_14Rodada6_Ranking_Volume_Cobertura.ipynb`, `08_15Rodadas_Testes_ST-DBSCAN` — todos documentam **como e por que** cada município entrou na amostra de 63 (ranking por volume/anomalia de agosto/2024, por rodada). Vários usam a biblioteca `st_dbscan` (pip) com parâmetros antigos (`eps1=0.05°`, `eps2=1–3 dias`, `min_samples=4–10`) — protótipos iniciais, substituídos pela implementação "na mão" do 06_11. Valioso como histórico/proveniência (útil pra uma nota metodológica), não como código a portar.
+
+**Puramente apresentação (não usar números daqui pra nada real):**
+`06_10_Figuras_CIC` — figuras pra pôster de congresso de iniciação científica com dados **simulados** (`np.random`), o próprio notebook avisa que os dados fictícios devem ser substituídos antes de qualquer uso sério.
+
+**Contexto de pesquisa (informam o "Como produzimos", não são pipeline):**
+`06_01_Mapeamento_Pitangueiras.ipynb` — protótipo original do dNBR via GEE/Sentinel-2 (círculo fixo de 25 km, coordenadas hardcoded de Pitangueiras) — superado pela versão com polígono municipal real. `06_02_Mapeamento_LandSat_Pitangueiras_Comparativos.ipynb` — teste de robustez comparando Sentinel-2 vs. Landsat 8/9 pro mesmo cálculo de dNBR — confirma que a escolha por Sentinel-2 foi testada contra alternativa, não arbitrária (bom pra citar na página de metodologia). `06_03_Especificacao_Pitangueiras_Ago2024_MapBiomas.ipynb` — análise socioeconômica (série histórica cana-de-açúcar vs. soja) que explica por que Pitangueiras queima tanto; reforça a ressalva do "município canavieiro" já documentada.
+
+**Pulados deliberadamente (não lidos por completo):**
+`08_04Comparativo_Fase4_Rodada6_33cidades.ipynb` (~12,1 MB) e
+`08_05Comparativo_Oficial_IoUJaccardPixels_CORRIGIDO_v3.ipynb` (~11,1 MB).
+Pelos nomes, são os notebooks oficiais de agregação final do IoU/Jaccard
+para as 63 cidades — mas os números finais que eles produzem já estão em
+`Tabela_Final_63_Municipios.xlsx`, já ingerida em `pipeline/db/seeds/` e
+conferidos exatamente contra o banco (Alta=10/Média=25/Baixa=17/
+Insuficiente=11). A lógica de cálculo do IoU/Jaccard já está confirmada
+nos notebooks menores (06_09, F10). Ler ~23 MB combinados só pra
+reconfirmar números que já bateram não parecia bom uso do tempo, dado o
+pedido explícito de não aprofundar demais.
+
+**Decisões do Pedro sobre as duas pendências acima (25/09/2026):**
+
+1. **`min_samples` variável por cidade → regra automática, não constante fixa
+   nem tabela de exceções hardcoded.** Pedro escolheu explicitamente a
+   opção "regra automática": *"um município com área diferente merece
+   contagem de forma diferente"*. Ou seja, o driver conceitual é a
+   **área do município**, não uma lista fixa de exceções copiada da
+   pesquisa original (que não escalaria pros 582 municípios nunca
+   estudados de qualquer forma).
+   **Nuance a resolver antes de implementar:** o que os notebooks-fonte
+   (`08_12`) realmente usaram pra decidir 2 vs. 4 foi o **teto histórico
+   de focos** de cada cidade (sinal fraco/pontual), não a área em si —
+   ex.: Barra do Chapeu e Iporanga foram pra `min_samples=2`/0 clusters
+   por terem pouquíssimo foco detectado, não necessariamente por serem
+   grandes em km². **Proposta de fórmula que reconcilia os dois
+   ângulos** (a validar com Pedro antes de codar):
+   ```
+   densidade_historica = teto_historico_focos_ago(município) / area_km2(município)
+   min_samples = 2 se densidade_historica < LIMIAR, senão 4
+   ```
+   **Essa proposta foi checada contra os dados reais e REFUTADA** — ver
+   nota de calibração abaixo. Mantida aqui riscada só como registro do
+   raciocínio inicial; a fórmula vigente é a revisada logo depois.
+
+   **Calibração empírica (25/09/2026):** extraí do `08_12` os 12 únicos
+   casos onde a pesquisa original variou `min_samples` manualmente (os
+   outros 51 dos 63 usaram `min_samples=4` fixo, sem exceção — a
+   variação só existe nesse grupo específico):
+
+   | Município | focos_ago24 | teto histórico | min_samples usado |
+   |---|---|---|---|
+   | Ibitinga | 77 | 5 | 4 |
+   | Pontal | 53 | 19 | 4 |
+   | Barrinha | 40 | 1 | 4 |
+   | Areiópolis | 34 | 4 | 4 |
+   | Jaú | 25 | 14 | 4 |
+   | Rio Claro | 20 | 10 | 4 |
+   | Morro Agudo | 21 | **55** | **2** |
+   | Viradouro | 1 | 4 | 2 |
+   | Terra Roxa | 0 | — | 2 |
+   | Tupã | 0 | — | 2 |
+   | Barra do Chapéu | 0 | — | 2 |
+   | Iporanga | 0 | — | 2 |
+
+   Isso **derruba a hipótese de área**: não há área nenhuma nesses
+   números, e Barrinha (teto histórico=1, provavelmente um município
+   pequeno) recebeu `min_samples=4` normalmente. O padrão real é outro:
+   `min_samples=2` foi usado quando (a) o volume de focos **no próprio
+   recorte sendo processado** é baixo demais pra `min_samples=4` ter
+   qualquer chance matemática de formar agrupamento (0–1 foco — nesse
+   caso quase virou "tentar mesmo assim, sem garantia"), **ou** (b) o
+   volume existe mas **não é atípico pra aquele município** (Morro
+   Agudo: 21 focos é normal pra quem já teve 55 no histórico — não virou
+   `min_samples=4` porque não havia evento anômalo genuíno a validar,
+   só ruído de fundo). Ou seja: o driver real não é geográfico, é
+   **força do sinal no período analisado, relativa ao próprio histórico
+   do município** — dois fatores, não um.
+
+   **Fórmula CONFIRMADA por Pedro (25/09/2026)** — substitui a versão
+   "área" acima:
+   ```
+   anomalo = focos_periodo_atual > teto_historico(município)
+   min_samples = 4  se  focos_periodo_atual >= 4  e  anomalo
+   min_samples = 2  caso contrário  (inclusive quando focos_periodo_atual == 0)
+   ```
+   `LIMIAR_MINIMO = 4` (mesmo valor do `min_samples` "padrão" — só
+   promove pra 4 quem tem pelo menos 4 focos anômalos no período;
+   escolha do Pedro, por simplicidade e coerência com o próprio
+   parâmetro do DBSCAN). **Verificação:** essa fórmula reproduz
+   corretamente as 12/12 decisões manuais originais da tabela acima
+   (inclusive o caso-armadilha do Morro Agudo, que tem focos>=4 mas cai
+   em `min_samples=2` por não ser anômalo em relação ao próprio
+   histórico).
+   **Pendência técnica de implementação:** `teto_historico` é "máximo
+   de focos em agosto num dos anos 2018–2023" pro município — hoje só é
+   calculado ad hoc dentro de cada notebook, não persistido em
+   `metricas_anuais`. O `/pipeline` de produção precisa calcular isso a
+   partir do histórico de focos já ingerido (não precisa de coluna nova
+   no schema, dá pra derivar em tempo de execução a partir dos anos
+   anteriores já processados).
+   **Escopo de exposição — decisão explícita do Pedro:** o valor de
+   `min_samples` usado (e a razão/fórmula) é informação de
+   **relatório final e documentação apenas** — não vira campo visível
+   pro usuário final na interface do site, só aparece em
+   `docs/DECISIONS.md`/metodologia e no relatório da auditoria anual.
+2. **Parâmetros/satélite oficiais — confirmado.** `06_11`/`08_11`/`08_12`
+   (Sentinel-2, ST-DBSCAN "na mão" via `sklearn.DBSCAN(metric=
+   'precomputed')`, `eps_espacial=3000 m`/`eps_temporal=1 dia`) são a
+   versão oficial e final. Tudo que usa a biblioteca `st_dbscan` (pip),
+   Landsat, ou `eps1=0.05°/eps2=1–3 dias` (06_09, 06_05, 06_12 e a
+   família "histórico de seleção") é exploração/robustez já superada —
+   confirmado por Pedro, sem ressalva.
+
+**Status:** triagem concluída (28/30 lidos, 2 pulados com justificativa
+acima). As duas pendências foram totalmente resolvidas por Pedro,
+incluindo a fórmula final (e validada) de `min_samples` — nada mais em
+aberto nesta frente. Próximo passo: portar a lógica do `06_08`
+(ingestão) e do `06_11` (ST-DBSCAN + dNBR, com `min_samples` calculado
+pela fórmula em vez de constante fixa) pros scripts reais de
+`/pipeline`.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)
