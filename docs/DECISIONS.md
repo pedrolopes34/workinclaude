@@ -694,6 +694,60 @@ Faltam `check-mapbiomas.yml` e `audit-anual.yml` — precisam dos scripts de
 `validacao_mapbiomas` (IoU/Jaccard + permutação, ainda não portado) e de
 auditoria anual, respectivamente.
 
+### 6.15 Núcleo estatístico da validação MapBiomas — pronto e testado; orquestração bloqueada em 3 pendências (25/09/2026)
+
+**Contexto:** ao tentar portar `validacao_mapbiomas` (IoU/Jaccard + teste de
+permutação + classificação de confiabilidade — a peça que faltava pro
+método completo), o notebook oficial dessa etapa
+(`Comparativo_Oficial_IoUJaccardPixels_CORRIGIDO_v3.ipynb`) se mostrou
+grande demais pro limite de download da ferramenta de Drive desta sessão
+(>10 MB, limite rígido da própria ferramenta — não é o mesmo tipo de
+limitação de rede da seção 6.9/6.12).
+
+**Criado e testado (`pipeline/validacao/mapbiomas.py`, 12 testes novos —
+53 no total):**
+- `calcular_iou_recall(cluster_geom, mapbiomas_geom)` — IoU/Jaccard e
+  recall padrão (intersecção/união, intersecção/área MapBiomas).
+- `permutacao_iou(...)` — teste de permutação (999x por padrão): reposiciona
+  a geometria do agrupamento aleatoriamente (posição **e** rotação, área e
+  forma preservadas) dentro do polígono do município, recalcula o IoU a
+  cada vez, `p_valor = (permutações com IoU aleatório ≥ observado + 1) /
+  (total + 1)`. **Reconstrução a partir do padrão da literatura de
+  sensoriamento remoto/ecologia de paisagem, não um port do código
+  original** — Pedro descreveu a mecânica estatística geral do teste de
+  permutação (correta e consistente com essa implementação), mas não a
+  mecânica espacial específica do notebook original (o que exatamente é
+  reamostrado). Precisa ser confirmada contra o notebook oficial antes de
+  qualquer p-valor daqui virar confiabilidade pública de verdade.
+- `classificar_confiabilidade(...)` — mesma regra fixa da seção 1.3,
+  testada contra os 5 exemplos documentados ali (Ibitinga/Alta,
+  Pitangueiras e Altinópolis/Média, Araraquara/Baixa, Guarulhos/Insuficiente).
+
+**Três pendências que travam o script de orquestração (`run_validacao_
+mapbiomas.py`, ainda não escrito) e por isso o `check-mapbiomas.yml`:**
+
+1. **Mecânica exata do teste de permutação** (acima) — falta confirmar ou
+   corrigir contra o notebook oficial.
+2. **Geometria dos agrupamentos não é persistida.** `calcular_iou_recall`/
+   `permutacao_iou` precisam da geometria real (polígono) do agrupamento
+   ST-DBSCAN e da área queimada do MapBiomas — mas `metricas_anuais` só
+   guarda a **área agregada** (`area_st_dbscan_km2`, um número), não a
+   geometria. Duas opções, preciso da decisão do Pedro: (a) recalcular a
+   geometria do agrupamento sob demanda a partir dos focos brutos toda vez
+   que for validar (reprocessa o ST-DBSCAN, mas não precisa mudar o
+   schema); (b) persistir a geometria em algum lugar na hora do
+   `ingest-inpe.yml` (nova coluna `geometry` em `metricas_anuais` via
+   PostGIS, ou GeoJSON em arquivo/`/geodata`/R2) pra reaproveitar depois.
+3. **Fonte do raster do MapBiomas Fogo não confirmada.** Os notebooks leem
+   a Coleção 4 via Earth Engine, mas não tenho o ID exato do asset público
+   do MapBiomas nesta sessão (ex.: algo como
+   `projects/mapbiomas-public/assets/brazil/fire/collection2/mapbiomas_fogo...`,
+   não confirmado) nem a lógica de decodificação "valor do pixel = mês"
+   descrita em `CONTEXTO_PROJETO.md`.
+
+**Status:** núcleo estatístico fechado e testado; orquestração aguardando
+decisão do Pedro nos 3 pontos acima.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)

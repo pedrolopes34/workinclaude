@@ -6,7 +6,7 @@ contra o MapBiomas Fogo. É quem popula o Postgres/PostGIS lido pelo
 `/webapp` e pela `/api`.
 
 Decisões de arquitetura, proveniência dos notebooks portados e pendências
-técnicas: `docs/DECISIONS.md` seções 6.11 a 6.13.
+técnicas: `docs/DECISIONS.md` seções 6.11 a 6.15.
 
 ## Setup
 
@@ -30,6 +30,7 @@ cp .env.example .env   # aponta pro Postgres local — ver /pipeline/db/README.m
 | `dnbr/validacao.py` | Severidade espectral por evento (buffer 500 m + `rasterstats`) | Sim (raster sintético) |
 | `run_ingest_stdbscan.py` | CLI que liga ingestão + ST-DBSCAN e grava em `metricas_anuais` — processa o **ano corrente inteiro**, não um mês específico (seção 6.13) | Sim, ponta-a-ponta contra o Postgres local (dados sintéticos) |
 | `run_dnbr.py` | CLI que orquestra o dNBR pra um grupo de municípios (particiona os 645 em N fatias) e grava `area_dnbr_km2` — compara mês anterior x mês corrente, cálculo síncrono via `reduceRegion` (sem exportar GeoTIFF) | Parcial — só a lógica pura (`janela_mes_anterior`, `dividir_em_grupo`) é testada; o cálculo em si precisa de GEE |
+| `validacao/mapbiomas.py` | IoU/Jaccard, recall, teste de permutação (999x) e classificação de confiabilidade (4 níveis) | Sim — 12 testes, incluindo os 5 exemplos documentados em `docs/DECISIONS.md` seção 1.3; mecânica do teste de permutação é uma reconstrução a confirmar (seção 6.15) |
 
 Rodar os testes: `pytest` na raiz do repositório (usa `pytest.ini`), ou
 automaticamente via `.github/workflows/tests.yml` a cada push/PR.
@@ -63,6 +64,10 @@ automaticamente via `.github/workflows/tests.yml` a cada push/PR.
   importada pro banco, `common/ibge_malhas.py` pode ser trocado por uma
   consulta direta à coluna `municipios.geom`, evitando a chamada de rede por
   município a cada rodada.
-- **`validacao_mapbiomas`** (IoU/Jaccard + teste de permutação contra o
-  MapBiomas Fogo) — metodologia confirmada nos notebooks (`06_09`, `F10`),
-  ainda não portada pra código de produção.
+- **Orquestração da validação MapBiomas** (`run_validacao_mapbiomas.py`,
+  `check-mapbiomas.yml`) — o núcleo estatístico (`validacao/mapbiomas.py`)
+  está pronto e testado, mas o script que liga tudo está bloqueado em 3
+  pendências (docs/DECISIONS.md seção 6.15): mecânica exata do teste de
+  permutação a confirmar, geometria dos agrupamentos não é persistida em
+  lugar nenhum hoje (só a área agregada), e a fonte exata do raster do
+  MapBiomas Fogo no Earth Engine não está confirmada.
