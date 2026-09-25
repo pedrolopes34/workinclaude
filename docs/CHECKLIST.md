@@ -66,7 +66,11 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 
 ## Testes e operação
 
-- [ ] Testes automatizados com CI/CD
+- [~] Testes automatizados — 34 testes `pytest` cobrindo o núcleo do
+      `/pipeline` (ST-DBSCAN, fórmula de `min_samples` regredida contra os
+      12 casos reais, ingestão INPE, validação dNBR); rodam localmente
+      (`pytest` na raiz) mas ainda não têm CI/CD (GitHub Actions) rodando
+      a cada push — falta isso e testes do `/webapp`
 - [ ] Ambiente de staging separado de produção
 - [ ] Monitoramento de erros em produção
 - [ ] Backup do banco espacial (Neon) e dos GeoTIFFs (Cloudflare R2)
@@ -97,9 +101,11 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 
 ---
 
-**Contagem atual:** 10 itens feitos, 9 parciais, 14 pendentes — atualizado
-em 25/09/2026, primeira sessão de código real (banco Postgres+PostGIS com
-schema + seeds dos 645 municípios/63 validados, webapp Next.js com busca e
-detalhe de município, SEO básico e estados de carregamento/erro/404).
+**Contagem atual:** 10 itens feitos, 10 parciais, 13 pendentes — atualizado
+em 25/09/2026: banco Postgres+PostGIS com schema + seeds dos 645
+municípios/63 validados, webapp Next.js com busca e detalhe de município,
+SEO básico, estados de carregamento/erro/404, e primeira leva real do
+`/pipeline` (ingestão INPE + ST-DBSCAN portados e testados — ver
+`docs/DECISIONS.md` seção 6.12).
 Este checklist é sobre prontidão de produção (SEO, segurança, testes) —
 para o que foi implementado nesta sessão, ver `docs/DECISIONS.md` seção 6.

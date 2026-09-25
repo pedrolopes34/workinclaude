@@ -20,7 +20,12 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/).
 - Banco de produção criado no Neon (Postgres + PostGIS), populado e
   conferido.
 - `CITATION.cff` e este `CHANGELOG.md`.
+- `/pipeline` real: ingestão de focos do INPE, ST-DBSCAN oficial (com
+  `min_samples` calculado por município em vez de constante fixa) e
+  validação de severidade do dNBR, portados dos notebooks de pesquisa e
+  cobertos por 34 testes automatizados (`pytest`).
 
 ### Pendente
-Ver `docs/CHECKLIST.md` para o restante (SEO, segurança, testes, `/pipeline`
-real com ST-DBSCAN + dNBR, `/api`, mapa interativo).
+Ver `docs/CHECKLIST.md` para o restante (SEO, segurança, CI/CD, cálculo real
+do dNBR via Earth Engine, comparação com MapBiomas, `/api`, mapa
+interativo).

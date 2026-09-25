@@ -494,6 +494,102 @@ aberto nesta frente. Próximo passo: portar a lógica do `06_08`
 pela fórmula em vez de constante fixa) pros scripts reais de
 `/pipeline`.
 
+### 6.12 Implementação real do `/pipeline` — ingestão + ST-DBSCAN (25/09/2026)
+
+**Contexto:** primeira leva de código de produção, portando o que a
+triagem da seção 6.11 identificou como núcleo do método (`06_08`, `06_11`,
+`08_11`/`08_12`), já com a fórmula de `min_samples` confirmada.
+
+**Estrutura criada:**
+```
+pipeline/
+  common/db.py            conexao Postgres (DATABASE_URL, mesmo padrao do webapp)
+  common/geo.py           fuso UTM/SIRGAS2000, projecao pra metros, uniao de buffers
+  common/ibge_malhas.py   poligono do municipio via API do IBGE
+  ingest/inpe.py          leitura/cruzamento do CSV do INPE com IBGE
+  stdbscan/core.py        ST-DBSCAN oficial + calcular_min_samples
+  dnbr/sentinel2.py       calculo do dNBR via Sentinel-2/GEE
+  dnbr/validacao.py       severidade espectral por evento (buffer+zonal stats)
+  dnbr/constants.py       constantes sem dependencia de earthengine-api
+  run_ingest_stdbscan.py  CLI que liga ingestao + ST-DBSCAN, grava em metricas_anuais
+tests/pipeline/           34 testes (pytest), ver tabela de cobertura no pipeline/README.md
+```
+
+**Decisões tomadas durante a implementação:**
+
+1. **Polígono municipal via API de malhas do IBGE, não via shapefile local.**
+   Os notebooks usavam `SP_Municipios_2024.shp` carregado no Drive; esse
+   shapefile ainda não foi importado em `/geodata` (`municipios.geom` está
+   NULL pra todos). Em vez de bloquear o dNBR nisso, `common/ibge_malhas.py`
+   busca o polígono sob demanda em
+   `servicodados.ibge.gov.br/api/v3/malhas/municipios/{codigo}` por
+   `codigo_ibge` — mesma família de API já usada pra nome de município.
+   Quando `/geodata` for importado, dá pra trocar por uma consulta direta à
+   coluna `geom` (evita 1 chamada de rede por município por rodada), mas não
+   é bloqueante até lá.
+2. **`dnbr/constants.py` separado de `dnbr/sentinel2.py`.** `sentinel2.py`
+   importa `earthengine-api` (`ee`) no topo do arquivo; `dnbr/validacao.py`
+   precisa só da constante `NO_DATA` (e dos limiares de severidade), sem
+   precisar de `ee` instalado. Separar evita que testar a validação (que não
+   depende de GEE) exija a lib inteira do Earth Engine instalada.
+3. **`zonal_stats` recebe `nodata=NO_DATA` (-9999) explicitamente.** Sem
+   isso, o pixel sentinela de "sem dado" do raster exportado (ver
+   `dnbr/sentinel2.py::preparar_exportacao`) entraria na média/mediana do
+   dNBR e distorceria a severidade calculada — descoberto rodando o teste
+   com raster sintético, não estava nos notebooks originais (que não tinham
+   teste automatizado nenhum).
+4. **Datum EPSG:4326 (WGS84) pros focos do INPE, não EPSG:4674
+   (SIRGAS2000)** — mesmo que o schema do banco declare SIRGAS2000 como
+   padrão do projeto (`schema.sql`), o código real dos notebooks usa
+   `crs="EPSG:4326"` pros pontos de foco. Diferença prática é centimétrica
+   (irrelevante pro limiar de 3 km do ST-DBSCAN), mas manteve-se fiel à
+   fonte validada em vez de "corrigir" silenciosamente pro padrão do schema.
+
+**Validação feita nesta sessão:**
+- 34 testes automatizados (`pytest`, `tests/pipeline/`), incluindo a
+  fórmula de `min_samples` contra os 12 casos reais (regressão) e
+  `dnbr/validacao.py` contra um GeoTIFF sintético gerado no próprio teste.
+- **Teste ponta-a-ponta contra o Postgres local de desenvolvimento**
+  (mesmo banco da seção 6.6): CSVs sintéticos de 7 anos pra Pitangueiras,
+  rodados via `python -m pipeline.run_ingest_stdbscan`, gravaram uma linha
+  real em `metricas_anuais` via `INSERT ... ON CONFLICT` (depois apagada,
+  pra não sujar o banco de desenvolvimento com dado de teste). Confirma que
+  a leitura de CSV, o cálculo do teto histórico, a fórmula de
+  `min_samples`, o ST-DBSCAN e a escrita no banco funcionam juntos de
+  ponta a ponta — falta só plugar dado real do INPE no lugar do sintético.
+
+**Pendências da ingestão INPE (não confirmadas, `ingest/inpe.py` documenta
+inline):**
+1. **URL de download.** A pesquisa original usava um arquivo local
+   `focos_br_sp_ref_AAAA.csv` baixado manualmente pelo Pedro. A única URL
+   pública confirmada nesta sessão (busca na web, domínio do INPE bloqueado
+   pro fetch direto neste sandbox — seção 6.9) é
+   `dataserver-coids.inpe.br/queimadas/queimadas/focos/csv/anual/Brasil/focos_anual_br_AAAA.csv`
+   (Brasil inteiro, produto "todos os satélites"). Não sabemos se "_ref_" no
+   nome do arquivo original é o produto "de referência" do INPE (só o
+   satélite de referência, historicamente mais estável pra comparar anos
+   diferentes) — se for, os números não batem exatamente com o produto
+   "todos os satélites" usado aqui, o que descasaria do que foi validado
+   academicamente. **Pergunta pro Pedro:** como você baixa
+   `focos_br_sp_ref_AAAA.csv` hoje (qual página/filtro do site do INPE)?
+2. **Colunas confirmadas do CSV bruto:** `data_pas`, `municipio`, `lat`,
+   `lon` (direto do código de `06_08`). Não confirmamos se existe uma
+   coluna de estado/UF utilizável — `ingest/inpe.py` usa se existir
+   (`estado`/`uf`/`state`), com fallback pro cruzamento só por nome de
+   município (igual ao notebook original) se não existir. Risco do
+   fallback: nome de município duplicado em outro estado (o teste
+   `test_carregar_focos_sp_cruza_por_nome_e_filtra_estado` cobre esse caso
+   quando a coluna existe; sem ela, o risco é real mas do mesmo tamanho do
+   notebook original).
+
+**Status:** ingestão INPE + ST-DBSCAN codificados, testados (exceto o
+download real) e validados ponta-a-ponta contra banco local. dNBR
+codificado fielmente mas não executado (sem rede/credenciais do GEE neste
+sandbox). Faltam: resposta do Pedro sobre a URL/produto correto do INPE,
+rodar de verdade com dado real (Pedro ou GitHub Actions), portar
+`validacao_mapbiomas` (IoU/Jaccard + permutação), e os 4 workflows do
+GitHub Actions.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)
