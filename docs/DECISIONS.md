@@ -243,15 +243,18 @@ fechada; implementado como global, alinhado ao diagrama de arquitetura
 usado pra desenvolvimento/testes desta sessão, controlado por
 `DATABASE_URL` (variável de ambiente) — trocar para a connection string do
 Neon é o único passo necessário pra migrar, sem mudar código.
-**Atualização (25/09/2026):** Pedro já criou o projeto Neon
-(`queimadas_sp`, região São Paulo/sa-east-1) e aplicou schema+seeds nele
-manualmente pelo SQL Editor do Neon, porque esta sessão do Claude Code não
-consegue alcançar o Neon direto (ver seção 6.9). Confirmar depois se o
-webapp em produção (quando publicado na Vercel) consegue de fato ler do
-Neon com esses dados.
-**Status:** Neon existe e está populado. `DATABASE_URL` de produção ainda
-não foi conectada a uma sessão do Claude Code (bloqueio de rede, não falta
-de acesso).
+**Atualização (25/09/2026):** Pedro criou o projeto Neon (`queimadas_sp`,
+região São Paulo/sa-east-1) e aplicou schema+seeds nele manualmente pelo
+SQL Editor do Neon (via upload de arquivo, não colar texto — colar
+grandes blocos de texto no editor do Neon corta o conteúdo em alguns
+casos), porque esta sessão do Claude Code não consegue alcançar o Neon
+direto (ver seção 6.9). **Confirmado por contagem:** 645 municípios, 63 na
+amostra, confiabilidade Alta=10/Média=25/Baixa=17/Insuficiente=11 — bate
+exatamente com o banco local desta sessão.
+**Status:** Neon existe, schema aplicado, populado e conferido. Falta
+ainda: conectar uma `DATABASE_URL` de produção a uma sessão do Claude Code
+(bloqueio de rede, não falta de acesso — ver seção 6.9) e, quando o webapp
+for publicado na Vercel, confirmar que ele lê do Neon corretamente.
 
 ### 6.7 Acesso ao banco no webapp — biblioteca `postgres`, sem ORM
 **Contexto:** `/webapp` precisa ler direto do banco (convenção já fechada),
