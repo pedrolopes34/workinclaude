@@ -238,13 +238,20 @@ operacional exata de "ano ativo" (global vs. por município) não estava
 fechada; implementado como global, alinhado ao diagrama de arquitetura
 (uma seta única de `audit-anual.yml` para o Neon).
 
-### 6.6 Banco local para desenvolvimento, não Neon ainda
-**Contexto:** sem acesso ao Neon nesta sessão.
-**Decisão:** Postgres 16 + PostGIS rodando localmente no ambiente do
-Claude Code, controlado por `DATABASE_URL` (variável de ambiente) — trocar
-para a connection string do Neon é o único passo necessário para migrar,
-sem mudar código.
-**Status:** Provisório por design. Pendência: Pedro passar acesso ao Neon.
+### 6.6 Banco local para desenvolvimento; Neon já existe, aplicado manualmente
+**Contexto:** Postgres 16 + PostGIS local no ambiente do Claude Code é
+usado pra desenvolvimento/testes desta sessão, controlado por
+`DATABASE_URL` (variável de ambiente) — trocar para a connection string do
+Neon é o único passo necessário pra migrar, sem mudar código.
+**Atualização (25/09/2026):** Pedro já criou o projeto Neon
+(`queimadas_sp`, região São Paulo/sa-east-1) e aplicou schema+seeds nele
+manualmente pelo SQL Editor do Neon, porque esta sessão do Claude Code não
+consegue alcançar o Neon direto (ver seção 6.9). Confirmar depois se o
+webapp em produção (quando publicado na Vercel) consegue de fato ler do
+Neon com esses dados.
+**Status:** Neon existe e está populado. `DATABASE_URL` de produção ainda
+não foi conectada a uma sessão do Claude Code (bloqueio de rede, não falta
+de acesso).
 
 ### 6.7 Acesso ao banco no webapp — biblioteca `postgres`, sem ORM
 **Contexto:** `/webapp` precisa ler direto do banco (convenção já fechada),
@@ -281,6 +288,29 @@ neutro) — critério e paleta de significado intactos.
 token `--color-azul` do palette original não é mais usado na interface
 (fica só documentado como decisão histórica em `CLAUDE.md`/seção 5, não
 removido do código de propósito).
+
+### 6.9 Limitação de rede do sandbox: não alcança o Neon direto
+**Contexto:** ao tentar aplicar schema+seeds no Neon direto desta sessão do
+Claude Code, a conexão Postgres crua (`psql`) travou (timeout sem erro) e a
+alternativa via driver HTTP do Neon (`@neondatabase/serverless`) retornou
+403 "Host not in allowlist". A política de rede deste ambiente usa lista de
+permissões, e o host do Neon não está nela — nem TCP cru nem a API HTTP.
+**Decisão:** em vez de insistir em desbloquear a rede (exigiria achar o
+menu de configuração de ambiente, que não foi localizado nesta sessão),
+Pedro aplicou schema+seeds manualmente pelo **SQL Editor do próprio
+console do Neon** (roda no navegador dele, fora da rede restrita deste
+sandbox).
+**Importante — isso não afeta a arquitetura real:** GitHub Actions
+(runners próprios, rede irrestrita) e o webapp publicado na Vercel vão
+alcançar o Neon normalmente. A restrição é só desta sessão interativa do
+Claude Code tentando escrever direto no banco de produção — até é uma
+fronteira de segurança razoável (agente de código não ter acesso de
+escrita direto e automático a um banco de produção).
+**Status:** Contornado para esta rodada. Se uma sessão futura do Claude
+Code precisar aplicar migração direto no Neon de novo, tentar achar
+"Network access" nas configurações do ambiente antes de gastar tempo
+depurando timeout de `psql` — ou simplesmente pedir pro Pedro rodar via
+SQL Editor do Neon, como desta vez.
 
 ---
 
