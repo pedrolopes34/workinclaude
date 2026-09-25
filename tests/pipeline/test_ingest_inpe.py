@@ -2,7 +2,34 @@ from pathlib import Path
 
 import pandas as pd
 
-from pipeline.ingest.inpe import carregar_focos_sp, padronizar_nome
+from pipeline.ingest.inpe import baixar_focos_ano, carregar_focos_sp, padronizar_nome
+
+
+class _RespostaFalsa:
+    content = b"lat,lon,data_pas,municipio,estado\n"
+
+    def raise_for_status(self):
+        pass
+
+
+def test_baixar_focos_ano_usa_cache_por_padrao(tmp_path: Path, monkeypatch):
+    chamadas = []
+    monkeypatch.setattr("pipeline.ingest.inpe.requests.get", lambda *a, **k: chamadas.append(1) or _RespostaFalsa())
+
+    baixar_focos_ano(2019, tmp_path)
+    baixar_focos_ano(2019, tmp_path)  # segunda chamada nao deveria baixar de novo
+
+    assert len(chamadas) == 1
+
+
+def test_baixar_focos_ano_forcar_ignora_cache(tmp_path: Path, monkeypatch):
+    chamadas = []
+    monkeypatch.setattr("pipeline.ingest.inpe.requests.get", lambda *a, **k: chamadas.append(1) or _RespostaFalsa())
+
+    baixar_focos_ano(2024, tmp_path)
+    baixar_focos_ano(2024, tmp_path, forcar=True)
+
+    assert len(chamadas) == 2
 
 
 def test_padronizar_nome_remove_acento_e_normaliza_caixa():

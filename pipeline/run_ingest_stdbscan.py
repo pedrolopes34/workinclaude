@@ -112,7 +112,7 @@ def main() -> None:
     anos = range(args.ano - ANOS_HISTORICO, args.ano + 1)
     if args.baixar_faltantes:
         for ano in anos:
-            baixar_focos_ano(ano, args.pasta_focos)
+            baixar_focos_ano(ano, args.pasta_focos, forcar=(ano == args.ano))
 
     with get_connection() as conn:
         municipios = _buscar_municipios(conn)

@@ -6,7 +6,7 @@ contra o MapBiomas Fogo. É quem popula o Postgres/PostGIS lido pelo
 `/webapp` e pela `/api`.
 
 Decisões de arquitetura, proveniência dos notebooks portados e pendências
-técnicas: `docs/DECISIONS.md` seções 6.11 e 6.12.
+técnicas: `docs/DECISIONS.md` seções 6.11 a 6.13.
 
 ## Setup
 
@@ -28,9 +28,20 @@ cp .env.example .env   # aponta pro Postgres local — ver /pipeline/db/README.m
 | `stdbscan/core.py` | ST-DBSCAN oficial (`eps_space_km=3`, `eps_time_days=1`) + `calcular_min_samples` (fórmula validada contra os 12 casos reais) | Sim |
 | `dnbr/sentinel2.py` | Cálculo do dNBR via Sentinel-2/GEE, com fallback de nuvem e checagem de cobertura real de pixels | Não — precisa de rede/credenciais do Earth Engine, indisponíveis neste sandbox de propósito |
 | `dnbr/validacao.py` | Severidade espectral por evento (buffer 500 m + `rasterstats`) | Sim (raster sintético) |
-| `run_ingest_stdbscan.py` | CLI que liga ingestão + ST-DBSCAN e grava em `metricas_anuais` | Sim, ponta-a-ponta contra o Postgres local (dados sintéticos) |
+| `run_ingest_stdbscan.py` | CLI que liga ingestão + ST-DBSCAN e grava em `metricas_anuais` — processa o **ano corrente inteiro**, não um mês específico (seção 6.13) | Sim, ponta-a-ponta contra o Postgres local (dados sintéticos) |
 
-Rodar os testes: `pytest` na raiz do repositório (usa `pytest.ini`).
+Rodar os testes: `pytest` na raiz do repositório (usa `pytest.ini`), ou
+automaticamente via `.github/workflows/tests.yml` a cada push/PR.
+
+## Workflows do GitHub Actions
+
+| Workflow | Cadência | Status |
+|---|---|---|
+| `tests.yml` | a cada push/PR em `pipeline/`/`tests/` | ✅ pronto |
+| `ingest-inpe.yml` | diário | ✅ pronto, mas depende da pendência da URL do INPE abaixo — precisa de `secrets.DATABASE_URL` configurado no repositório |
+| `process-sentinel-dnbr.yml` | mensal, 2 jobs paralelos (seção 2.1) | ⏳ não escrito — falta primeiro um script de orquestração que rode `dnbr/sentinel2.py` pra ~320 municípios por job, incluindo o polling das exportações assíncronas do GEE |
+| `check-mapbiomas.yml` | mensal | ⏳ não escrito — falta o script que verifica se há coleção nova do MapBiomas Fogo publicada |
+| `audit-anual.yml` | manual, 1×/ano | ⏳ não escrito — falta o script de auditoria (grava em `auditorias_anuais`, avança `ano_ativo`) |
 
 ## O que ainda falta
 
@@ -42,14 +53,12 @@ Rodar os testes: `pytest` na raiz do repositório (usa `pytest.ini`).
   diferente do produto "todos os satélites").
 - **dNBR real** — o código está portado fielmente dos notebooks, mas nunca
   rodou de verdade (precisa da service account do GEE, que fica só no
-  secret do GitHub Actions).
+  secret do GitHub Actions) — e ainda falta o script que orquestra isso
+  pros 645 municípios (ver tabela de workflows acima).
 - **`/geodata`** — quando a malha municipal `SP_Municipios_2024` for
   importada pro banco, `common/ibge_malhas.py` pode ser trocado por uma
   consulta direta à coluna `municipios.geom`, evitando a chamada de rede por
   município a cada rodada.
-- **Os 4 workflows do GitHub Actions** (`ingest-inpe.yml`,
-  `process-sentinel-dnbr.yml`, `check-mapbiomas.yml`, `audit-anual.yml`) —
-  ainda não escritos.
 - **`validacao_mapbiomas`** (IoU/Jaccard + teste de permutação contra o
   MapBiomas Fogo) — metodologia confirmada nos notebooks (`06_09`, `F10`),
   ainda não portada pra código de produção.

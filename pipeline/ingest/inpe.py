@@ -49,12 +49,18 @@ def padronizar_nome(texto: str) -> str:
     return sem_acento.upper().strip()
 
 
-def baixar_focos_ano(ano: int, destino_dir: Path, timeout_s: int = 120) -> Path:
+def baixar_focos_ano(ano: int, destino_dir: Path, forcar: bool = False, timeout_s: int = 120) -> Path:
     """Baixa o CSV anual de focos do Brasil inteiro pro ano dado. Ver aviso
-    de URL nao confirmada no topo do modulo."""
+    de URL nao confirmada no topo do modulo.
+
+    `forcar=True` baixa de novo mesmo se o arquivo ja existir — necessario
+    pro ano corrente (ainda incompleto, ganha focos novos todo dia); anos
+    passados sao imutaveis e usam o cache (destino.exists()) sem problema,
+    inclusive entre execucoes do GitHub Actions (docs/DECISIONS.md secao
+    6.14 — cache de anos anteriores, download fresco so do ano corrente)."""
     destino_dir.mkdir(parents=True, exist_ok=True)
     destino = destino_dir / f"focos_anual_br_{ano}.csv"
-    if destino.exists():
+    if destino.exists() and not forcar:
         return destino
 
     resposta = requests.get(URL_FOCOS_ANUAL_BR.format(ano=ano), timeout=timeout_s)
