@@ -97,11 +97,13 @@ def main():
     # 001: municipios — todos os 645, com os 63 da amostra enriquecidos
     # ---------------------------------------------------------------
     out1 = os.path.join(HERE, "001_seed_municipios.sql")
+    BATCH = 80  # editores de SQL web (ex.: Neon) truncam statements muito longos
     with open(out1, "w", encoding="utf-8") as f:
         f.write("-- Gerado por generate_seed_sql.py — nao editar a mao, editar os CSVs em raw/ e regerar.\n")
         f.write("-- 645 municipios de SP; os 63 da Tabela_Final_63_Municipios.xlsx vem com mesorregiao/\n")
-        f.write("-- area_km2/bioma/grupo_amostra preenchidos e na_amostra=true.\n\n")
-        f.write("INSERT INTO municipios (codigo_ibge, nome, mesorregiao, area_km2, bioma, na_amostra, grupo_amostra)\nVALUES\n")
+        f.write("-- area_km2/bioma/grupo_amostra preenchidos e na_amostra=true.\n")
+        f.write(f"-- Dividido em lotes de {BATCH} linhas — um INSERT gigante trava editores web (ex.: Neon\n")
+        f.write("-- SQL Editor trunca e da 'syntax error at end of input').\n\n")
         values = []
         for nome, codigo in sorted(municipios_by_name.items(), key=lambda kv: kv[1]):
             amostra = amostra_by_codigo.get(codigo)
@@ -113,11 +115,15 @@ def main():
                 )
             else:
                 values.append(f"    ({sql_str(codigo)}, {sql_str(nome)}, NULL, NULL, NULL, false, NULL)")
-        f.write(",\n".join(values))
-        f.write("\nON CONFLICT (codigo_ibge) DO UPDATE SET\n")
-        f.write("    nome = EXCLUDED.nome, mesorregiao = EXCLUDED.mesorregiao, area_km2 = EXCLUDED.area_km2,\n")
-        f.write("    bioma = EXCLUDED.bioma, na_amostra = EXCLUDED.na_amostra, grupo_amostra = EXCLUDED.grupo_amostra,\n")
-        f.write("    atualizado_em = now();\n")
+        for i in range(0, len(values), BATCH):
+            lote = values[i : i + BATCH]
+            f.write(f"-- lote {i // BATCH + 1} ({len(lote)} municipios)\n")
+            f.write("INSERT INTO municipios (codigo_ibge, nome, mesorregiao, area_km2, bioma, na_amostra, grupo_amostra)\nVALUES\n")
+            f.write(",\n".join(lote))
+            f.write("\nON CONFLICT (codigo_ibge) DO UPDATE SET\n")
+            f.write("    nome = EXCLUDED.nome, mesorregiao = EXCLUDED.mesorregiao, area_km2 = EXCLUDED.area_km2,\n")
+            f.write("    bioma = EXCLUDED.bioma, na_amostra = EXCLUDED.na_amostra, grupo_amostra = EXCLUDED.grupo_amostra,\n")
+            f.write("    atualizado_em = now();\n\n")
 
     # ---------------------------------------------------------------
     # 002: metricas_anuais — os 63, ano de referencia = agosto/2024

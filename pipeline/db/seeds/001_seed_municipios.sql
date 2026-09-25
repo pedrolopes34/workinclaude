@@ -1,7 +1,10 @@
 -- Gerado por generate_seed_sql.py — nao editar a mao, editar os CSVs em raw/ e regerar.
 -- 645 municipios de SP; os 63 da Tabela_Final_63_Municipios.xlsx vem com mesorregiao/
 -- area_km2/bioma/grupo_amostra preenchidos e na_amostra=true.
+-- Dividido em lotes de 80 linhas — um INSERT gigante trava editores web (ex.: Neon
+-- SQL Editor trunca e da 'syntax error at end of input').
 
+-- lote 1 (80 municipios)
 INSERT INTO municipios (codigo_ibge, nome, mesorregiao, area_km2, bioma, na_amostra, grupo_amostra)
 VALUES
     ('3500105', 'Adamantina', 'Presidente Prudente', 412.0, 'Mata Atlântica', true, '30 originais'),
@@ -83,7 +86,15 @@ VALUES
     ('3506805', 'Bocaina', NULL, NULL, NULL, false, NULL),
     ('3506904', 'Bofete', NULL, NULL, NULL, false, NULL),
     ('3507001', 'Boituva', NULL, NULL, NULL, false, NULL),
-    ('3507100', 'Bom Jesus dos Perdões', NULL, NULL, NULL, false, NULL),
+    ('3507100', 'Bom Jesus dos Perdões', NULL, NULL, NULL, false, NULL)
+ON CONFLICT (codigo_ibge) DO UPDATE SET
+    nome = EXCLUDED.nome, mesorregiao = EXCLUDED.mesorregiao, area_km2 = EXCLUDED.area_km2,
+    bioma = EXCLUDED.bioma, na_amostra = EXCLUDED.na_amostra, grupo_amostra = EXCLUDED.grupo_amostra,
+    atualizado_em = now();
+
+-- lote 2 (80 municipios)
+INSERT INTO municipios (codigo_ibge, nome, mesorregiao, area_km2, bioma, na_amostra, grupo_amostra)
+VALUES
     ('3507159', 'Bom Sucesso de Itararé', NULL, NULL, NULL, false, NULL),
     ('3507209', 'Borá', NULL, NULL, NULL, false, NULL),
     ('3507308', 'Boracéia', NULL, NULL, NULL, false, NULL),
@@ -163,7 +174,15 @@ VALUES
     ('3514106', 'Dois Córregos', NULL, NULL, NULL, false, NULL),
     ('3514205', 'Dolcinópolis', NULL, NULL, NULL, false, NULL),
     ('3514304', 'Dourado', 'Araraquara', 206.0, 'Ambíguo (42% Cerrado / 58% Mata Atlântica)', true, '33 novos'),
-    ('3514403', 'Dracena', NULL, NULL, NULL, false, NULL),
+    ('3514403', 'Dracena', NULL, NULL, NULL, false, NULL)
+ON CONFLICT (codigo_ibge) DO UPDATE SET
+    nome = EXCLUDED.nome, mesorregiao = EXCLUDED.mesorregiao, area_km2 = EXCLUDED.area_km2,
+    bioma = EXCLUDED.bioma, na_amostra = EXCLUDED.na_amostra, grupo_amostra = EXCLUDED.grupo_amostra,
+    atualizado_em = now();
+
+-- lote 3 (80 municipios)
+INSERT INTO municipios (codigo_ibge, nome, mesorregiao, area_km2, bioma, na_amostra, grupo_amostra)
+VALUES
     ('3514502', 'Duartina', NULL, NULL, NULL, false, NULL),
     ('3514601', 'Dumont', NULL, NULL, NULL, false, NULL),
     ('3514700', 'Echaporã', NULL, NULL, NULL, false, NULL),
@@ -243,7 +262,15 @@ VALUES
     ('3520608', 'Indiana', NULL, NULL, NULL, false, NULL),
     ('3520707', 'Indiaporã', NULL, NULL, NULL, false, NULL),
     ('3520806', 'Inúbia Paulista', NULL, NULL, NULL, false, NULL),
-    ('3520905', 'Ipaussu', NULL, NULL, NULL, false, NULL),
+    ('3520905', 'Ipaussu', NULL, NULL, NULL, false, NULL)
+ON CONFLICT (codigo_ibge) DO UPDATE SET
+    nome = EXCLUDED.nome, mesorregiao = EXCLUDED.mesorregiao, area_km2 = EXCLUDED.area_km2,
+    bioma = EXCLUDED.bioma, na_amostra = EXCLUDED.na_amostra, grupo_amostra = EXCLUDED.grupo_amostra,
+    atualizado_em = now();
+
+-- lote 4 (80 municipios)
+INSERT INTO municipios (codigo_ibge, nome, mesorregiao, area_km2, bioma, na_amostra, grupo_amostra)
+VALUES
     ('3521002', 'Iperó', NULL, NULL, NULL, false, NULL),
     ('3521101', 'Ipeúna', NULL, NULL, NULL, false, NULL),
     ('3521150', 'Ipiguá', NULL, NULL, NULL, false, NULL),
@@ -323,7 +350,15 @@ VALUES
     ('3528106', 'Macaubal', NULL, NULL, NULL, false, NULL),
     ('3528205', 'Macedônia', NULL, NULL, NULL, false, NULL),
     ('3528304', 'Magda', NULL, NULL, NULL, false, NULL),
-    ('3528403', 'Mairinque', NULL, NULL, NULL, false, NULL),
+    ('3528403', 'Mairinque', NULL, NULL, NULL, false, NULL)
+ON CONFLICT (codigo_ibge) DO UPDATE SET
+    nome = EXCLUDED.nome, mesorregiao = EXCLUDED.mesorregiao, area_km2 = EXCLUDED.area_km2,
+    bioma = EXCLUDED.bioma, na_amostra = EXCLUDED.na_amostra, grupo_amostra = EXCLUDED.grupo_amostra,
+    atualizado_em = now();
+
+-- lote 5 (80 municipios)
+INSERT INTO municipios (codigo_ibge, nome, mesorregiao, area_km2, bioma, na_amostra, grupo_amostra)
+VALUES
     ('3528502', 'Mairiporã', NULL, NULL, NULL, false, NULL),
     ('3528601', 'Manduri', NULL, NULL, NULL, false, NULL),
     ('3528700', 'Marabá Paulista', NULL, NULL, NULL, false, NULL),
@@ -403,7 +438,15 @@ VALUES
     ('3535200', 'Palmeira d''Oeste', NULL, NULL, NULL, false, NULL),
     ('3535309', 'Palmital', NULL, NULL, NULL, false, NULL),
     ('3535408', 'Panorama', NULL, NULL, NULL, false, NULL),
-    ('3535507', 'Paraguaçu Paulista', 'Assis', 1001.5, 'Cerrado', true, '33 novos'),
+    ('3535507', 'Paraguaçu Paulista', 'Assis', 1001.5, 'Cerrado', true, '33 novos')
+ON CONFLICT (codigo_ibge) DO UPDATE SET
+    nome = EXCLUDED.nome, mesorregiao = EXCLUDED.mesorregiao, area_km2 = EXCLUDED.area_km2,
+    bioma = EXCLUDED.bioma, na_amostra = EXCLUDED.na_amostra, grupo_amostra = EXCLUDED.grupo_amostra,
+    atualizado_em = now();
+
+-- lote 6 (80 municipios)
+INSERT INTO municipios (codigo_ibge, nome, mesorregiao, area_km2, bioma, na_amostra, grupo_amostra)
+VALUES
     ('3535606', 'Paraibuna', NULL, NULL, NULL, false, NULL),
     ('3535705', 'Paraíso', NULL, NULL, NULL, false, NULL),
     ('3535804', 'Paranapanema', NULL, NULL, NULL, false, NULL),
@@ -483,7 +526,15 @@ VALUES
     ('3542503', 'Reginópolis', NULL, NULL, NULL, false, NULL),
     ('3542602', 'Registro', 'Litoral Sul Paulista', 821.4, 'Mata Atlântica', true, '30 originais'),
     ('3542701', 'Restinga', NULL, NULL, NULL, false, NULL),
-    ('3542800', 'Ribeira', NULL, NULL, NULL, false, NULL),
+    ('3542800', 'Ribeira', NULL, NULL, NULL, false, NULL)
+ON CONFLICT (codigo_ibge) DO UPDATE SET
+    nome = EXCLUDED.nome, mesorregiao = EXCLUDED.mesorregiao, area_km2 = EXCLUDED.area_km2,
+    bioma = EXCLUDED.bioma, na_amostra = EXCLUDED.na_amostra, grupo_amostra = EXCLUDED.grupo_amostra,
+    atualizado_em = now();
+
+-- lote 7 (80 municipios)
+INSERT INTO municipios (codigo_ibge, nome, mesorregiao, area_km2, bioma, na_amostra, grupo_amostra)
+VALUES
     ('3542909', 'Ribeirão Bonito', NULL, NULL, NULL, false, NULL),
     ('3543006', 'Ribeirão Branco', NULL, NULL, NULL, false, NULL),
     ('3543105', 'Ribeirão Corrente', NULL, NULL, NULL, false, NULL),
@@ -563,7 +614,15 @@ VALUES
     ('3549805', 'São José do Rio Preto', 'São José do Rio Preto', 432.0, 'Mata Atlântica', true, '33 novos'),
     ('3549904', 'São José dos Campos', NULL, NULL, NULL, false, NULL),
     ('3549953', 'São Lourenço da Serra', NULL, NULL, NULL, false, NULL),
-    ('3550001', 'São Luiz do Paraitinga', NULL, NULL, NULL, false, NULL),
+    ('3550001', 'São Luiz do Paraitinga', NULL, NULL, NULL, false, NULL)
+ON CONFLICT (codigo_ibge) DO UPDATE SET
+    nome = EXCLUDED.nome, mesorregiao = EXCLUDED.mesorregiao, area_km2 = EXCLUDED.area_km2,
+    bioma = EXCLUDED.bioma, na_amostra = EXCLUDED.na_amostra, grupo_amostra = EXCLUDED.grupo_amostra,
+    atualizado_em = now();
+
+-- lote 8 (80 municipios)
+INSERT INTO municipios (codigo_ibge, nome, mesorregiao, area_km2, bioma, na_amostra, grupo_amostra)
+VALUES
     ('3550100', 'São Manuel', NULL, NULL, NULL, false, NULL),
     ('3550209', 'São Miguel Arcanjo', NULL, NULL, NULL, false, NULL),
     ('3550308', 'São Paulo', NULL, NULL, NULL, false, NULL),
@@ -643,7 +702,15 @@ VALUES
     ('3556701', 'Vinhedo', NULL, NULL, NULL, false, NULL),
     ('3556800', 'Viradouro', 'Ribeirão Preto', 218.0, 'Ambíguo (37% Cerrado / 63% Mata Atlântica)', true, '30 originais'),
     ('3556909', 'Vista Alegre do Alto', NULL, NULL, NULL, false, NULL),
-    ('3556958', 'Vitória Brasil', NULL, NULL, NULL, false, NULL),
+    ('3556958', 'Vitória Brasil', NULL, NULL, NULL, false, NULL)
+ON CONFLICT (codigo_ibge) DO UPDATE SET
+    nome = EXCLUDED.nome, mesorregiao = EXCLUDED.mesorregiao, area_km2 = EXCLUDED.area_km2,
+    bioma = EXCLUDED.bioma, na_amostra = EXCLUDED.na_amostra, grupo_amostra = EXCLUDED.grupo_amostra,
+    atualizado_em = now();
+
+-- lote 9 (5 municipios)
+INSERT INTO municipios (codigo_ibge, nome, mesorregiao, area_km2, bioma, na_amostra, grupo_amostra)
+VALUES
     ('3557006', 'Votorantim', NULL, NULL, NULL, false, NULL),
     ('3557105', 'Votuporanga', NULL, NULL, NULL, false, NULL),
     ('3557154', 'Zacarias', NULL, NULL, NULL, false, NULL),
@@ -653,3 +720,4 @@ ON CONFLICT (codigo_ibge) DO UPDATE SET
     nome = EXCLUDED.nome, mesorregiao = EXCLUDED.mesorregiao, area_km2 = EXCLUDED.area_km2,
     bioma = EXCLUDED.bioma, na_amostra = EXCLUDED.na_amostra, grupo_amostra = EXCLUDED.grupo_amostra,
     atualizado_em = now();
+
