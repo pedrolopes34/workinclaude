@@ -9,6 +9,8 @@ from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
+from shapely.geometry.base import BaseGeometry
+from shapely.geometry import GeometryCollection
 from sklearn.cluster import DBSCAN
 from sklearn.metrics import pairwise_distances
 
@@ -96,3 +98,20 @@ def resumir_eventos(
             }
         )
     return pd.DataFrame(linhas)
+
+
+def poligono_stdbscan_municipio(
+    focos_clusterizados: pd.DataFrame, eps_space_km: float = EPS_SPACE_KM
+) -> tuple[BaseGeometry, int]:
+    """Poligono unico = uniao de TODOS os agrupamentos do municipio (nao um
+    por cluster, como resumir_eventos) — e o que a comparacao com o
+    MapBiomas usa (docs/DECISIONS.md secao 6.15), que e por municipio/ano,
+    nao por evento. Devolve (poligono, epsg_metrico); poligono vazio e
+    epsg=0 se nao houve nenhum agrupamento."""
+    agrupados = focos_clusterizados[focos_clusterizados["cluster"] != -1]
+    if agrupados.empty:
+        return GeometryCollection(), 0
+
+    focos_metros, epsg_metrico = projetar_para_utm_km(agrupados)
+    raio_m = eps_space_km * 1000
+    return unir_buffers(focos_metros["x_km"], focos_metros["y_km"], raio_m), epsg_metrico

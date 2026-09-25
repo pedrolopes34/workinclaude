@@ -1,8 +1,9 @@
 from datetime import datetime, timedelta
 
 import pandas as pd
+import pytest
 
-from pipeline.stdbscan.core import ParametrosStDbscan, resumir_eventos, rodar_stdbscan
+from pipeline.stdbscan.core import ParametrosStDbscan, poligono_stdbscan_municipio, resumir_eventos, rodar_stdbscan
 
 
 def _foco(lat: float, lon: float, dias_offset: int) -> dict:
@@ -78,3 +79,50 @@ def test_resumir_eventos_ignora_ruido_e_calcula_area():
     assert len(eventos) == 1
     assert eventos.loc[0, "n_focos"] == 4
     assert eventos.loc[0, "area_km2"] > 0
+
+
+def test_poligono_stdbscan_municipio_soma_agrupamentos_espacialmente_separados():
+    focos = pd.DataFrame(
+        [
+            _foco(-21.000, -48.220, 0),
+            _foco(-21.001, -48.221, 0),
+            _foco(-21.002, -48.219, 1),
+            _foco(-21.001, -48.220, 0),
+        ]
+        # segundo agrupamento, longe no tempo E no espaço (>3km) — nao se funde com o primeiro
+        + [_foco(-21.500, -48.900, 30 + i) for i in range(4)]
+    )
+    clusterizado = rodar_stdbscan(focos, ParametrosStDbscan(min_samples=4))
+    assert clusterizado["cluster"].nunique() == 2  # confere que formou 2 agrupamentos distintos
+
+    poligono, epsg = poligono_stdbscan_municipio(clusterizado)
+
+    assert not poligono.is_empty
+    assert epsg != 0
+    area_eventos = resumir_eventos(clusterizado)["area_km2"].sum()
+    # agrupamentos nao se sobrepoem espacialmente -> uniao total = soma das partes
+    assert poligono.area / 1_000_000 == pytest.approx(area_eventos, rel=1e-6)
+
+
+def test_poligono_stdbscan_municipio_deduplica_agrupamentos_no_mesmo_lugar():
+    # dois agrupamentos no MESMO local, so em janelas de tempo diferentes —
+    # os buffers se sobrepoem no espaco, entao a uniao tem que ser MENOR que
+    # a soma ingenua das duas areas separadas (sem dupla contagem).
+    focos = pd.DataFrame(
+        [_foco(-21.000, -48.220, 0) for _ in range(4)] + [_foco(-21.000, -48.220, 30) for _ in range(4)]
+    )
+    clusterizado = rodar_stdbscan(focos, ParametrosStDbscan(min_samples=4))
+    assert clusterizado["cluster"].nunique() == 2
+
+    poligono, _ = poligono_stdbscan_municipio(clusterizado)
+    soma_ingenua_km2 = resumir_eventos(clusterizado)["area_km2"].sum()
+
+    assert poligono.area / 1_000_000 < soma_ingenua_km2
+
+
+def test_poligono_stdbscan_municipio_vazio_sem_agrupamento():
+    focos = pd.DataFrame([_foco(-21.000, -48.220, 0) for _ in range(3)])
+    clusterizado = rodar_stdbscan(focos, ParametrosStDbscan(min_samples=4))
+    poligono, epsg = poligono_stdbscan_municipio(clusterizado)
+    assert poligono.is_empty
+    assert epsg == 0

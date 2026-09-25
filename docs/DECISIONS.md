@@ -758,6 +758,52 @@ mapbiomas.py`, ainda não escrito) e por isso o `check-mapbiomas.yml`:**
 **Status:** núcleo estatístico fechado e testado; orquestração aguardando
 decisão do Pedro nos 3 pontos acima.
 
+### 6.16 Os 4 workflows do GitHub Actions estão todos escritos (25/09/2026)
+
+**Contexto:** com as 2 decisões do Pedro sobre a seção 6.15 (geometria
+recalculada sob demanda; asset do MapBiomas assumido como o candidato mais
+provável), ficou possível terminar `run_validacao_mapbiomas.py` e
+`check-mapbiomas.yml` — o 4º e último workflow planejado desde a seção 2.4.
+
+**Decisões tomadas:**
+1. **Geometria do agrupamento:** nova função
+   `pipeline/stdbscan/core.py::poligono_stdbscan_municipio` — união de
+   TODOS os agrupamentos de um município num único polígono (não um por
+   evento, como `resumir_eventos`), porque a comparação com o MapBiomas é
+   por município/ano, não por evento. Testado, inclusive o caso de dois
+   agrupamentos no mesmo lugar em janelas de tempo diferentes (a união
+   deduplica a área sobreposta corretamente, não soma ingenuamente).
+2. **`check-mapbiomas.yml` roda mensalmente mesmo o MapBiomas sendo anual**
+   — não existe forma confirmada de checar antecipadamente se saiu coleção
+   nova, então o job roda todo mês e confia no `UPSERT` (idempotente: sem
+   coleção nova, reprocessa à toa, mas não corrompe nada). Reavaliar se o
+   custo computacional incomodar.
+3. **`--grupo`/`--de-grupos` (mesmo mecanismo do dNBR) por precaução** — o
+   custo de 999 permutações × ~645 municípios nunca foi medido em escala
+   nesta sessão (cada permutação faz rotação+translação+intersecção de
+   polígono, potencialmente caro pra geometrias complexas). Refatorado
+   `dividir_em_grupo` de `run_dnbr.py` pra `pipeline/common/
+   particionamento.py`, reaproveitado pelos dois scripts.
+4. **`run_validacao_mapbiomas.py` ganhou `--baixar-faltantes` própria**
+   (não depende só do cache do `ingest-inpe.yml`) — evita falha silenciosa
+   se os dois workflows rodarem em dias diferentes e o cache não tiver
+   sido populado ainda; também falha alto (`SystemExit`) se não achar
+   nenhum CSV, em vez de silenciosamente processar zero municípios.
+
+**Testado nesta sessão:** `poligono_stdbscan_municipio` (3 testes) e
+`dividir_em_grupo` (movido, mesmos 2 testes) — 58 testes no total. A
+orquestração completa (`run_validacao_mapbiomas.py` de ponta a ponta)
+continua não executável aqui — herda as pendências não confirmadas do
+INPE (seção 6.12) e do MapBiomas/GEE (seção 6.15).
+
+**Status:** os 4 workflows (`ingest-inpe.yml`, `process-sentinel-dnbr.yml`,
+`check-mapbiomas.yml`, `tests.yml`) e todo o código de orquestração
+correspondente estão escritos. Falta `audit-anual.yml` (fora do escopo
+original dos "4 workflows" — é o controle manual da seção 2.5, roda só
+1×/ano pelo próprio Pedro) e confirmar as pendências externas (URL do
+INPE, asset do MapBiomas) antes de qualquer execução real valer como
+resultado científico.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)

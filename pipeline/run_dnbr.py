@@ -25,8 +25,10 @@ originais). Arquivo GeoTIFF pra arquivo/visualização é uma extensão futura
 
 NÃO EXECUTÁVEL/TESTÁVEL nesta sessão — precisa de rede e credenciais do
 Earth Engine indisponíveis neste sandbox de propósito (mesma limitação de
-`dnbr/sentinel2.py`). `janela_mes_anterior` e `dividir_em_grupo` (lógica
-pura, sem GEE) têm testes em tests/pipeline/test_run_dnbr.py.
+`dnbr/sentinel2.py`). `janela_mes_anterior` (lógica pura, sem GEE) tem
+testes em tests/pipeline/test_run_dnbr.py; `dividir_em_grupo` mudou pra
+pipeline/common/particionamento.py (reaproveitado também por
+run_validacao_mapbiomas.py) e é testado lá.
 """
 
 import argparse
@@ -37,6 +39,7 @@ from datetime import date, timedelta
 import pandas as pd
 
 from pipeline.common.db import get_connection
+from pipeline.common.particionamento import dividir_em_grupo
 from pipeline.dnbr.constants import LIMIARES_SEVERIDADE
 
 GEE_PROJECT_ID = "concrete-bloom-374223"
@@ -62,15 +65,6 @@ def janela_mes_anterior(hoje: date) -> tuple[tuple[str, str], tuple[str, str]]:
     janela_antes = (primeiro_dia_mes_anterior.isoformat(), primeiro_dia_mes_atual.isoformat())
     janela_depois = (primeiro_dia_mes_atual.isoformat(), hoje.isoformat())
     return janela_antes, janela_depois
-
-
-def dividir_em_grupo(municipios: pd.DataFrame, grupo: int, de_grupos: int) -> pd.DataFrame:
-    """Fatia `grupo`-ésima (1-indexado) de `de_grupos` fatias intercaladas —
-    ordenacao por codigo_ibge ja vem de _buscar_municipios, entao o
-    resultado e deterministico e sem sobreposicao entre jobs."""
-    if not 1 <= grupo <= de_grupos:
-        raise ValueError(f"grupo deve estar entre 1 e {de_grupos}, recebi {grupo}")
-    return municipios.iloc[grupo - 1 :: de_grupos].reset_index(drop=True)
 
 
 def calcular_area_queimada_km2(dnbr_imagem, area, scale: int = 20) -> float:

@@ -1,0 +1,66 @@
+name: Validação MapBiomas Fogo (IoU + permutação)
+
+# Mensal — não porque o MapBiomas Fogo atualiza todo mês (é anual, com
+# defasagem, docs/DECISIONS.md seção 1.1), mas porque não há forma
+# confirmada de checar antecipadamente se saiu coleção nova. UPSERT torna
+# isso idempotente: se nada mudou, reprocessa à toa (custo aceito por ora).
+# Processa o último ano completo (--ano padrão = ano corrente - 1),
+# dividido em 2 jobs por precaução de desempenho — 999 permutações por
+# município nunca foram medidas em escala nesta sessão.
+#
+# Precisa dos secrets do repositório:
+#   - DATABASE_URL, GEE_SERVICE_ACCOUNT_KEY (mesmos de ingest-inpe.yml e
+#     process-sentinel-dnbr.yml)
+#
+# ATENÇÃO — pendências não resolvidas (docs/DECISIONS.md seção 6.15/6.16):
+# mecânica do teste de permutação é uma reconstrução não confirmada contra
+# o notebook oficial, e o asset do MapBiomas Fogo no Earth Engine
+# (pipeline/validacao/mapbiomas_gee.py) não foi verificado contra a fonte
+# primária. Não habilitar de verdade antes de resolver isso.
+
+on:
+  schedule:
+    - cron: "0 11 5 * *" # dia 5 de cada mes, 11:00 UTC (depois do dNBR do dia 1)
+  workflow_dispatch:
+    inputs:
+      ano:
+        description: "Ano a processar (padrão: ano corrente - 1)"
+        required: false
+
+jobs:
+  validacao:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        grupo: [1, 2]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: pipeline/requirements.txt
+
+      - name: Instalar dependências
+        run: pip install -r pipeline/requirements.txt
+
+      - name: Cache dos CSVs anuais do INPE
+        uses: actions/cache@v4
+        with:
+          path: focos_cache
+          key: focos-inpe-${{ github.run_id }}
+          restore-keys: |
+            focos-inpe-
+
+      - name: Rodar validação MapBiomas (grupo ${{ matrix.grupo }}/2)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GEE_SERVICE_ACCOUNT_KEY: ${{ secrets.GEE_SERVICE_ACCOUNT_KEY }}
+        run: |
+          python -m pipeline.run_validacao_mapbiomas \
+            --pasta-focos focos_cache \
+            --baixar-faltantes \
+            --grupo ${{ matrix.grupo }} --de-grupos 2 \
+            ${{ github.event.inputs.ano && format('--ano {0}', github.event.inputs.ano) || '' }}
