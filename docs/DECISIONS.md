@@ -740,10 +740,20 @@ mapbiomas.py`, ainda não escrito) e por isso o `check-mapbiomas.yml`:**
    PostGIS, ou GeoJSON em arquivo/`/geodata`/R2) pra reaproveitar depois.
 3. **Fonte do raster do MapBiomas Fogo não confirmada.** Os notebooks leem
    a Coleção 4 via Earth Engine, mas não tenho o ID exato do asset público
-   do MapBiomas nesta sessão (ex.: algo como
-   `projects/mapbiomas-public/assets/brazil/fire/collection2/mapbiomas_fogo...`,
-   não confirmado) nem a lógica de decodificação "valor do pixel = mês"
-   descrita em `CONTEXTO_PROJETO.md`.
+   do MapBiomas nesta sessão, nem a lógica de decodificação "valor do pixel
+   = mês" descrita em `CONTEXTO_PROJETO.md`. Domínio do MapBiomas
+   (`brasil.mapbiomas.org`) bloqueado pro fetch direto neste sandbox (mesmo
+   padrão da seção 6.9); via busca na web (não confirmado, 2 candidatos
+   diferentes encontrados, nenhum verificado contra a fonte primária):
+   `projects/mapbiomas-public/assets/brazil/fire/collection4/
+   mapbiomas_fire_collection4_monthly_burned_v1` (Coleção 4, mensal — bate
+   com o que o CONTEXTO_PROJETO.md descreve) ou
+   `projects/mapbiomas-public/assets/brazil/fire/monitor/
+   mapbiomas_fire_monthly_burned_v1` ("Fire Monitor", produto diferente,
+   mensal desde 2019). O repositório oficial
+   (`github.com/mapbiomas/brazil-fire`, pasta `mapbiomas_fire_collections/
+   collection_04/`) provavelmente tem o script com o asset exato, mas não
+   consegui abrir os arquivos individuais via fetch nesta sessão.
 
 **Status:** núcleo estatístico fechado e testado; orquestração aguardando
 decisão do Pedro nos 3 pontos acima.
