@@ -279,3 +279,12 @@ depois.
 - **Página "Material didático"** — ainda não discutida.
 - **Orientadora formal do PIBIC** — nome só entra na página "Quem somos"
   após autorização dela; por ora, só o nome de Pedro aparece.
+- **Redesenho da interface gráfica (25/09/2026):** Pedro sinalizou intenção
+  de migrar a interface visual atual (dashboard "instrumento de precisão",
+  IBM Plex Mono + Public Sans, paleta verde/azul, telas de busca/lista/
+  detalhe — seção 5) para algo mais próximo dos diálogos do Claude
+  (claude.ai). Ainda não detalhado se é (a) só restyling visual mantendo a
+  navegação atual, (b) mudança de paradigma de interação para conversa em
+  linguagem natural, ou (c) híbrido. Supersede parcialmente a seção 5 até
+  ser detalhado — **não iniciar redesenho sem alinhar o escopo antes**,
+  porque as opções têm tamanhos de trabalho muito diferentes.
