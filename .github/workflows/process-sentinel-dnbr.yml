@@ -1,0 +1,42 @@
+name: dNBR mensal (Sentinel-2/GEE)
+
+# Mensal, todos os 645 municípios divididos em 2 jobs paralelos
+# (docs/DECISIONS.md seção 2.1 — ~320 municípios/job, dentro do limite de
+# 6h por job do GitHub Actions). Compara Sentinel-2 do mês anterior contra
+# o mês corrente (docs/DECISIONS.md seção 6.14).
+#
+# Precisa dos secrets do repositório:
+#   - DATABASE_URL: mesma string de conexão do ingest-inpe.yml (Neon)
+#   - GEE_SERVICE_ACCOUNT_KEY: JSON completo da service account do Earth
+#     Engine (nunca commitado — roteado só pra cá, ver docs/DECISIONS.md)
+
+on:
+  schedule:
+    - cron: "0 10 1 * *" # dia 1 de cada mês, 10:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  dnbr:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        grupo: [1, 2]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: pipeline/requirements.txt
+
+      - name: Instalar dependências
+        run: pip install -r pipeline/requirements.txt
+
+      - name: Rodar dNBR (grupo ${{ matrix.grupo }}/2)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GEE_SERVICE_ACCOUNT_KEY: ${{ secrets.GEE_SERVICE_ACCOUNT_KEY }}
+        run: |
+          python -m pipeline.run_dnbr --grupo ${{ matrix.grupo }} --de-grupos 2

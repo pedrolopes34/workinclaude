@@ -127,8 +127,12 @@ def main() -> None:
         )
 
         for codigo_ibge, focos_municipio in focos_todos_anos.groupby("codigo_ibge"):
-            resultado = processar_municipio(focos_municipio, args.ano)
-            _gravar_metricas(conn, codigo_ibge, args.ano, resultado)
+            try:
+                resultado = processar_municipio(focos_municipio, args.ano)
+                _gravar_metricas(conn, codigo_ibge, args.ano, resultado)
+            except Exception as e:
+                print(f"[ERRO] {codigo_ibge}: {type(e).__name__}: {e}")
+                continue
             print(f"{codigo_ibge}: {resultado}")
 
 

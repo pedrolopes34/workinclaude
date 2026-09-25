@@ -634,6 +634,66 @@ testes passando no total.
 `python -m pipeline.run_ingest_stdbscan --pasta-focos ...` diariamente sem
 passar `--ano`.
 
+### 6.14 Workflows do GitHub Actions — 2 de 4 prontos, dNBR mensal (25/09/2026)
+
+**Contexto:** com a ingestão INPE + ST-DBSCAN testadas (seção 6.12/6.13),
+próximo passo foi escrever os workflows de fato e o script de orquestração
+do dNBR que faltava.
+
+**Criados:**
+- `.github/workflows/tests.yml` — os 37→42 testes do pipeline a cada
+  push/PR em `pipeline/`/`tests/`.
+- `.github/workflows/ingest-inpe.yml` — diário, roda
+  `run_ingest_stdbscan.py`, com cache dos CSVs anuais do INPE (anos
+  passados imutáveis ficam em cache entre execuções; o ano corrente é
+  sempre baixado de novo — novo parâmetro `forcar=` em `baixar_focos_ano`).
+- `pipeline/run_dnbr.py` — script de orquestração do dNBR pros 645
+  municípios, particionados em N grupos (`--grupo`/`--de-grupos`) pra rodar
+  em jobs paralelos.
+- `.github/workflows/process-sentinel-dnbr.yml` — mensal, 2 jobs paralelos
+  via `strategy.matrix` (seção 2.1).
+
+**Decisões novas tomadas ao construir `run_dnbr.py` (não extraídas de
+nenhum notebook — assunções documentadas, não confirmadas com o Pedro):**
+
+1. **Janela antes/depois para cadência mensal contínua: mês anterior vs.
+   mês corrente.** A pesquisa comparava julho/setembro em torno do evento
+   de agosto/2024 (pulando o mês do evento, pra deixar a cicatriz
+   estabilizar e evitar fumaça de incêndio ativo na imagem "depois"). Uma
+   cadência mensal contínua não tem um "mês do evento" fixo pra pular no
+   meio — comparar o mês imediatamente anterior contra o corrente é a
+   extensão mais direta pra detecção de mudança contínua, mas é uma escolha
+   nova, não validada academicamente da mesma forma que o resto do método.
+   Se isso gerar mais falso positivo que o esperado (ex.: fumaça de
+   incêndio ainda ativo contaminando a imagem "depois"), vale revisitar.
+2. **Cálculo síncrono via `reduceRegion`, sem exportar GeoTIFF pro Drive.**
+   Os notebooks exportam raster bruto+colorido pro Google Drive
+   (assíncrono, precisa de polling); pra só gravar `area_dnbr_km2` em
+   `metricas_anuais`, isso é desnecessário — a área com dNBR acima do
+   limiar de evidência espectral mínimo (0,10) é somada direto no servidor
+   do Earth Engine (`ee.Image.reduceRegion` com `Reducer.sum()`),
+   síncrono, sem precisar baixar nada. Gerar e guardar o GeoTIFF em si
+   (pra arquivo/visualização, ex. Cloudflare R2) fica como extensão futura,
+   não bloqueia a métrica.
+3. **Resiliência do job longo:** cada município grava numa transação curta
+   própria (`with get_connection()` por município, não 1 transação pro
+   grupo inteiro de ~320) e erros por município são capturados e pulados
+   (`try/except` + `continue`) — um job desses roda por horas (seção 2.1);
+   sem isso, um município problemático ou uma queda de conexão no meio
+   perderia o progresso inteiro do grupo.
+
+**Testado nesta sessão:** só a lógica pura sem GEE (`janela_mes_anterior`,
+`dividir_em_grupo`) — 5 testes novos, 42 no total. O cálculo de dNBR em si
+não roda (mesma limitação de rede/credenciais do Earth Engine da seção
+6.12).
+
+**Status:** `ingest-inpe.yml`, `process-sentinel-dnbr.yml` e `tests.yml`
+prontos (dependem de `secrets.DATABASE_URL` e `secrets.GEE_SERVICE_ACCOUNT_KEY`
+configurados no repositório, e da pendência da URL do INPE da seção 6.12).
+Faltam `check-mapbiomas.yml` e `audit-anual.yml` — precisam dos scripts de
+`validacao_mapbiomas` (IoU/Jaccard + permutação, ainda não portado) e de
+auditoria anual, respectivamente.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)
