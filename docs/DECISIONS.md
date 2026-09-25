@@ -315,6 +315,28 @@ Code precisar aplicar migração direto no Neon de novo, tentar achar
 depurando timeout de `psql` — ou simplesmente pedir pro Pedro rodar via
 SQL Editor do Neon, como desta vez.
 
+### 6.10 Armadilha: `loading.tsx` na raiz quebra o 404 real da rota de município
+**Contexto:** ao implementar estados de carregamento (item do
+`docs/CHECKLIST.md`), um `app/loading.tsx` na raiz do App Router foi
+adicionado pensando em cobrir só a página inicial.
+**Problema encontrado:** `loading.tsx` cria um boundary de Suspense que
+envolve **toda a sub-árvore de rotas**, não só a rota onde o arquivo está
+— isso incluiu `/municipio/[codigoIbge]`. Resultado: a resposta começa a
+ser transmitida (streaming) como `200` antes do `notFound()` daquela rota
+rodar, e o Next.js **não consegue mais trocar o status para 404** depois
+que o streaming já começou (comportamento documentado do próprio Next.js
+16, não é bug do projeto). `curl` confirmava `200 OK` numa página que
+devia dar 404.
+**Decisão:** removido `app/loading.tsx` da raiz. O estado de carregamento
+da página inicial agora é um `<Suspense>` local dentro do próprio
+`page.tsx`, envolvendo só o componente que consulta o banco (lista de
+municípios) — não a rota inteira. `/municipio/[codigoIbge]` não tem
+`loading.tsx` próprio de propósito, pra manter o `notFound()` gerando 404
+de verdade (importante pra SEO — `docs/CHECKLIST.md` seção SEO).
+**Regra pra próximas telas:** nunca usar o arquivo `loading.tsx` numa rota
+que (ou cujas rotas-filhas) chamem `notFound()`. Preferir `<Suspense>`
+local em volta só do trecho assíncrono.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)

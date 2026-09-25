@@ -1,7 +1,29 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getMunicipioDetalhe } from "@/lib/queries";
 import { CONFIABILIDADE_STYLE, formatKm2, formatPct, formatPValor } from "@/lib/format";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ codigoIbge: string }>;
+}): Promise<Metadata> {
+  const { codigoIbge } = await params;
+  const detalhe = await getMunicipioDetalhe(codigoIbge);
+
+  if (!detalhe) return { title: "Município não encontrado" };
+
+  const ultimaValidacao = detalhe.validacoes[0];
+  const descricao = ultimaValidacao
+    ? `Confiabilidade ${ultimaValidacao.confiabilidade} (${ultimaValidacao.ano}) — agrupamento de focos de calor + leitura de satélite comparado ao MapBiomas Fogo.`
+    : `${detalhe.municipio.nome} ainda não foi comparado ao MapBiomas Fogo.`;
+
+  return {
+    title: `${detalhe.municipio.nome} — Painel de Queimadas SP`,
+    description: descricao,
+  };
+}
 
 export default async function MunicipioPage({
   params,

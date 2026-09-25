@@ -9,17 +9,22 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 
 ## SEO e metadados
 
-- [~] Meta title e meta description por página — só o global (`layout.tsx`)
-      existe por enquanto; falta metadata específica em cada página
+- [x] Meta title e meta description por página — global (`layout.tsx`) +
+      metadata dinâmica por município (`generateMetadata`, ex.:
+      "Pitangueiras — Painel de Queimadas SP")
 - [ ] Imagem Open Graph
-- [ ] Favicon (o mockup usa um ícone genérico de artifact, não o real)
-- [ ] `robots.txt`
-- [ ] `sitemap.xml`
+- [~] Favicon — `icon.tsx` gerado dinamicamente (círculo "Q"), placeholder
+      até o nome/logo do produto ser decidido (`docs/DECISIONS.md` seção 7)
+- [x] `robots.txt` — `src/app/robots.ts`
+- [x] `sitemap.xml` — `src/app/sitemap.ts`, inclui a home + os 63
+      municípios da amostra (os outros 582 ainda não têm conteúdo próprio
+      pra valer indexação)
 
 ## Páginas essenciais
 
-- [~] Página 404 personalizada — conteúdo e visual prontos no mockup
-      (`#404`); falta ligar de fato no roteamento do produto real
+- [x] Página 404 personalizada — `src/app/not-found.tsx`, com o cuidado de
+      não ter `loading.tsx` na rota de município (quebraria o status HTTP
+      404 de verdade — ver `docs/DECISIONS.md` seção 6.10)
 - [~] Página de agradecimento — conteúdo e visual prontos no mockup
       (`#obrigado`), já com o aviso de pesquisa em andamento; hoje não há
       formulário real que a dispare
@@ -41,8 +46,11 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
       confirmar quando o conteúdo real entrar
 - [~] Breakpoints para mobile — o mockup já é responsivo (grids quebram em
       2/1 colunas); falta testar o produto real
-- [ ] Estados de carregamento
-- [ ] Estados de erro em formulários (ainda não há formulário no produto)
+- [x] Estados de carregamento — `<Suspense>` local na busca (skeleton só na
+      lista, não na rota inteira)
+- [~] Estados de erro — `src/app/error.tsx` cobre falha genérica de
+      renderização/dados; ainda não se aplica a formulários (não existe
+      formulário no produto ainda)
 - [ ] Auditoria de acessibilidade nível WCAG AA
 
 ## Segurança
@@ -68,9 +76,10 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 
 ## Documentação e citação
 
-- [x] `CITATION.cff` — na raiz do repositório
-- [x] `CHANGELOG.md` com versionamento semântico — iniciado, seção
-      "Não lançado" com o que já existe
+- [x] `CITATION.cff` — na raiz do repositório (título provisório "Painel
+      de Queimadas SP", nome oficial do produto ainda não decidido)
+- [x] `CHANGELOG.md` com versionamento semântico — seção "Não lançado" com
+      o que já existe
 - [ ] Documentação da API em OpenAPI/Swagger
 - [~] Página de metodologia transparente com limitações — já redigida (em
       tom provisório) na seção "Limitações que assumimos" da página "Como
@@ -88,9 +97,9 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 
 ---
 
-**Contagem atual:** 5 itens feitos, 9 parciais, 19 pendentes — atualizado em
-25/09/2026, primeira sessão de código real (banco Postgres+PostGIS com
-schema + seeds dos 645 municípios/63 validados, e webapp Next.js com busca
-e detalhe de município). Este checklist é sobre prontidão de produção
-(SEO, segurança, testes) — para o que foi implementado nesta sessão, ver
-`docs/DECISIONS.md` seção 6.
+**Contagem atual:** 10 itens feitos, 9 parciais, 14 pendentes — atualizado
+em 25/09/2026, primeira sessão de código real (banco Postgres+PostGIS com
+schema + seeds dos 645 municípios/63 validados, webapp Next.js com busca e
+detalhe de município, SEO básico e estados de carregamento/erro/404).
+Este checklist é sobre prontidão de produção (SEO, segurança, testes) —
+para o que foi implementado nesta sessão, ver `docs/DECISIONS.md` seção 6.

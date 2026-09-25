@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { sql } from "./db";
 import type {
   Municipio,
@@ -50,7 +51,9 @@ export async function contarMunicipios(): Promise<{
   return row;
 }
 
-export async function getMunicipioDetalhe(
+// cache() memoiza por requisicao — generateMetadata e a page chamam esta
+// funcao com o mesmo codigoIbge e reaproveitam a mesma consulta ao banco.
+export const getMunicipioDetalhe = cache(async function getMunicipioDetalhe(
   codigoIbge: string
 ): Promise<MunicipioDetalhe | null> {
   const [municipio] = await sql<Municipio[]>`
@@ -77,4 +80,4 @@ export async function getMunicipioDetalhe(
   `;
 
   return { municipio, metricas, validacoes };
-}
+});

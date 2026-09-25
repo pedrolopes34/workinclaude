@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "Se você usar este software, por favor cite conforme abaixo."
+title: "Painel de Queimadas SP"
+type: software
+authors:
+  - family-names: "Oliveira"
+    given-names: "Pedro Lopes de"
+    affiliation: "UNESP — Faculdade de Ciências e Engenharia (Tupã-SP)"
+abstract: >
+  Software de monitoramento de queimadas para os 645 municípios do estado
+  de São Paulo, cruzando agrupamento espaço-temporal de focos de calor
+  (ST-DBSCAN sobre dados do INPE) e leitura de satélite (dNBR sobre
+  Sentinel-2), comparado ao MapBiomas Fogo. Extensão pública de uma
+  Iniciação Científica (PIBIC/CNPq).
+repository-code: "https://github.com/pedrolopes34/workinclaude"
+date-released: "2026-09-25"
+# license: TBD — licenciamento do repositorio ainda nao decidido
+# (docs/DECISIONS.md secao 7). Preencher quando for fechado.
