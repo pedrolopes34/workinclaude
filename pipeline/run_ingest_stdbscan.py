@@ -1,11 +1,21 @@
-"""CLI: ingestao INPE + ST-DBSCAN pra um ano, grava em metricas_anuais.
+"""CLI: ingestao INPE + ST-DBSCAN pro ano corrente, grava em metricas_anuais.
 
     python -m pipeline.run_ingest_stdbscan --ano 2024 --pasta-focos ./focos_csv
 
+Pensado pra rodar diariamente (`ingest-inpe.yml`, docs/DECISIONS.md secao
+1.1/2.5): `--ano` e sempre o ano corrente, reprocessado do zero a cada
+execucao (idempotente via UPSERT) conforme mais focos daquele ano vao
+ficando disponiveis no INPE — nao e restrito a agosto nem a nenhum outro
+mes. `num_focos_calor`/`num_agrupamentos` de um (municipio, ano) sao o total
+do ano inteiro ate a data do processamento, nao um recorte mensal (decisao
+confirmada com o Pedro em 25/09/2026, ver docs/DECISIONS.md secao 6.13 —
+corrige a suposicao inicial, copiada direto da pesquisa, de comparar sempre
+agosto contra agosto).
+
 Espera em `--pasta-focos` um CSV bruto do INPE por ano (`focos_anual_br_AAAA.csv`
 ou equivalente ja filtrado) cobrindo o ano alvo e pelo menos os 6 anos
-anteriores (pra calcular o teto historico de agosto usado em
-`calcular_min_samples` — docs/DECISIONS.md secao 6.11/6.12). Baixa o que
+anteriores (pra calcular o teto historico anual usado em
+`calcular_min_samples` — docs/DECISIONS.md secao 6.11/6.12/6.13). Baixa o que
 faltar via `pipeline.ingest.inpe.baixar_focos_ano` se `--baixar-faltantes`
 for passado.
 
@@ -17,6 +27,7 @@ escrita no Neon de producao (sandbox sem rede pra Neon, secao 6.9).
 """
 
 import argparse
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
@@ -25,16 +36,13 @@ from pipeline.common.db import get_connection
 from pipeline.ingest.inpe import baixar_focos_ano, carregar_focos_sp
 from pipeline.stdbscan.core import ParametrosStDbscan, calcular_min_samples, resumir_eventos, rodar_stdbscan
 
-MES_REFERENCIA = 8  # agosto — mesmo periodo usado em toda a pesquisa original
 ANOS_HISTORICO = 6  # 2018-2023 pra um alvo de 2024, por exemplo
 
 
-def calcular_teto_historico(focos_municipio_todos_anos: pd.DataFrame, ano_alvo: int, mes: int = MES_REFERENCIA) -> int:
-    """Maior contagem de focos em `mes` entre os anos anteriores a
-    `ano_alvo` presentes nos dados. 0 se nao houver nenhum ano anterior."""
-    historico = focos_municipio_todos_anos[
-        (focos_municipio_todos_anos["ano"] < ano_alvo) & (focos_municipio_todos_anos["mes"] == mes)
-    ]
+def calcular_teto_historico(focos_municipio_todos_anos: pd.DataFrame, ano_alvo: int) -> int:
+    """Maior total ANUAL de focos entre os anos anteriores a `ano_alvo`
+    presentes nos dados. 0 se nao houver nenhum ano anterior."""
+    historico = focos_municipio_todos_anos[focos_municipio_todos_anos["ano"] < ano_alvo]
     if historico.empty:
         return 0
     contagem_por_ano = historico.groupby("ano").size()
@@ -71,11 +79,10 @@ def _gravar_metricas(conn, codigo_ibge: str, ano: int, resultado: dict) -> None:
 
 
 def processar_municipio(focos_municipio_todos_anos: pd.DataFrame, ano_alvo: int) -> dict:
-    """ST-DBSCAN de um municipio pro mes/ano alvo, com min_samples decidido
-    pela formula de anomalia. Retorna as colunas prontas pra metricas_anuais."""
-    focos_periodo = focos_municipio_todos_anos[
-        (focos_municipio_todos_anos["ano"] == ano_alvo) & (focos_municipio_todos_anos["mes"] == MES_REFERENCIA)
-    ]
+    """ST-DBSCAN de um municipio pro ano alvo inteiro (nao um mes especifico
+    — docs/DECISIONS.md secao 6.13), com min_samples decidido pela formula
+    de anomalia. Retorna as colunas prontas pra metricas_anuais."""
+    focos_periodo = focos_municipio_todos_anos[focos_municipio_todos_anos["ano"] == ano_alvo]
     teto_historico = calcular_teto_historico(focos_municipio_todos_anos, ano_alvo)
     min_samples = calcular_min_samples(len(focos_periodo), teto_historico)
 
@@ -95,7 +102,9 @@ def processar_municipio(focos_municipio_todos_anos: pd.DataFrame, ano_alvo: int)
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--ano", type=int, required=True)
+    parser.add_argument(
+        "--ano", type=int, default=date.today().year, help="Padrao: ano corrente (uso diario em producao)."
+    )
     parser.add_argument("--pasta-focos", type=Path, required=True)
     parser.add_argument("--baixar-faltantes", action="store_true")
     args = parser.parse_args()

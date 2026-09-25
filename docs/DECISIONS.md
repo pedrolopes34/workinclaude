@@ -598,6 +598,42 @@ rodar de verdade com dado real (Pedro ou GitHub Actions), portar
 `validacao_mapbiomas` (IoU/Jaccard + permutação), e os 4 workflows do
 GitHub Actions.
 
+### 6.13 Correção: `metricas_anuais` é o ano inteiro, não agosto (25/09/2026)
+
+**Contexto:** ao preparar o `ingest-inpe.yml` (seção 2.4, diário), percebi
+uma inconsistência entre o que já estava fechado na seção 1.1/2.5 ("janela
+aberta a partir de 2018", cadência diária, "tempo real" operacional) e o
+`run_ingest_stdbscan.py` da seção 6.12, que tinha copiado direto da pesquisa
+a comparação **agosto contra agosto** (`MES_REFERENCIA = 8`). Rodando todo
+dia, isso deixaria o job sem produzir nada novo relevante 11 meses por ano.
+
+**Decisão do Pedro:** `num_focos_calor`/`num_agrupamentos`/
+`area_st_dbscan_km2` de um `(codigo_ibge, ano)` passam a ser o **ano inteiro
+corrente** (janeiro até a data do processamento), recalculado do zero (via
+`UPSERT`) a cada execução diária — não mais um recorte de agosto. A fórmula
+de `min_samples` (seção 6.11/6.12) segue igual, só que `teto_historico` e
+"anômalo" agora comparam **total anual contra total anual**, não mais
+agosto contra agosto.
+
+**Impacto nos 63 municípios já validados:** os números hoje em
+`metricas_anuais` (seed de 2024) continuam sendo os oficiais, aprovados
+academicamente com o recorte de agosto — não foram e não devem ser
+recalculados por essa mudança. A mudança vale só a partir daqui, pro
+pipeline automático rodando em produção. Ou seja: 2024 fica como está
+(dado de pesquisa, comparado ao MapBiomas Fogo que também é anual); anos
+processados pelo pipeline automático doravante usam a nova definição.
+
+**Código ajustado:** `pipeline/run_ingest_stdbscan.py` —
+`calcular_teto_historico` não filtra mais por mês; `processar_municipio`
+soma o ano inteiro; `--ano` no CLI agora é opcional (default: ano corrente,
+via `date.today().year`), pensado pra rodar sem argumento no cron diário.
+Testes atualizados (`tests/pipeline/test_run_ingest_stdbscan.py`) — 35
+testes passando no total.
+
+**Status:** Fechado. Próximo passo: `ingest-inpe.yml` (GitHub Actions) roda
+`python -m pipeline.run_ingest_stdbscan --pasta-focos ...` diariamente sem
+passar `--ano`.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)
