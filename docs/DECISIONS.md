@@ -570,8 +570,16 @@ inline):**
    satélite de referência, historicamente mais estável pra comparar anos
    diferentes) — se for, os números não batem exatamente com o produto
    "todos os satélites" usado aqui, o que descasaria do que foi validado
-   academicamente. **Pergunta pro Pedro:** como você baixa
-   `focos_br_sp_ref_AAAA.csv` hoje (qual página/filtro do site do INPE)?
+   academicamente. **Resposta do Pedro (25/09/2026):** o download é manual,
+   pelo portal BDQueimadas (filtro de UF+período na tela, exporta CSV pelo
+   próprio portal) — não é uma URL fixa programável, então não dá pra saber
+   ainda se bate com o produto usado aqui sem mais investigação. **Próximo
+   passo concreto:** da próxima vez que o Pedro fizer esse download manual,
+   (a) anotar/printar quais filtros exatos ele seleciona (em especial se
+   houver um filtro de "satélite" com uma opção tipo "referência"), ou (b)
+   abrir a aba Network do navegador durante o export e ver a URL real que o
+   botão de download dispara — qualquer uma das duas resolve a dúvida sem
+   depender de acesso ao site do INPE (bloqueado neste sandbox).
 2. **Colunas confirmadas do CSV bruto:** `data_pas`, `municipio`, `lat`,
    `lon` (direto do código de `06_08`). Não confirmamos se existe uma
    coluna de estado/UF utilizável — `ingest/inpe.py` usa se existir
