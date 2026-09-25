@@ -16,59 +16,59 @@ export default async function Home({
   return (
     <div className="space-y-8">
       <section className="space-y-3">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           Monitoramento de queimadas em São Paulo
         </h1>
-        <p className="max-w-2xl text-zinc-600 dark:text-zinc-400">
+        <p className="max-w-xl text-stone-600 dark:text-stone-400">
           Cruzamos duas fontes independentes de satélite — agrupamento de
           focos de calor e leitura de satélite (severidade de queima) — e
           comparamos o resultado ao MapBiomas Fogo para mostrar, em
           linguagem simples, o quanto dá para confiar em cada município.
         </p>
-        <p className="font-mono text-sm text-zinc-500">
+        <p className="text-sm text-stone-500">
           {contagem.naAmostra} de {contagem.total} municípios já validados
           pela pesquisa
         </p>
       </section>
 
-      <form method="get" className="flex gap-2">
+      <form method="get" className="flex gap-2 rounded-2xl border border-border bg-surface p-2 shadow-sm">
         <input
           type="search"
           name="q"
           defaultValue={q}
           placeholder="Buscar município (ex.: Pitangueiras)"
-          className="w-full max-w-sm rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-azul focus:ring-1 focus:ring-azul dark:border-zinc-700 dark:bg-zinc-900"
+          className="w-full rounded-xl bg-transparent px-3 py-2 text-sm outline-none placeholder:text-stone-400"
         />
         <button
           type="submit"
-          className="rounded-md bg-azul px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+          className="shrink-0 rounded-xl bg-acento px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-acento-hover"
         >
           Buscar
         </button>
       </form>
 
-      <section>
+      <section className="space-y-3">
         {!q && (
-          <h2 className="mb-3 font-mono text-xs uppercase tracking-wide text-zinc-500">
+          <h2 className="text-sm font-medium text-stone-500">
             Municípios da amostra validada
           </h2>
         )}
         {municipios.length === 0 ? (
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-stone-500">
             Nenhum município encontrado para &ldquo;{q}&rdquo;.
           </p>
         ) : (
-          <ul className="divide-y divide-zinc-200 rounded-md border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+          <ul className="space-y-2">
             {municipios.map((m) => (
               <li key={m.codigoIbge}>
                 <Link
                   href={`/municipio/${m.codigoIbge}`}
-                  className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900"
+                  className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-surface px-4 py-3.5 shadow-sm transition-colors hover:border-acento/40"
                 >
                   <div>
-                    <p className="font-medium">{m.nome}</p>
+                    <p className="font-medium text-foreground">{m.nome}</p>
                     {m.mesorregiao && (
-                      <p className="text-xs text-zinc-500">{m.mesorregiao}</p>
+                      <p className="text-xs text-stone-500">{m.mesorregiao}</p>
                     )}
                   </div>
                   {m.confiabilidade ? (
@@ -78,7 +78,7 @@ export default async function Home({
                       {CONFIABILIDADE_STYLE[m.confiabilidade].label}
                     </span>
                   ) : (
-                    <span className="rounded-full border border-zinc-300 px-3 py-1 text-xs text-zinc-500 dark:border-zinc-700">
+                    <span className="rounded-full border border-border px-3 py-1 text-xs text-stone-500">
                       não comparado/validado
                     </span>
                   )}

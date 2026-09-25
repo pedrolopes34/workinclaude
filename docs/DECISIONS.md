@@ -257,6 +257,31 @@ camada extra sobre um schema que ainda pode mudar.
 complexidade das queries (ex.: agregações espaciais) justificar um ORM
 depois.
 
+### 6.8 Restyle visual — implementado (25/09/2026)
+**Contexto:** Pedro decidiu migrar a estética pro visual dos diálogos do
+Claude, escopo fechado como só restyle (seção 7).
+**Decisão:** fundo creme mais quente (`#f7f3ec` claro / `#211d19` escuro),
+superfícies (`--surface`) num tom acima do fundo pra dar profundidade tipo
+bolha de mensagem, cantos bem arredondados (`rounded-2xl`) nos cards e na
+barra de busca, paleta neutra trocada de `zinc` (cinza frio) pra `stone`
+(cinza quente) em todo o webapp. Tipografia mono (IBM Plex Mono) deixou de
+ser a voz principal da interface — usada agora só em valores numéricos
+(código IBGE, ano, recall/interseção/p-valor, células da tabela), não mais
+em rótulos/cabeçalhos.
+**Cor de ação nova:** criado o token `--color-acento` (argila quente,
+`#c17a4e` claro / `#d98f63` escuro) pra botões/links/foco, no lugar do
+azul. Deliberadamente diferente do `--color-terracota` (`#c1442d`) já
+existente, pra não confundir "ação da interface" com "confiabilidade
+baixa" — o terracota continua só no selo de Baixa confiabilidade, sem
+mudança de significado.
+**O que NÃO mudou:** navegação (busca → lista → detalhe), e as cores
+funcionais dos 4 selos de confiabilidade (verde/mostarda/terracota/
+neutro) — critério e paleta de significado intactos.
+**Status:** Implementado, aguardando o Pedro ver e aprovar/pedir ajuste. O
+token `--color-azul` do palette original não é mais usado na interface
+(fica só documentado como decisão histórica em `CLAUDE.md`/seção 5, não
+removido do código de propósito).
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)
@@ -285,7 +310,8 @@ depois.
   visual dos diálogos do Claude (claude.ai). Escopo confirmado por Pedro:
   **só restyle visual** (cores, tipografia, layout) — a navegação atual
   (busca → lista → detalhe do município) é mantida, não vira chat/conversa
-  em linguagem natural. Ainda pendente: execução (ninguém tocou no código
-  ainda) e se a paleta funcional de confiabilidade (verde/mostarda/
-  terracota nos badges Alta/Média/Baixa) se mantém ou muda junto.
-  **Status:** direção decidida, implementação pendente.
+  em linguagem natural. Confirmado também: a paleta funcional de
+  confiabilidade (verde/mostarda/terracota nos selos Alta/Média/Baixa)
+  **não muda** — só a estética geral da interface.
+  **Status:** implementado nesta sessão (ver seção 6.8), aguardando Pedro
+  ver o resultado e aprovar ou pedir ajuste.

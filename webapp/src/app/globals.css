@@ -1,32 +1,48 @@
 @import "tailwindcss";
 
 :root {
-  --background: #faf8f3; /* off-white quente */
-  --foreground: #1c1917;
+  --background: #f7f3ec; /* papel/creme quente, tipo diálogo do Claude */
+  --foreground: #26221d;
+  --surface: #ffffff; /* cards/bolhas destacam um tom acima do fundo */
+  --border: #e7ded0;
 
-  /* Paleta do projeto (CLAUDE.md) — verde/azul primarias,
-     mostarda/terracota reservadas para alerta (nunca decorativas). */
+  /* Paleta funcional do projeto (CLAUDE.md) — verde/mostarda/terracota SÓ
+     nos selos de confiabilidade (Alta/Média/Baixa), nunca decorativos.
+     Não mudam neste restyle (docs/DECISIONS.md seção 7). */
   --color-verde: #5b9e4d;
-  --color-azul: #3c7da6;
   --color-mostarda: #d9a441;
   --color-terracota: #c1442d;
+
+  /* Acento de UI geral (botões, links, foco) — argila quente inspirada no
+     visual do Claude.ai, deliberadamente diferente do terracota de alerta
+     acima pra não confundir "ação" com "confiabilidade baixa". Substitui
+     o azul como cor de ação primária (docs/DECISIONS.md seção 7). */
+  --color-acento: #c17a4e;
+  --color-acento-hover: #a8663f;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
   --color-verde: var(--color-verde);
-  --color-azul: var(--color-azul);
   --color-mostarda: var(--color-mostarda);
   --color-terracota: var(--color-terracota);
+  --color-acento: var(--color-acento);
+  --color-acento-hover: var(--color-acento-hover);
   --font-sans: var(--font-public-sans);
   --font-mono: var(--font-ibm-plex-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #17140f;
-    --foreground: #f2ede4;
+    --background: #211d19;
+    --foreground: #ede6db;
+    --surface: #2b2622;
+    --border: #3d362e;
+    --color-acento: #d98f63;
+    --color-acento-hover: #e6a67d;
   }
 }
 

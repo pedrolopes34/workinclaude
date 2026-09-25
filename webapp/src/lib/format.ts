@@ -34,7 +34,7 @@ export const CONFIABILIDADE_STYLE: Record<
   { bg: string; text: string; label: string }
 > = {
   Alta: { bg: "bg-verde", text: "text-white", label: "Alta" },
-  Média: { bg: "bg-mostarda", text: "text-zinc-900", label: "Média" },
+  Média: { bg: "bg-mostarda", text: "text-stone-900", label: "Média" },
   Baixa: { bg: "bg-terracota", text: "text-white", label: "Baixa" },
-  Insuficiente: { bg: "bg-zinc-300", text: "text-zinc-700", label: "Insuficiente" },
+  Insuficiente: { bg: "bg-stone-200", text: "text-stone-600", label: "Insuficiente" },
 };

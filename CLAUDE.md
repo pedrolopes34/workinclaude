@@ -54,9 +54,17 @@ software é a extensão pública dessa pesquisa.
   fixo: Alta = Recall≥50% **e** p<0,05; Média = só um passa; Baixa =
   nenhum passa mas há agrupamento; Insuficiente = nenhum agrupamento
   formado no ano.
-- **Paleta:** verde `#5B9E4D` e azul `#3C7DA6` como primárias; mostarda
-  `#D9A441` e terracota `#C1442D` reservadas para alertas — nunca usadas
-  como cor decorativa comum. Fontes: IBM Plex Mono + Public Sans.
+- **Selos de confiabilidade (não mudam nunca):** verde `#5B9E4D` = Alta,
+  mostarda `#D9A441` = Média, terracota `#C1442D` = Baixa — só nesse uso
+  funcional, nunca como cor decorativa comum.
+- **Estética geral da interface (restyle 25/09/2026, ver
+  `docs/DECISIONS.md` seção 6.8):** visual inspirado nos diálogos do
+  Claude — fundo creme quente, cards bem arredondados, paleta neutra
+  quente (`stone`, não `zinc`). Cor de ação/links: argila quente
+  (`--color-acento`, `#C17A4E`), não mais o azul `#3C7DA6` (token mantido
+  no código por histórico, mas não usado). Fontes: Public Sans como voz
+  principal; IBM Plex Mono só em valores numéricos (código IBGE, recall,
+  p-valor), não mais em rótulos/cabeçalhos.
 - `/webapp` lê direto do banco/storage — **nunca** passa pela `/api`
   internamente. A API é componente separado, para acesso externo futuro.
 - Pipeline **100% automático**, sem gate manual de aprovação; o controle

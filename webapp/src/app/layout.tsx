@@ -29,21 +29,26 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className={`${publicSans.variable} ${ibmPlexMono.variable} antialiased flex min-h-screen flex-col`}>
-        <header className="border-b border-zinc-200 dark:border-zinc-800">
-          <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-            <Link href="/" className="font-mono text-lg font-semibold tracking-tight">
-              Painel de Queimadas SP
+        <header>
+          <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-5">
+            <Link href="/" className="flex items-center gap-2.5">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-acento text-sm font-semibold text-white">
+                Q
+              </span>
+              <span className="text-base font-semibold tracking-tight text-foreground">
+                Painel de Queimadas SP
+              </span>
             </Link>
-            <span className="hidden text-sm text-zinc-500 sm:inline">
-              [NOME_DO_PRODUTO] — pesquisa PIBIC/CNPq
+            <span className="hidden text-sm text-stone-500 sm:inline">
+              pesquisa PIBIC/CNPq
             </span>
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">{children}</main>
+        <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">{children}</main>
 
-        <footer className="border-t border-zinc-200 px-4 py-6 text-xs text-zinc-500 dark:border-zinc-800">
-          <div className="mx-auto max-w-5xl space-y-1">
+        <footer className="px-4 py-8 text-xs text-stone-500">
+          <div className="mx-auto max-w-3xl space-y-1 border-t border-border pt-6">
             <p>
               Fontes de dados: INPE (focos de calor), Sentinel-2/Copernicus/ESA
               (imagens de satélite), MapBiomas Fogo (comparação independente).
