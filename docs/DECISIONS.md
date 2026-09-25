@@ -580,6 +580,17 @@ inline):**
    abrir a aba Network do navegador durante o export e ver a URL real que o
    botão de download dispara — qualquer uma das duas resolve a dúvida sem
    depender de acesso ao site do INPE (bloqueado neste sandbox).
+   **CONFIRMADO COMO ERRADA (25/09/2026):** rodando `ingest-inpe.yml` de
+   verdade pela primeira vez (após merge pra `main` e configuração dos
+   secrets), a URL falhou com `404 Client Error` pra
+   `focos_anual_br_2020.csv` — o padrão `dataserver-coids.inpe.br/.../
+   anual/Brasil/focos_anual_br_AAAA.csv` **não existe** (ou não pra esse
+   ano) como está escrito. Não é mais só "não confirmado", é "sabidamente
+   errado" — bloqueia `ingest-inpe.yml` de verdade agora, não só em teoria.
+   O restante do workflow (instalação de dependências incluindo
+   `earthengine-api`/`geopandas`/`rasterio`, secret `DATABASE_URL`
+   chegando corretamente, cache do GitHub Actions) funcionou sem problema
+   nenhum — o erro é isolado a essa URL.
 2. **Colunas confirmadas do CSV bruto:** `data_pas`, `municipio`, `lat`,
    `lon` (direto do código de `06_08`). Não confirmamos se existe uma
    coluna de estado/UF utilizável — `ingest/inpe.py` usa se existir
