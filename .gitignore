@@ -1,0 +1,21 @@
+# Este .gitignore cobre a raiz do repositorio fora do /webapp (que tem o
+# seu proprio, gerado pelo create-next-app).
+
+# Python (pipeline)
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Dados brutos grandes (INPE, rasters) — nao versionar aqui, ver /data/README.md
+*.tif
+*.tiff
+
+# Segredos / ambiente
+.env
+.env.*
+!.env.example
+
+# SO / editor
+.DS_Store
+*.swp
