@@ -6,7 +6,9 @@
 Pensado pra rodar mensalmente, dividido em jobs paralelos
 (`process-sentinel-dnbr.yml`, docs/DECISIONS.md seção 2.1) — `--grupo`/
 `--de-grupos` particiona os municípios (ordenados por codigo_ibge) em N
-fatias aproximadamente iguais, uma por job.
+fatias aproximadamente iguais, uma por job. `--municipio` testa 1 código
+IBGE só, minutos em vez de ~2h (docs/DECISIONS.md seção 6.41, mesmo padrão
+de run_validacao_mapbiomas.py seção 6.30).
 
 Compara Sentinel-2 do mês anterior ("antes") contra o mês corrente
 ("depois") — generalização mensal contínua do método de pesquisa (que
@@ -122,7 +124,14 @@ def calcular_area_queimada_km2(dnbr_imagem, area, scale: int = 20) -> float:
 
 
 def processar_municipio(
-    codigo_ibge: str, nome: str, janela_antes: tuple, janela_depois: tuple, ano: int, mes: int
+    codigo_ibge: str,
+    nome: str,
+    janela_antes: tuple,
+    janela_depois: tuple,
+    ano: int,
+    mes: int,
+    *,
+    debug: bool = False,
 ) -> tuple[float, str | None] | None:
     from shapely.geometry import mapping
 
@@ -140,7 +149,15 @@ def processar_municipio(
         print(f"[PULADO] {nome} ({codigo_ibge}): {e}")
         return None
 
+    if debug:
+        print(
+            f"[DEBUG] {codigo_ibge}: {resultado.n_cenas_antes} cena(s) antes, {resultado.n_cenas_depois} depois, "
+            f"nuvem<{resultado.limite_nuvem_usado}%, cobertura={resultado.cobertura_pct:.1f}%"
+        )
+
     area_km2 = round(calcular_area_queimada_km2(resultado.imagem, area_ee), 2)
+    if debug:
+        print(f"[DEBUG] {codigo_ibge}: area_dnbr_km2={area_km2}")
 
     imagem_url = None
     if _r2_configurado():
@@ -151,14 +168,22 @@ def processar_municipio(
             thumb_url = colorido.getThumbURL(
                 {"region": area_ee, "dimensions": DIMENSAO_MINIATURA_PX, "format": "png"}
             )
+            if debug:
+                print(f"[DEBUG] {codigo_ibge}: thumbURL do GEE = {thumb_url}")
             resposta = requests.get(thumb_url, timeout=60)
             resposta.raise_for_status()
+            if debug:
+                print(f"[DEBUG] {codigo_ibge}: PNG baixado, {len(resposta.content)} bytes — subindo pro R2...")
             imagem_url = _subir_miniatura_r2(resposta.content, codigo_ibge, ano, mes)
+            if debug:
+                print(f"[DEBUG] {codigo_ibge}: subiu pro R2 -> {imagem_url}")
         except Exception as e:
             # Miniatura e' um extra (docs/DECISIONS.md secao 6.40) — falha aqui
             # nunca deve derrubar a gravacao de area_dnbr_km2, que e' o dado
             # principal desta rodada.
             print(f"[AVISO] {nome} ({codigo_ibge}): miniatura dNBR falhou, seguindo sem imagem: {type(e).__name__}: {e}")
+    elif debug:
+        print(f"[DEBUG] {codigo_ibge}: R2 não configurado, pulando miniatura")
 
     return area_km2, imagem_url
 
@@ -168,6 +193,18 @@ def _buscar_municipios(conn) -> pd.DataFrame:
         cur.execute("SELECT codigo_ibge, nome FROM municipios ORDER BY codigo_ibge")
         linhas = cur.fetchall()
     return pd.DataFrame(linhas, columns=["codigo_ibge", "nome"])
+
+
+def _buscar_municipio_unico(conn, codigo_ibge: str) -> pd.DataFrame:
+    """Pra --municipio (debug de 1 município só, mesmo padrão de
+    run_validacao_mapbiomas.py seção 6.30) — roda em minutos em vez de ~2h,
+    útil pra validar a integração nova do R2 sem gastar quota do GEE nos 645."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT codigo_ibge, nome FROM municipios WHERE codigo_ibge = %(codigo_ibge)s", {"codigo_ibge": codigo_ibge})
+        linha = cur.fetchone()
+    if linha is None:
+        raise SystemExit(f"codigo_ibge={codigo_ibge!r} não encontrado em municipios.")
+    return pd.DataFrame([linha], columns=["codigo_ibge", "nome"])
 
 
 def _garantir_coluna_imagem(conn) -> None:
@@ -196,9 +233,16 @@ def _gravar_area_dnbr(conn, codigo_ibge: str, ano: int, area_dnbr_km2: float, im
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--grupo", type=int, required=True, help="1-indexado (ex.: 1 ou 2 pra 2 jobs)")
-    parser.add_argument("--de-grupos", type=int, required=True)
+    parser.add_argument("--grupo", type=int, default=1, help="1-indexado (ex.: 1 ou 2 pra 2 jobs)")
+    parser.add_argument("--de-grupos", type=int, default=1)
     parser.add_argument("--ano", type=int, default=date.today().year)
+    parser.add_argument(
+        "--municipio",
+        default=None,
+        help="Testa 1 código IBGE só, ignorando --grupo/--de-grupos — roda em minutos em vez de "
+        "~2h por rodada, útil pra validar a integração do R2 (docs/DECISIONS.md seção 6.40/6.41). "
+        "Liga os prints [DEBUG].",
+    )
     args = parser.parse_args()
 
     inicializar_gee()
@@ -207,13 +251,17 @@ def main() -> None:
 
     with get_connection() as conn:
         _garantir_coluna_imagem(conn)
-        municipios = _buscar_municipios(conn)
-    fatia = dividir_em_grupo(municipios, args.grupo, args.de_grupos)
+        if args.municipio:
+            fatia = _buscar_municipio_unico(conn, args.municipio)
+        else:
+            municipios = _buscar_municipios(conn)
+            fatia = dividir_em_grupo(municipios, args.grupo, args.de_grupos)
 
-    print(
-        f"Grupo {args.grupo}/{args.de_grupos}: {len(fatia)} municípios. Janelas: {janela_antes} -> {janela_depois}. "
-        f"Miniatura dNBR: {'ligada (R2 configurado)' if _r2_configurado() else 'desligada (sem R2_* no ambiente)'}"
-    )
+    if args.municipio:
+        print(f"Modo debug --municipio: {fatia.iloc[0]['codigo_ibge']} ({fatia.iloc[0]['nome']}), ano {args.ano}")
+    else:
+        print(f"Grupo {args.grupo}/{args.de_grupos}: {len(fatia)} municípios. Janelas: {janela_antes} -> {janela_depois}")
+    print(f"Miniatura dNBR: {'ligada (R2 configurado)' if _r2_configurado() else 'desligada (sem R2_* no ambiente)'}")
 
     # Conexao curta por municipio (nao 1 unica transacao pros ~320 municipios
     # do grupo, que rodam por horas — ver docs/DECISIONS.md secao 6.14):
@@ -222,7 +270,13 @@ def main() -> None:
     for _, row in fatia.iterrows():
         try:
             resultado = processar_municipio(
-                row["codigo_ibge"], row["nome"], janela_antes, janela_depois, args.ano, mes_atual
+                row["codigo_ibge"],
+                row["nome"],
+                janela_antes,
+                janela_depois,
+                args.ano,
+                mes_atual,
+                debug=bool(args.municipio),
             )
         except Exception as e:
             print(f"[ERRO] {row['codigo_ibge']} ({row['nome']}): {type(e).__name__}: {e}")

@@ -17,7 +17,11 @@ name: dNBR mensal (Sentinel-2/GEE)
 on:
   schedule:
     - cron: "0 10 1 * *" # dia 1 de cada mês, 10:00 UTC
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      municipio:
+        description: "Código IBGE pra testar 1 município só (debug, minutos em vez de ~2h) — ex.: 3539509 (Pitangueiras). Liga os prints [DEBUG], útil pra validar a integração do R2 (docs/DECISIONS.md seção 6.40/6.41)."
+        required: false
 
 jobs:
   dnbr:
@@ -47,5 +51,10 @@ jobs:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
           R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
           R2_PUBLIC_URL_BASE: ${{ secrets.R2_PUBLIC_URL_BASE }}
+          MUNICIPIO_INPUT: ${{ github.event.inputs.municipio }}
         run: |
-          python -m pipeline.run_dnbr --grupo ${{ matrix.grupo }} --de-grupos 2
+          if [ -n "$MUNICIPIO_INPUT" ]; then
+            python -m pipeline.run_dnbr --municipio "$MUNICIPIO_INPUT"
+          else
+            python -m pipeline.run_dnbr --grupo ${{ matrix.grupo }} --de-grupos 2
+          fi
