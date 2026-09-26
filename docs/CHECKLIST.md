@@ -76,8 +76,8 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 
 ## Segurança
 
-- [ ] HTTPS/TLS (Vercel/Netlify fornecem por padrão, mas não configurado
-      ainda)
+- [x] HTTPS/TLS — automático pela Vercel desde o 1º deploy em produção
+      (26/09/2026, `docs/DECISIONS.md` seção 6.37)
 - [ ] Rate limiting na API
 - [ ] Proteção contra injeção (especialmente em endpoints com parâmetros de
       busca)
@@ -105,7 +105,8 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 - [ ] Backup do banco espacial (Neon) e dos GeoTIFFs (Cloudflare R2)
 - [~] Analytics — **decidido**: Vercel Analytics (ver `docs/DECISIONS.md`,
       2.2); `@vercel/analytics` já instalado e no `layout.tsx` do webapp;
-      falta só publicar na Vercel para ativar de fato
+      site já publicado (seção 6.37) — falta só confirmar se o Pedro
+      habilitou a aba Analytics no painel do projeto na Vercel
 
 ## Documentação e citação
 

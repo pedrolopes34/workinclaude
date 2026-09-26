@@ -1783,6 +1783,39 @@ erros (2 warnings de sempre). `npm run build`: build de produção limpo,
 
 **Status:** Fechado — pendência da seção 6.34/7 resolvida.
 
+### 6.37 Primeiro deploy real em produção — `workinclaude.vercel.app` (26/09/2026)
+
+**Contexto:** Pedro importou o repositório na Vercel (conta `queimadas_sp`,
+projeto `workinclaude`) — monorepo, então **Root Directory = `webapp`** no
+import, framework Next.js detectado automaticamente.
+
+**Armadilha evitada antes de clicar em Deploy:** `src/app/sitemap.ts` é
+rota estática (`○`, gerada em build) e consulta o Postgres direto
+(`SELECT codigo_ibge FROM municipios...`) — sem `DATABASE_URL` configurada
+como variável de ambiente do projeto na Vercel, o build falharia inteiro
+(`src/lib/db.ts` lança exceção se a variável não existir), não só a rota
+em si. Adicionada a mesma connection string do Neon já usada como secret
+nos 4 workflows do GitHub Actions.
+
+**Confirmado funcionando em produção** (verificado pelo próprio Pedro,
+`https://workinclaude.vercel.app`): home carrega a lista de municípios,
+`/sitemap.xml` responde com todas as URLs (prova que o Postgres/Neon
+conectou certo no build), `/municipio/3539509` (Pitangueiras) mostra o
+mapa dNBR real e os números certos. HTTPS automático (fornecido pela
+Vercel, sem configuração extra) — fecha esse item do `CHECKLIST.md`.
+
+**Pendência menor identificada, ainda não corrigida:** `NEXT_PUBLIC_SITE_URL`
+não foi configurada — `/sitemap.xml` em produção mostra `https://example.com`
+como domínio de cada URL em vez do domínio real. Não quebra nada
+(fallback deliberado, seção anterior à publicação), mas fica errado pra
+indexação enquanto não for setada. Fix: adicionar
+`NEXT_PUBLIC_SITE_URL=https://workinclaude.vercel.app` (ou o domínio
+próprio, se/quando houver um) nas variáveis de ambiente do projeto na
+Vercel e redeployar.
+
+**Status:** Fechado (deploy funcionando) — a pendência do `SITE_URL` fica
+registrada pra não se perder, mas não trava nada.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)
