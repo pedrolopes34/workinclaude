@@ -125,20 +125,25 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 **Contagem atual:** 10 itens feitos, 12 parciais, 11 pendentes — atualizado
 em 26/09/2026: pipeline de produção rodando de verdade pela 1ª vez
 (`ingest-inpe.yml`, `process-sentinel-dnbr.yml`, `audit-anual.yml`
-confirmados por log real; `check-mapbiomas.yml` **ainda quebrado** — o fix
-de geometria da seção 6.25 foi testado de verdade e refutado), auditoria
-WCAG AA rodada de verdade no webapp (3 de 4 violações corrigidas),
-Dependabot configurado.
+confirmados por log real), auditoria WCAG AA rodada de verdade no webapp
+(3 de 4 violações corrigidas), Dependabot configurado.
 
-**⚠️→✅ Incidente real, já corrigido (26/09/2026, `docs/DECISIONS.md` seção
+**✅ `check-mapbiomas.yml` corrigido e confirmado por execução real
+(`docs/DECISIONS.md` seção 6.31):** a causa raiz de verdade era projeção
+— `getInfo()` do Earth Engine sempre devolve geometria em EPSG:4326,
+independente do `crs` pedido no `reduceToVectors`; o código tratava essas
+coordenadas em graus como se já estivessem em metros. Confirmado com
+Ibitinga: área foi de 0,00 km² pra 88,40 km², IoU de 0% pra 10,23%.
+Próximo passo: rodar os 645 municípios de verdade pra confirmar que
+varia de forma plausível em escala.
+
+**✅ Incidente da amostra manual, corrigido (`docs/DECISIONS.md` seção
 6.29):** o `check-mapbiomas.yml` bugado sobrescreveu pelo menos 33 dos 63
 municípios da amostra validada manualmente (Ibitinga incluído) com
-resultado errado antes de eu cancelar a rodada. Corrigido: coluna
-`validacao_mapbiomas.fonte` protege a amostra permanentemente (83 testes),
-e a restauração já foi aplicada em produção (`check-mapbiomas.yml` run
-`36252923307`, `restaurar_amostra_manual=true`, sucesso confirmado por
-log). O bug de fundo do `reduceToVectors` (seção 6.28) continua aberto —
-só a amostra manual está protegida dele agora.
+resultado errado antes de eu cancelar a rodada. Coluna
+`validacao_mapbiomas.fonte` protege a amostra permanentemente (88 testes
+no total agora), e a restauração já foi aplicada em produção (run
+`36252923307`, sucesso confirmado por log).
 
 Este checklist é sobre prontidão de produção (SEO, segurança, testes) —
 para o que foi implementado nesta sessão, ver `docs/DECISIONS.md` seção 6.

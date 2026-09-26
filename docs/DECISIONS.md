@@ -1548,15 +1548,38 @@ foram o problema, não custam nada tirar nem manter).
 
 **Testado nesta sessão:** 88 testes de sempre (o fix em si — reprojeção
 de uma `FeatureCollection` real do GEE — só é verificável contra o GEE
-real, não localmente). Próximo passo imediato: disparar de novo
-`municipio=3519600` com o fix aplicado e confirmar que a área/IoU sai
-diferente de zero antes de rodar os 645 municípios de verdade.
+real, não localmente).
 
-**Status:** Aberto até a próxima execução real confirmar — mas essa é a
-primeira vez nas 5 tentativas anteriores (seções 6.21/6.24/6.25/6.28) que
-o diagnóstico chega numa explicação mecanicamente completa e consistente
-com todas as evidências já coletadas (nenhuma parte "sobra sem explicar"),
-em vez de eliminação de hipóteses por falta de uma alternativa melhor.
+**CONFIRMADO por execução real** (2ª rodada `--municipio 3519600`, run
+`36253970608`, ~2min30s): mesma geometria de entrada de antes
+(581→580 vértices, sempre válida) e mesmas 117 feições do
+`reduceToVectors` — a diferença é só o fix de reprojeção, e o resultado
+mudou completamente:
+
+```
+[DEBUG] 3519600: mapbiomas_geom.area=88.40 km² vazio=False   (antes: 0.00 km²)
+3519600 (Ibitinga): Média (IoU=10.23%, p=1.0)                (antes: Baixa, IoU=0.0%, p=1.0)
+```
+
+Área real, IoU real e diferente de zero — a "confiabilidade" já não é
+mais um valor morto uniforme. Não bate exatamente com o valor da pesquisa
+original (`Alta`, 17,32%, p=0,003, seção 1.2/6.1) — esperado, já que esta
+é uma reconstrução automática independente (ST-DBSCAN recalculado dos
+focos brutos, não os mesmos parâmetros/rodada manual), não uma cópia.
+`p=1,0` exato chama atenção (esperava-se algum valor intermediário) mas
+é uma pendência **já documentada antes desta sessão** (seção 6.15/6.21:
+"mecânica do teste de permutação é uma reconstrução não confirmada
+contra o notebook oficial") — não confundir com o bug de projeção que
+essa seção resolveu; fica pra observar quando a rodada dos 645 mostrar
+se `p` varia entre municípios ou fica sempre travado.
+
+**Status:** Fechado — bug de projeção confirmado e corrigido por
+execução real. Essa é a primeira vez, depois de 5 tentativas anteriores
+(seções 6.21/6.24/6.25/6.28), que uma explicação mecanicamente completa
+bateu com a evidência real, em vez de eliminação de hipóteses por falta
+de alternativa melhor. Próximo passo: rodar os 645 municípios de verdade
+(`check-mapbiomas.yml` sem `municipio`) e confirmar que a confiabilidade
+varia de forma plausível entre eles.
 
 ---
 
