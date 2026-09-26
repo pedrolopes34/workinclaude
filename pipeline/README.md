@@ -6,7 +6,7 @@ contra o MapBiomas Fogo. É quem popula o Postgres/PostGIS lido pelo
 `/webapp` e pela `/api`.
 
 Decisões de arquitetura, proveniência dos notebooks portados e pendências
-técnicas: `docs/DECISIONS.md` seções 6.11 a 6.20.
+técnicas: `docs/DECISIONS.md` seções 6.11 a 6.21.
 
 ## Setup
 
@@ -30,7 +30,7 @@ cp .env.example .env   # aponta pro Postgres local — ver /pipeline/db/README.m
 | `dnbr/sentinel2.py` | Cálculo do dNBR via Sentinel-2/GEE, com fallback de nuvem e checagem de cobertura real de pixels | Não — precisa de rede/credenciais do Earth Engine, indisponíveis neste sandbox de propósito |
 | `dnbr/validacao.py` | Severidade espectral por evento (buffer 500 m + `rasterstats`) | Sim (raster sintético) |
 | `validacao/mapbiomas.py` | IoU/Jaccard, recall, teste de permutação (999x) e classificação de confiabilidade (4 níveis) | Sim — 12 testes, incluindo os 5 exemplos documentados em `docs/DECISIONS.md` seção 1.3; mecânica do teste de permutação é uma reconstrução a confirmar (seção 6.15) |
-| `validacao/mapbiomas_gee.py` | Busca a área queimada do MapBiomas Fogo no Earth Engine | Não — precisa de GEE; asset **não confirmado** (seção 6.15/6.16) |
+| `validacao/mapbiomas_gee.py` | Busca a área queimada do MapBiomas Fogo no Earth Engine | Não — precisa de GEE; asset trocado pro anual com evidência mais forte, ainda não confirmado (seção 6.21) |
 | `run_ingest_stdbscan.py` | CLI que liga ingestão + ST-DBSCAN e grava em `metricas_anuais` — processa o **ano corrente inteiro**, não um mês específico (seção 6.13) | Sim, ponta-a-ponta contra o Postgres local (dados sintéticos) |
 | `run_dnbr.py` | CLI que orquestra o dNBR pra um grupo de municípios e grava `area_dnbr_km2` — compara mês anterior x mês corrente, cálculo síncrono via `reduceRegion` (sem exportar GeoTIFF) | Parcial — só a lógica pura (`janela_mes_anterior`) é testada; o cálculo em si precisa de GEE |
 | `run_validacao_mapbiomas.py` | CLI que reconstrói o ST-DBSCAN (pra obter a geometria), compara contra o MapBiomas e grava em `validacao_mapbiomas` | Parcial — só as partes que orquestra são testadas isoladamente |
@@ -68,8 +68,10 @@ tem evidência forte mas ainda não confirmação real (URL mensal do INPE).
   ainda falhar: inspecionar a aba Network do navegador durante um download
   manual real pelo BDQueimadas.
 - **Confirmar o asset do MapBiomas Fogo no Earth Engine**
-  (`validacao/mapbiomas_gee.py`) — 2 candidatos encontrados por busca na
-  web, nenhum verificado (seção 6.15).
+  (`validacao/mapbiomas_gee.py`) — trocado pro asset anual (Coleção 4,
+  bandas nomeadas `burned_coverage_{ano}`), evidência bem mais forte que a
+  1ª tentativa mas ainda não confirmado contra a fonte primária nem
+  executado de verdade (seção 6.21).
 - **Confirmar a mecânica exata do teste de permutação** contra o notebook
   oficial (`Comparativo_Oficial_IoUJaccardPixels_CORRIGIDO_v3.ipynb`, > 10
   MB, não coube na ferramenta de Drive desta sessão) — a versão atual é uma

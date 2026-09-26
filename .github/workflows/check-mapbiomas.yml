@@ -12,11 +12,13 @@ name: Validação MapBiomas Fogo (IoU + permutação)
 #   - DATABASE_URL, GEE_SERVICE_ACCOUNT_KEY (mesmos de ingest-inpe.yml e
 #     process-sentinel-dnbr.yml)
 #
-# ATENÇÃO — pendências não resolvidas (docs/DECISIONS.md seção 6.15/6.16):
+# ATENÇÃO — pendências não resolvidas (docs/DECISIONS.md seção 6.15/6.21):
 # mecânica do teste de permutação é uma reconstrução não confirmada contra
 # o notebook oficial, e o asset do MapBiomas Fogo no Earth Engine
-# (pipeline/validacao/mapbiomas_gee.py) não foi verificado contra a fonte
-# primária. Não habilitar de verdade antes de resolver isso.
+# (pipeline/validacao/mapbiomas_gee.py) foi revisado com evidência mais
+# forte (seção 6.21) mas ainda não confirmado contra a fonte primária, nem
+# executado de verdade com sucesso. Não habilitar de verdade (cron) antes
+# de confirmar — o workflow_dispatch manual é pra isso.
 
 on:
   schedule:

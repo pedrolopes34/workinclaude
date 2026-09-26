@@ -979,9 +979,48 @@ real — 77 testes (mesma contagem, 3 arquivos de teste ajustados, nenhum
 teste novo pra essa troca pontual). Não executado de verdade ainda —
 próxima rodada confirma.
 
-**Status:** Aberto — próximo passo é rodar de novo; se passar dessa etapa,
-`ingest-inpe.yml` fica pertinho de completar de ponta a ponta pela
-primeira vez.
+**Status:** ✅ **Confirmado.** A 4ª execução real de `ingest-inpe.yml`
+completou com sucesso de ponta a ponta (~7 min) — 645 municípios
+processados e gravados em `metricas_anuais` no Neon de produção. Primeira
+rodada de produção bem-sucedida da sessão. Também rodei `audit-anual.yml`
+como teste técnico de conectividade (não uma auditoria de conteúdo real) —
+sucesso em ~1 min, confirmando escrita em `auditorias_anuais`.
+
+### 6.21 Asset do MapBiomas Fogo revisado — troca de mensal/índice pra anual/nome de banda (26/09/2026)
+
+**Contexto:** com `check-mapbiomas.yml` rodando pela primeira vez (ainda
+com o asset candidato original da seção 6.15), usei o tempo de espera pra
+pesquisar mais a fundo — `brasil.mapbiomas.org` bloqueado pro fetch direto
+neste sandbox (mesma limitação de rede de sempre), mas o GitHub e buscas
+gerais não são.
+
+**Dois problemas encontrados na suposição original:**
+1. **Contradição interna:** o comentário do código dizia "Coleção 4
+   mensal, 40 bandas (1 por ano)" — mas "mensal" e "1 banda por ano" são
+   propriedades incompatíveis. Busca indica que o produto "monthly_burned"
+   é uma `ee.ImageCollection` (uma imagem por mês), não uma `ee.Image`
+   multi-banda como o código assumia (`ee.Image(asset).select([indice])`)
+   — teria quebrado com erro de tipo no Earth Engine.
+2. A pergunta que `buscar_area_queimada` faz é "queimou em algum mês do
+   ano" — uma agregação ANUAL. O produto certo pra essa pergunta é o
+   **anual**, não o mensal.
+
+**Decisão:** trocado pro asset `mapbiomas_fire_collection4_annual_burned_
+coverage_v1` — segundo a busca, uma `ee.Image` com bandas NOMEADAS
+`burned_coverage_{ano}` (não numeradas por índice), valor do pixel = 
+código de classe de uso/cobertura MapBiomas que queimou naquele ano (0 =
+não queimou). Trocada a seleção de banda por índice (`select([ano-1985])`)
+por seleção por nome (`select(f"burned_coverage_{ano}")`) — mais robusto,
+e a lógica `pixel > 0 = queimou` continua válida nessa leitura.
+
+**Ainda não fechado:** evidência bem mais forte e internamente consistente
+que a tentativa anterior, mas segue sem confirmação contra a fonte
+primária (documentação oficial do MapBiomas) ou execução real — é possível
+que o nome do asset, o sufixo de versão (`_v1`) ou o nome exato da banda
+estejam sutilmente errados. Se `check-mapbiomas.yml` falhar num erro de
+"asset not found" ou "band not found", é aqui que olhar primeiro.
+
+**Status:** Aberto — aguardando confirmação por execução real.
 
 ---
 

@@ -2,22 +2,27 @@
 município/ano — a "outra fonte independente" contra a qual o ST-DBSCAN é
 comparado (docs/DECISIONS.md seção 6.15).
 
-NÃO CONFIRMADO — asset e convenção de banda são suposições, não extraídas
-de nenhum notebook lido nesta sessão (domínio do MapBiomas bloqueado pro
-fetch direto neste sandbox, mesmo padrão da seção 6.9/6.12). Pedro não
-tinha isso de cabeça; ver docs/DECISIONS.md seção 6.15 pelos 2 candidatos
-de asset encontrados por busca na web, nenhum verificado contra a fonte
-primária. Assumido abaixo: Coleção 4 mensal, 40 bandas (1 por ano,
-1985–2024), banda selecionada por ÍNDICE (ano - 1985), não por nome — mais
-robusto a variação de nome de banda entre coleções, mas a lógica de
-"pixel > 0 = queimou naquele ano" (documentada em CONTEXTO_PROJETO.md)
-também não foi verificada contra o dado real.
+NÃO CONFIRMADO contra a fonte primária (brasil.mapbiomas.org bloqueado pro
+fetch direto neste sandbox, mesmo padrão da seção 6.9/6.12) — mas revisado
+em 26/09/2026 com evidência bem mais forte que a 1ª tentativa (ver
+docs/DECISIONS.md seção 6.21). A suposição anterior usava o asset
+"monthly" (mensal) como se fosse uma `ee.Image` de 40 bandas por ÍNDICE —
+inconsistente: "mensal" e "1 banda por ano" são propriedades
+contraditórias, e buscas indicam que o produto mensal na verdade é uma
+`ee.ImageCollection`, não uma `ee.Image`. Como a pergunta que este módulo
+faz é "queimou em algum mês do `ano`" — uma agregação ANUAL — o asset certo
+é o "annual_burned_coverage" (Coleção 4), que É uma `ee.Image` multi-banda
+como o código já esperava, com bandas NOMEADAS `burned_coverage_{ano}`
+(confirmado por busca, não por acesso direto) — trocado de seleção por
+índice pra seleção por nome, mais robusto a qualquer reordenação de banda.
+Pixel = código de classe de uso/cobertura (MapBiomas Coleção 8) que
+queimou naquele ano; 0 = não queimou — "pixel > 0 = queimou" continua
+válido nessa leitura.
 """
 
-ASSET_MAPBIOMAS_FOGO_MENSAL = (
-    "projects/mapbiomas-public/assets/brazil/fire/collection4/mapbiomas_fire_collection4_monthly_burned_v1"
+ASSET_MAPBIOMAS_FOGO_ANUAL = (
+    "projects/mapbiomas-public/assets/brazil/fire/collection4/mapbiomas_fire_collection4_annual_burned_coverage_v1"
 )
-PRIMEIRO_ANO_COLECAO = 1985
 
 
 def buscar_area_queimada(area_ee, ano: int, epsg_metrico: int, scale: int = 30):
@@ -29,9 +34,8 @@ def buscar_area_queimada(area_ee, ano: int, epsg_metrico: int, scale: int = 30):
     from shapely.geometry import shape
     from shapely.ops import unary_union
 
-    indice_banda = ano - PRIMEIRO_ANO_COLECAO
-    colecao = ee.Image(ASSET_MAPBIOMAS_FOGO_MENSAL)
-    banda_ano = colecao.select([indice_banda])
+    colecao = ee.Image(ASSET_MAPBIOMAS_FOGO_ANUAL)
+    banda_ano = colecao.select(f"burned_coverage_{ano}")
     queimado = banda_ano.gt(0).selfMask()
 
     vetorizado = queimado.reduceToVectors(
