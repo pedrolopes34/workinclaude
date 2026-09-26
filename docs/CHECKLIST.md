@@ -70,11 +70,11 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 - [ ] Rate limiting na API
 - [ ] Proteção contra injeção (especialmente em endpoints com parâmetros de
       busca)
-- [~] Scan de vulnerabilidade de dependências — `.github/dependabot.yml`
-      criado (pip/`pipeline`, npm/`webapp`, github-actions, semanal); falta
-      só o Pedro confirmar/ativar "Dependabot alerts" em Settings → Code
-      security and analysis do repositório (permissão de admin, não dá
-      pra fazer por API/token de Actions)
+- [x] Scan de vulnerabilidade de dependências — `.github/dependabot.yml`
+      criado (pip/`pipeline`, npm/`webapp`, github-actions, semanal) e
+      "Dependabot alerts" confirmado ativo pelo Pedro em Settings → Code
+      security (26/09/2026) — repositório é privado, então não veio ligado
+      por padrão, mas já estava ativo quando ele conferiu
 - [ ] Política de retenção de dados de usuário (definir o que é coletado
       antes de escrever a política)
 
@@ -125,12 +125,12 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 
 ---
 
-**Contagem atual:** 11 itens feitos, 11 parciais, 11 pendentes — atualizado
+**Contagem atual:** 12 itens feitos, 10 parciais, 11 pendentes — atualizado
 em 26/09/2026: pipeline de produção rodando de verdade pela 1ª vez
 (`ingest-inpe.yml`, `process-sentinel-dnbr.yml`, `audit-anual.yml`
 confirmados por log real), auditoria WCAG AA **fechada** (5 de 5
-violações de contraste corrigidas, seção 6.32), Dependabot configurado
-(falta só o Pedro clicar "Dependabot alerts" em Settings — ver abaixo).
+violações de contraste corrigidas, seção 6.32), Dependabot **fechado**
+(alertas confirmados ativos pelo Pedro).
 
 **✅ `check-mapbiomas.yml` corrigido e confirmado por execução real
 (`docs/DECISIONS.md` seção 6.31):** a causa raiz de verdade era projeção

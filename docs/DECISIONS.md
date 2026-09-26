@@ -1226,11 +1226,11 @@ resolvi as 3 pendências que o Pedro pediu pra matar.
 
 **1. Scan de vulnerabilidade (Dependabot):** criado
 `.github/dependabot.yml` (pip/`pipeline`, npm/`webapp`, github-actions,
-semanal). **Não fechado 100%:** ativar "Dependabot alerts" em Settings →
-Code security and analysis do repositório é uma permissão de admin/dono,
-não dá pra fazer pelas ferramentas de GitHub disponíveis nesta sessão —
-o Pedro precisa conferir/clicar lá (pode já estar ligado por padrão em
-repositório público).
+semanal). **Fechado em 26/09/2026:** Pedro conferiu em Settings → Code
+security do repositório (privado — não vem ligado por padrão como em
+repositório público) e "Dependency graph"/"Dependabot alerts" já
+apareceram ativos (botão "Disable" nos dois, confirmando o estado
+ligado) — nada a mudar.
 
 **2. Auditoria de acessibilidade WCAG AA:** rodei de verdade — subi o
 webapp local (Postgres do dev estava parado, religado) e usei Playwright
