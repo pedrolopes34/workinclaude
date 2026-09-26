@@ -1198,6 +1198,27 @@ e a simplificação não ajudou.
 **Status:** Aberto — fix aplicado com base em eliminação de hipóteses,
 ainda não confirmado.
 
+### 6.26 Retry com backoff pros timeouts esparsos da API de malhas do IBGE (26/09/2026)
+
+**Contexto:** enquanto a rodada de teste da seção 6.25 rodava, resolvi a
+pendência secundária já identificada nas seções 6.22/6.23 — timeouts
+espalhados (municípios diferentes a cada rodada, não um padrão fixo) na
+API de malhas do IBGE, tanto no dNBR quanto na validação MapBiomas.
+
+**Decisão:** `buscar_geometria_municipio` (`common/ibge_malhas.py`) agora
+tenta até 3 vezes (`tentativas=3`, parâmetro configurável) com backoff
+exponencial (1s, 2s) antes de desistir e levantar o erro — como o
+try/except por município já existia nos dois scripts chamadores, isso só
+reduz a frequência de município perdido por rodada, não muda o
+comportamento em caso de falha persistente.
+
+**Testado nesta sessão:** sucesso de primeira não tenta de novo, falha
+uma vez e tenta de novo com sucesso (backoff correto), falha todas as
+tentativas e levanta o último erro — 3 testes novos, 80 no total.
+
+**Status:** Fechado — melhoria de robustez de baixo risco, não depende
+de confirmação externa.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)
