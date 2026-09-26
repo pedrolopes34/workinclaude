@@ -16,8 +16,9 @@ Espera em `--pasta-focos` um CSV bruto do INPE por ano (`focos_anual_br_AAAA.csv
 ou equivalente ja filtrado) cobrindo o ano alvo e pelo menos os 6 anos
 anteriores (pra calcular o teto historico anual usado em
 `calcular_min_samples` — docs/DECISIONS.md secao 6.11/6.12/6.13). Baixa o que
-faltar via `pipeline.ingest.inpe.baixar_focos_ano` se `--baixar-faltantes`
-for passado.
+faltar via `pipeline.ingest.inpe.baixar_anos_necessarios` se
+`--baixar-faltantes` for passado — ano historico que o INPE nao tiver mais
+disponivel e so um aviso, nao interrompe a rodada (secao 6.19).
 
 Fluxo completo (leitura de CSVs sinteticos + calculo + escrita real via
 UPSERT) validado nesta sessao contra o Postgres local de desenvolvimento
@@ -33,7 +34,7 @@ from pathlib import Path
 import pandas as pd
 
 from pipeline.common.db import get_connection
-from pipeline.ingest.inpe import baixar_focos_ano, carregar_focos_sp
+from pipeline.ingest.inpe import baixar_anos_necessarios, carregar_focos_sp
 from pipeline.stdbscan.core import ParametrosStDbscan, calcular_min_samples, resumir_eventos, rodar_stdbscan
 
 ANOS_HISTORICO = 6  # 2018-2023 pra um alvo de 2024, por exemplo
@@ -111,8 +112,7 @@ def main() -> None:
 
     anos = range(args.ano - ANOS_HISTORICO, args.ano + 1)
     if args.baixar_faltantes:
-        for ano in anos:
-            baixar_focos_ano(ano, args.pasta_focos, forcar=(ano == args.ano))
+        baixar_anos_necessarios(anos, args.ano, args.pasta_focos)
 
     with get_connection() as conn:
         municipios = _buscar_municipios(conn)

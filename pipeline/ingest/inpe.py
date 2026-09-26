@@ -102,6 +102,32 @@ def baixar_focos_ano(ano: int, destino_dir: Path, forcar: bool = False, timeout_
     return destino
 
 
+def baixar_anos_necessarios(anos: range, ano_alvo: int, destino_dir: Path, forcar_alvo: bool = True) -> None:
+    """Baixa cada ano de uma janela de histórico (usada tanto pro ingest
+    diário quanto pra validação MapBiomas — ambos calculam teto histórico
+    sobre uma janela de anos anteriores ao ano alvo).
+
+    Ano histórico que falhar (ex.: fora da janela que o INPE mantém no
+    dataserver — só confirmamos retenção até 2024, 2020 deu 404 pra todos
+    os 12 meses numa rodada real, ver docs/DECISIONS.md seção 6.19) é só um
+    aviso, não derruba a chamada inteira: `calcular_teto_historico` já
+    tolera menos anos de histórico disponível, inclusive zero. O ano ALVO
+    falhar é fatal — sem ele não há o que processar (escrever métrica com
+    focos=0 seria dado falso, não "insuficiente").
+
+    `forcar_alvo` decide se o ano alvo é baixado de novo mesmo se já
+    estiver em cache — `True` pro ingest diário (ano corrente, sempre
+    mutável); `False` pra validação MapBiomas (ano alvo já fechado/
+    imutável, mesmo tratamento dos anos de histórico)."""
+    for ano in anos:
+        try:
+            baixar_focos_ano(ano, destino_dir, forcar=(forcar_alvo and ano == ano_alvo))
+        except Exception as e:
+            if ano == ano_alvo:
+                raise
+            print(f"[AVISO] {ano} indisponível no INPE, seguindo só com os anos que baixaram: {type(e).__name__}: {e}")
+
+
 def _ler_csv_focos(caminho: Path) -> pd.DataFrame:
     if caminho.suffix == ".zip":
         with zipfile.ZipFile(caminho) as z:

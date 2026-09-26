@@ -159,10 +159,9 @@ def main() -> None:
     anos = range(args.ano - ANOS_HISTORICO, args.ano + 1)
 
     if args.baixar_faltantes:
-        from pipeline.ingest.inpe import baixar_focos_ano
+        from pipeline.ingest.inpe import baixar_anos_necessarios
 
-        for ano in anos:
-            baixar_focos_ano(ano, args.pasta_focos)  # ano ja fechado (--ano <= ano corrente - 1): nunca forcar
+        baixar_anos_necessarios(anos, args.ano, args.pasta_focos, forcar_alvo=False)  # ano alvo ja fechado: nunca forcar
 
     with get_connection() as conn:
         todos_municipios = _buscar_municipios(conn)

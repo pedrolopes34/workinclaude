@@ -3,7 +3,13 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from pipeline.ingest.inpe import _concatenar_csvs_mensais, baixar_focos_ano, carregar_focos_sp, padronizar_nome
+from pipeline.ingest.inpe import (
+    _concatenar_csvs_mensais,
+    baixar_anos_necessarios,
+    baixar_focos_ano,
+    carregar_focos_sp,
+    padronizar_nome,
+)
 
 
 class _RespostaFalsa:
@@ -56,6 +62,45 @@ def test_baixar_focos_ano_lanca_erro_se_nenhum_mes_disponivel(tmp_path: Path, mo
 
     with pytest.raises(RuntimeError):
         baixar_focos_ano(2099, tmp_path)
+
+
+def test_baixar_anos_necessarios_tolera_falha_em_ano_historico(tmp_path: Path, monkeypatch, capsys):
+    chamados = []
+
+    def fake(ano, destino_dir, forcar=False):
+        chamados.append(ano)
+        if ano == 2020:
+            raise RuntimeError("ano fora da janela retida no INPE")
+
+    monkeypatch.setattr("pipeline.ingest.inpe.baixar_focos_ano", fake)
+
+    baixar_anos_necessarios(range(2020, 2025), ano_alvo=2024, destino_dir=tmp_path)
+
+    assert chamados == [2020, 2021, 2022, 2023, 2024]  # nao para no ano que falhou
+    assert "AVISO" in capsys.readouterr().out
+
+
+def test_baixar_anos_necessarios_propaga_falha_do_ano_alvo(tmp_path: Path, monkeypatch):
+    def fake(ano, destino_dir, forcar=False):
+        if ano == 2024:
+            raise RuntimeError("sem dado nenhum do ano alvo")
+
+    monkeypatch.setattr("pipeline.ingest.inpe.baixar_focos_ano", fake)
+
+    with pytest.raises(RuntimeError):
+        baixar_anos_necessarios(range(2020, 2025), ano_alvo=2024, destino_dir=tmp_path)
+
+
+def test_baixar_anos_necessarios_forcar_alvo_falso_nunca_forca(tmp_path: Path, monkeypatch):
+    forcados = []
+    monkeypatch.setattr(
+        "pipeline.ingest.inpe.baixar_focos_ano",
+        lambda ano, destino_dir, forcar=False: forcados.append((ano, forcar)),
+    )
+
+    baixar_anos_necessarios(range(2023, 2025), ano_alvo=2024, destino_dir=tmp_path, forcar_alvo=False)
+
+    assert forcados == [(2023, False), (2024, False)]
 
 
 def test_concatenar_csvs_mensais_mantem_so_o_primeiro_cabecalho(tmp_path: Path):

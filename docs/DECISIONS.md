@@ -905,6 +905,47 @@ cabeçalho) — 4 testes novos, 74 no total.
 
 **Status:** Aberto — evidência forte, não confirmação real.
 
+### 6.19 Dataserver do INPE não retém anos antigos — degradação graciosa no download do histórico (26/09/2026)
+
+**Contexto:** re-testei `ingest-inpe.yml` já com a correção da seção 6.18.
+Passou da etapa que falhava antes, mas quebrou em outro lugar: `ANOS_HISTORICO
+= 6` (seção 6.11/6.12) faz `run_ingest_stdbscan.py` pedir 2020–2026 pra
+calcular o teto histórico, e **2020 deu 404 nos 12 meses**, não só no mês
+"anual" de antes. Confirmado por execução real (não é suposição de busca
+desta vez) — o dataserver não é um arquivo histórico completo, parece ser
+uma janela rolante recente (bate com o próprio código já assumir que a
+pesquisa original baixava dado histórico manualmente pelo portal
+BDQueimadas, não por este dataserver).
+
+**Decisão:** ano histórico que falhar no download vira só um aviso
+(`[AVISO] ...`), não derruba a rodada — `calcular_teto_historico` já
+tolera menos anos de histórico disponível (inclusive zero, é o caso já
+testado dos municípios "Terra_Roxa"/"Tupã" etc., seção 6.11). O ano ALVO
+falhar continua fatal — sem ele não há o que processar, e escrever
+`num_focos_calor=0` por causa de uma falha de rede seria dado falso (não
+"Insuficiente" de verdade). Extraído `baixar_anos_necessarios` pra
+`pipeline/ingest/inpe.py` (reaproveitado por `run_ingest_stdbscan.py` e
+`run_validacao_mapbiomas.py` — os dois tinham o mesmo padrão de loop sem
+try/except), com `forcar_alvo` pra diferenciar os dois usos (ingest diário
+força o ano corrente; validação MapBiomas nunca força, todo ano ali já é
+fechado).
+
+**Não fechado:** ainda não sabemos até onde o histórico realmente vai (só
+sabemos que 2020 não está lá e há evidência de busca de 2024/2025). Com
+`ANOS_HISTORICO=6`, é bem possível que boa parte da janela de 6 anos
+sempre falhe silenciosamente (virando avisos) — o teto histórico real
+pode ficar sistematicamente mais raso do que o pretendido. Não é urgente
+corrigir agora (a fórmula tolera isso), mas vale medir quantos anos
+realmente vingam na próxima rodada real antes de considerar
+`ANOS_HISTORICO=6` uma decisão ainda válida na prática.
+
+**Testado nesta sessão:** `baixar_anos_necessarios` tolera falha em ano
+histórico (não para no meio, avisa), propaga falha do ano alvo, e respeita
+`forcar_alvo=False` — 3 testes novos, 77 no total.
+
+**Status:** Aberto — degradação graciosa implementada; extensão real da
+janela de histórico do INPE ainda desconhecida.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)

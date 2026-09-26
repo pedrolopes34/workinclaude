@@ -6,7 +6,7 @@ contra o MapBiomas Fogo. É quem popula o Postgres/PostGIS lido pelo
 `/webapp` e pela `/api`.
 
 Decisões de arquitetura, proveniência dos notebooks portados e pendências
-técnicas: `docs/DECISIONS.md` seções 6.11 a 6.18.
+técnicas: `docs/DECISIONS.md` seções 6.11 a 6.19.
 
 ## Setup
 
