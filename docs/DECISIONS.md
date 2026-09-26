@@ -2063,12 +2063,24 @@ parametrizado, incluindo o caso "ID junto com texto extra";
 claramente "não parece conter um account id válido" em vez de deixar o
 boto3 falhar com uma mensagem genérica).
 
-**Status:** Diagnóstico e código commitados; **bloqueado esperando o
-Pedro reconferir o valor exato do `R2_ACCOUNT_ID`** direto no painel da
-Cloudflare (R2 Object Storage → Overview, não dentro do bucket) e
-regravar o secret no GitHub. Depois disso, repetir
-`--municipio 3539509` mais uma vez antes de liberar a rodada completa
-dos 645 (nunca rodar em escala sem confirmar o caminho fim-a-fim antes).
+**6ª rodada real** (run `36276029598`, depois do Pedro reconferir e
+regravar o secret): **sucesso de ponta a ponta.** Diagnóstico confirmou
+`R2_ACCOUNT_ID` agora com exatos 32 caracteres — era mesmo campo errado
+antes, como a 5ª rodada indicava. Log real:
+```
+[DEBUG] 3539509: subiu pro R2 -> .../dnbr/3539509-2026-09.png
+3539509 (Pitangueiras): area_dnbr_km2=115.82 imagem=.../dnbr/3539509-2026-09.png
+```
+`metricas_anuais.dnbr_imagem_url` gravado com a URL real pela primeira
+vez em produção.
+
+**Status:** Fechado — caminho GEE → R2 → banco confirmado funcionando de
+ponta a ponta com dado real. Próximo passo (não feito ainda, decisão do
+Pedro): liberar a rodada completa dos 645 municípios (sem `--municipio`)
+pra popular `dnbr_imagem_url` em escala — cada rodada mensal normal
+(`process-sentinel-dnbr.yml` no cron do dia 1) já vai fazer isso
+automaticamente a partir de agora, então nem precisa disparar manual se
+não houver pressa.
 
 ---
 
