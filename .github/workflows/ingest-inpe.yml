@@ -40,7 +40,7 @@ jobs:
       # interno em pipeline/run_ingest_stdbscan.py), então uma cache
       # "desatualizada" do ano corrente não é problema.
       - name: Cache dos CSVs anuais do INPE
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: focos_cache
           key: focos-inpe-${{ github.run_id }}

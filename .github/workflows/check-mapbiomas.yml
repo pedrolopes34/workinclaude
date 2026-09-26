@@ -49,7 +49,7 @@ jobs:
         run: pip install -r pipeline/requirements.txt
 
       - name: Cache dos CSVs anuais do INPE
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: focos_cache
           key: focos-inpe-${{ github.run_id }}
