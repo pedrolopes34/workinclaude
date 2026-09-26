@@ -1429,11 +1429,18 @@ Não testado (precisa do Neon real): a migração e a restauração de fato
 rodando contra produção — próximo passo imediato, fora desta sessão de
 código.
 
-**Status:** Código escrito e testado; run bugada cancelada; **restauração
-ainda não aplicada em produção** — falta disparar
-`check-mapbiomas.yml` com `restaurar_amostra_manual=true` (ou local, se o
-Pedro preferir) pra devolver os 33+ municípios sobrescritos ao valor
-correto antes de mexer em qualquer outra coisa do MapBiomas.
+**Status:** Fechado. Código commitado e mergeado em `main` (`e3d50a5`),
+`check-mapbiomas.yml` disparado manualmente com
+`restaurar_amostra_manual=true` (run `36252923307`) — os dois jobs do
+matrix terminaram com sucesso em ~7s cada (só banco, sem GEE/INPE),
+log confirma a mensagem exata de restauração e nenhum erro. Como o
+sandbox não alcança o Neon direto pra um SELECT de conferência (seção
+6.9), a confirmação é pelo commit bem-sucedido do script (mesmo padrão
+rigoroso desta sessão: log real, não só "conclusion: success" — aqui a
+mensagem de saída só aparece depois do `with get_connection()` sair sem
+exceção, ou seja, depois do commit). Município fora da amostra continua
+protegido daqui pra frente: `_buscar_municipios` nunca mais inclui os 63
+no loop automático.
 
 ---
 
