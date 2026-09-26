@@ -1097,6 +1097,52 @@ UPSERT é idempotente, o município só fica sem dado numa rodada e se
 resolve sozinho na próxima (diário pro dNBR/ingest, mensal pro
 MapBiomas) — baixa prioridade, mas vale um retry se incomodar.
 
+### 6.24 ⚠️ check-mapbiomas.yml "passou" mas o resultado é cientificamente inválido — geometria do MapBiomas vindo vazia pra todo município (26/09/2026)
+
+**Status: NÃO CONFIAR nos dados gravados nesta rodada.** A 2ª tentativa
+(já com os fixes das seções 6.21/6.22) completou sem nenhum erro fatal e
+gravou uma linha em `validacao_mapbiomas` pra quase todos os ~600
+municípios dos 2 grupos (só os poucos com timeout do IBGE ficaram de
+fora). Mas **toda linha, sem exceção, é `Baixa (IoU=0,0%, p=1,0)`** —
+inclusive Ibitinga, que a própria seção 1.3 deste documento cita como
+exemplo de referência da confiabilidade **Alta** (recall 83,2%, p=0,003).
+Isso prova que não é variação real de queimada — é um bug sistemático.
+
+**Diagnóstico até onde dá pra ir sem acesso ao GEE direto:** `.select(f
+"burned_coverage_{ano}")` não lançou erro pra nenhum município (então o
+asset existe e o nome da banda está certo) — o problema é depois disso,
+em `reduceToVectors().getInfo()`, que está voltando **zero features**
+mesmo onde certamente há pixel queimado de verdade (Ibitinga, 2024).
+`calcular_iou_recall`/`permutacao_iou` parecem estar corretos — o padrão
+IoU=0%/p=1,0 uniforme é exatamente o que aconteceria comparando um
+cluster real contra uma geometria do MapBiomas sempre vazia (nenhuma
+permutação nunca "perde" de uma referência vazia → p=1,0 sempre).
+
+**Hipóteses não testadas (decidi não adivinhar uma 4ª vez sem evidência
+melhor — já foram 2 rodadas reais de ~2h+ cada só pra chegar aqui):**
+1. `scale=30`/`crs=EPSG:{epsg_metrico}` em `reduceToVectors` pode não
+   bater com a projeção nativa do asset (esse trecho não mudou entre as
+   seções 6.15→6.21, então pode ser um bug pré-existente nunca antes
+   exercitado — a 1ª tentativa nunca chegou tão longe).
+2. O asset `annual_burned_coverage_v1` pode ter a banda `burned_coverage_
+   2024` existindo mas vazia/placeholder pra esse ano específico (banda
+   nomeada corretamente ≠ dado real presente).
+3. Algum detalhe de mascaramento (`selfMask()`) ou de valor de pixel que
+   só um acesso direto ao GEE (Code Editor, `Inspector`) resolveria.
+
+**Ação recomendada pro Pedro:** abrir o GEE Code Editor, carregar
+`projects/mapbiomas-public/assets/brazil/fire/collection4/
+mapbiomas_fire_collection4_annual_burned_coverage_v1`, selecionar a banda
+`burned_coverage_2024` e inspecionar visualmente sobre Ibitinga — isso
+resolve em minutos o que buscas nesta sessão não conseguem confirmar.
+
+**Não apagar os dados gravados** (são idempotentes via UPSERT — a próxima
+rodada corrigida sobrescreve sozinha), mas **não usar esses números pra
+nada** até resolver isso — nenhuma confiabilidade Alta/Média/Baixa desta
+rodada é confiável.
+
+**Status:** Aberto — bug real confirmado, causa raiz ainda não isolada.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)
