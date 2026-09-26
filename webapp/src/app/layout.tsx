@@ -39,7 +39,7 @@ export default function RootLayout({
                 Painel de Queimadas SP
               </span>
             </Link>
-            <span className="hidden text-sm text-stone-500 sm:inline">
+            <span className="hidden text-sm text-stone-600 sm:inline">
               pesquisa PIBIC/CNPq
             </span>
           </div>
@@ -47,7 +47,7 @@ export default function RootLayout({
 
         <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">{children}</main>
 
-        <footer className="px-4 py-8 text-xs text-stone-500">
+        <footer className="px-4 py-8 text-xs text-stone-600">
           <div className="mx-auto max-w-3xl space-y-1 border-t border-border pt-6">
             <p>
               Fontes de dados: INPE (focos de calor), Sentinel-2/Copernicus/ESA

@@ -1219,6 +1219,73 @@ tentativas e levanta o último erro — 3 testes novos, 80 no total.
 **Status:** Fechado — melhoria de robustez de baixo risco, não depende
 de confirmação externa.
 
+### 6.27 Três pendências pequenas do CHECKLIST.md resolvidas — scan, auditoria WCAG e diagnóstico da compressão de raster (26/09/2026)
+
+Enquanto a rodada de teste do `check-mapbiomas.yml` (seção 6.25) rodava,
+resolvi as 3 pendências que o Pedro pediu pra matar.
+
+**1. Scan de vulnerabilidade (Dependabot):** criado
+`.github/dependabot.yml` (pip/`pipeline`, npm/`webapp`, github-actions,
+semanal). **Não fechado 100%:** ativar "Dependabot alerts" em Settings →
+Code security and analysis do repositório é uma permissão de admin/dono,
+não dá pra fazer pelas ferramentas de GitHub disponíveis nesta sessão —
+o Pedro precisa conferir/clicar lá (pode já estar ligado por padrão em
+repositório público).
+
+**2. Auditoria de acessibilidade WCAG AA:** rodei de verdade — subi o
+webapp local (Postgres do dev estava parado, religado) e usei Playwright
++ `@axe-core/playwright` (instalados como devDependencies) contra as 3
+páginas reais (home, detalhe de município usando Altinópolis como
+exemplo, 404). Achado: 4 violações, todas de contraste de cor
+(`color-contrast`, nível "serious"):
+- `text-stone-500` (cinza secundário genérico, usado em ~20 lugares) —
+  contraste 4.32, abaixo do mínimo 4.5:1. **Corrigido** — trocado por
+  `text-stone-600` em todo o `/webapp` (não é cor protegida pelo
+  `CLAUDE.md`, é só um tom de cinza do Tailwind).
+- `text-stone-400` sem variante `dark:` numa legenda da página de
+  município — mesma categoria, **corrigido** pro mesmo padrão já usado
+  em outros lugares do arquivo (`text-stone-600 dark:text-stone-400`).
+- **`--color-acento` (#C17A4E) como texto** sobre o fundo creme
+  (contraste 3.08) e **como fundo com texto branco** em badges/botões
+  (contraste 3.4) — **não corrigido**, é a cor de ação fixada no
+  `CLAUDE.md` ("não mudar sem aprovação explícita do Pedro").
+- **Selo verde de confiabilidade Alta (#5B9E4D) com texto branco**
+  (contraste 3.25) — **não corrigido**, é selo fixo ("não muda nunca").
+
+Confirmado visualmente por screenshot (Playwright) antes e depois — só a
+tonalidade do cinza mudou, nada mais quebrou. `npm run lint` sem erros
+novos. Removidos os 2 scripts de diagnóstico temporários depois de usar;
+mantidas as devDependencies (`playwright`, `@axe-core/playwright`) pra
+qualquer auditoria futura — não virou teste automatizado permanente
+(não foi pedido, e "auditoria" no checklist é uma atividade pontual, não
+uma nova capacidade de CI).
+
+**Pendência real que sobra, precisa de decisão do Pedro:** as 3 cores
+fixas (`--color-acento` e o selo verde) falham WCAG AA em combinações
+específicas (texto pequeno normal, não negrito). Opções, sem tocar no hex
+em si: (a) aceitar o risco — são cores de marca/funcionais, uso
+deliberado; (b) aumentar o peso da fonte nesses elementos especificamente
+pra abaixo do limiar de "texto grande" do WCAG (regra frouxa, precisa
+≥14pt **bold**, hoje é peso normal); (c) usar uma variante mais escura só
+nesses usos específicos (texto/fundo), mantendo os hex "oficiais"
+intactos em todo resto. Não decidi por nenhuma — é exatamente o tipo de
+mudança que o `CLAUDE.md` pede aprovação explícita antes de mexer.
+
+**3. Compressão de raster em escala:** **não é uma pendência pequena** —
+é bloqueada. Conferido que não existe nenhum script de compressão
+(rasterio+PIL) nem arquivo raster/GeoTIFF neste repositório; a "validação
+nos 5 municípios de teste" citada no `CHECKLIST.md` aconteceu na pesquisa
+original, fora deste código. O pipeline atual (`run_dnbr.py`) nem exporta
+GeoTIFF — só calcula `area_dnbr_km2` direto no servidor do GEE via
+`reduceRegion`, sem baixar raster nenhum (o próprio docstring do módulo
+já dizia isso). Reescrevi a descrição do item no `CHECKLIST.md` pra não
+sugerir que é "só aplicar em escala" quando na real falta construir a
+funcionalidade de exportação de raster primeiro.
+
+**Status:** 1 e 2 resolvidos na medida do possível sem decisão externa;
+3 diagnosticado e re-escopado corretamente (não é mais uma pendência
+"pequena" mal-classificada).
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)

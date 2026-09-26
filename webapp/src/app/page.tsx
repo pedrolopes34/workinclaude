@@ -14,19 +14,19 @@ async function ListaMunicipios({ termo }: { termo?: string }) {
 
   return (
     <>
-      <p className="text-sm text-stone-500">
+      <p className="text-sm text-stone-600">
         {contagem.naAmostra} de {contagem.total} municípios já validados
         pela pesquisa
       </p>
 
       <section className="space-y-3">
         {!termo && (
-          <h2 className="text-sm font-medium text-stone-500">
+          <h2 className="text-sm font-medium text-stone-600">
             Municípios da amostra validada
           </h2>
         )}
         {municipios.length === 0 ? (
-          <p className="text-sm text-stone-500">
+          <p className="text-sm text-stone-600">
             Nenhum município encontrado para &ldquo;{termo}&rdquo;.
           </p>
         ) : (
@@ -40,7 +40,7 @@ async function ListaMunicipios({ termo }: { termo?: string }) {
                   <div>
                     <p className="font-medium text-foreground">{m.nome}</p>
                     {m.mesorregiao && (
-                      <p className="text-xs text-stone-500">{m.mesorregiao}</p>
+                      <p className="text-xs text-stone-600">{m.mesorregiao}</p>
                     )}
                   </div>
                   {m.confiabilidade ? (
@@ -50,7 +50,7 @@ async function ListaMunicipios({ termo }: { termo?: string }) {
                       {CONFIABILIDADE_STYLE[m.confiabilidade].label}
                     </span>
                   ) : (
-                    <span className="rounded-full border border-border px-3 py-1 text-xs text-stone-500">
+                    <span className="rounded-full border border-border px-3 py-1 text-xs text-stone-600">
                       não comparado/validado
                     </span>
                   )}

@@ -51,7 +51,15 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 - [~] Estados de erro — `src/app/error.tsx` cobre falha genérica de
       renderização/dados; ainda não se aplica a formulários (não existe
       formulário no produto ainda)
-- [ ] Auditoria de acessibilidade nível WCAG AA
+- [~] Auditoria de acessibilidade nível WCAG AA — rodada com axe-core
+      (Playwright) nas 3 páginas reais (home, detalhe de município, 404);
+      achou 4 violações de contraste, 3 corrigidas direto (`text-stone-500`
+      → `text-stone-600`, cinza secundário genérico, sem cor protegida
+      envolvida). As 3 que sobraram esbarram nas cores fixas do `CLAUDE.md`
+      (`--color-acento` #C17A4E como texto e como fundo com texto branco;
+      selo verde `#5B9E4D` de confiabilidade Alta com texto branco) — não
+      corrigidas de propósito, dependem de decisão do Pedro (ver
+      `docs/DECISIONS.md` seção 6.27)
 
 ## Segurança
 
@@ -60,7 +68,11 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 - [ ] Rate limiting na API
 - [ ] Proteção contra injeção (especialmente em endpoints com parâmetros de
       busca)
-- [ ] Scan de vulnerabilidade de dependências (Dependabot/`npm audit` no CI)
+- [~] Scan de vulnerabilidade de dependências — `.github/dependabot.yml`
+      criado (pip/`pipeline`, npm/`webapp`, github-actions, semanal); falta
+      só o Pedro confirmar/ativar "Dependabot alerts" em Settings → Code
+      security and analysis do repositório (permissão de admin, não dá
+      pra fazer por API/token de Actions)
 - [ ] Política de retenção de dados de usuário (definir o que é coletado
       antes de escrever a política)
 
@@ -98,17 +110,23 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 - [x] Atribuição obrigatória das fontes de terceiros (INPE, MapBiomas,
       Sentinel-2/Copernicus/ESA) — presente no rodapé do mockup (aparece em
       toda tela, por ser global) e no README raiz do repositório
-- [ ] Imagens/rasters comprimidos em produção — o processo (rasterio + PIL)
-      já foi validado nos 5 municípios de teste do mockup, falta aplicar em
-      escala
+- [ ] Imagens/rasters comprimidos em produção — **bloqueado, não "só
+      aplicar em escala" como a redação anterior sugeria**: conferido nesta
+      sessão que não existe nenhum script de compressão nem raster/GeoTIFF
+      no repositório — a validação nos "5 municípios de teste" foi feita
+      fora daqui, na pesquisa original. O pipeline atual (`run_dnbr.py`)
+      nem exporta GeoTIFF, só calcula `area_dnbr_km2` direto no servidor do
+      GEE (`reduceRegion`, ver seu próprio docstring). Esse item só fica
+      acionável depois que a exportação de raster virar uma feature real do
+      pipeline — não é uma pendência pequena
 
 ---
 
-**Contagem atual:** 10 itens feitos, 10 parciais, 13 pendentes — atualizado
-em 25/09/2026: banco Postgres+PostGIS com schema + seeds dos 645
-municípios/63 validados, webapp Next.js com busca e detalhe de município,
-SEO básico, estados de carregamento/erro/404, e primeira leva real do
-`/pipeline` (ingestão INPE + ST-DBSCAN portados e testados — ver
-`docs/DECISIONS.md` seção 6.12).
+**Contagem atual:** 10 itens feitos, 12 parciais, 11 pendentes — atualizado
+em 26/09/2026: pipeline de produção rodando de verdade pela 1ª vez
+(`ingest-inpe.yml`, `process-sentinel-dnbr.yml`, `audit-anual.yml`
+confirmados por log real; `check-mapbiomas.yml` em teste — ver
+`docs/DECISIONS.md` seções 6.17 a 6.27), auditoria WCAG AA rodada de
+verdade no webapp (3 de 4 violações corrigidas), Dependabot configurado.
 Este checklist é sobre prontidão de produção (SEO, segurança, testes) —
 para o que foi implementado nesta sessão, ver `docs/DECISIONS.md` seção 6.

@@ -9,7 +9,7 @@ export default function Error({
 }) {
   return (
     <div className="flex flex-col items-center gap-4 py-24 text-center">
-      <p className="text-sm font-medium text-stone-500">Algo deu errado</p>
+      <p className="text-sm font-medium text-stone-600">Algo deu errado</p>
       <h1 className="text-2xl font-semibold tracking-tight text-foreground">
         Não conseguimos carregar esta página
       </h1>
