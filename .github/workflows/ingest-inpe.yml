@@ -5,13 +5,15 @@ name: Ingestão INPE + ST-DBSCAN
 # corrente inteiro (não um mês específico) e grava em metricas_anuais via
 # UPSERT — idempotente, pode rodar de novo sem duplicar nada.
 #
-# ATENÇÃO — pendência não resolvida (docs/DECISIONS.md seção 6.12): a URL
-# de download abaixo (pipeline/ingest/inpe.py::URL_FOCOS_ANUAL_BR) é a
-# única confirmada publicamente nesta sessão, mas pode não ser exatamente o
-# produto que a pesquisa original usou (baixado manualmente pelo portal
-# BDQueimadas). Este workflow só deve ser habilitado de verdade depois de
-# resolver essa pendência — até lá, é esperado que a etapa de download
-# falhe ou traga números que não batem com o validado academicamente.
+# ATENÇÃO — pendência não totalmente resolvida (docs/DECISIONS.md seção
+# 6.12/6.18): a 1ª tentativa real desta sessão usava uma URL "anual" que
+# deu 404; trocada por download mensal + concatenação
+# (pipeline/ingest/inpe.py::URL_FOCOS_MENSAL_BR), com evidência real de
+# arquivos indexados publicamente — mas ainda não confirmada rodando de
+# verdade contra o servidor. Também pode não ser exatamente o produto que
+# a pesquisa original usou (baixado manualmente pelo portal BDQueimadas).
+# Reavaliar o resultado da próxima execução real antes de considerar
+# resolvido.
 
 on:
   schedule:

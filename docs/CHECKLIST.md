@@ -66,13 +66,14 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 
 ## Testes e operação
 
-- [~] Testes automatizados — 71 testes `pytest` cobrindo o núcleo do
+- [~] Testes automatizados — 74 testes `pytest` cobrindo o núcleo do
       `/pipeline` (ST-DBSCAN, fórmula de `min_samples` regredida contra os
-      12 casos reais, ingestão INPE, dNBR, IoU/permutação/confiabilidade
-      regredida contra os 5 exemplos documentados, validação de campo e
-      coerção de tipo da auditoria anual), com CI/CD real
-      (`.github/workflows/tests.yml`, roda a cada push/PR que toque
-      `pipeline/` ou `tests/`) — falta só testes do `/webapp`
+      12 casos reais, ingestão INPE incluindo a concatenação mensal→anual,
+      dNBR, IoU/permutação/confiabilidade regredida contra os 5 exemplos
+      documentados, validação de campo e coerção de tipo da auditoria
+      anual), com CI/CD real (`.github/workflows/tests.yml`, roda a cada
+      push/PR que toque `pipeline/` ou `tests/`) — falta só testes do
+      `/webapp`
 - [ ] Ambiente de staging separado de produção
 - [ ] Monitoramento de erros em produção
 - [ ] Backup do banco espacial (Neon) e dos GeoTIFFs (Cloudflare R2)

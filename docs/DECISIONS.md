@@ -868,6 +868,43 @@ falhar, uma de cada vez.
 **Status:** GEE parcialmente desbloqueado (autenticação passa; resultado
 do processamento em si ainda não confirmado). INPE continua bloqueado.
 
+### 6.18 INPE não tem produto anual pronto — troca pra download mensal + concatenação (26/09/2026)
+
+**Contexto:** com o dNBR rodando em segundo plano (seção 6.17), usei o
+tempo pra investigar o 404 do INPE por pesquisa na web (`dataserver-coids.
+inpe.br` está bloqueado pela política de rede deste ambiente — não dava
+pra inspecionar o servidor direto, só por busca/cache de terceiros).
+
+**Descoberta:** 3 buscas direcionadas por `"csv/anual"` não trouxeram
+nenhum link indexado real — só suposição do buscador. Em contraste, buscas
+por `"csv/mensal/Brasil/focos_mensal_br"` trouxeram **9 arquivos reais e
+distintos**, indexados publicamente (`focos_mensal_br_202401.csv` até
+`_202510.csv`). Conclusão com boa confiança (mas ainda não 100% — não
+consegui baixar/inspecionar direto, só via busca): **o dataserver do INPE
+não publica um produto anual pronto**, só `10min` → `diario` → `mensal`. A
+URL "anual" da seção 6.12 não era só um palpite de ano/nome errado — o
+recurso provavelmente não existe.
+
+**Decisão:** `baixar_focos_ano` (pipeline/ingest/inpe.py) agora baixa os 12
+CSVs mensais do ano (`URL_FOCOS_MENSAL_BR`,
+`csv/mensal/Brasil/focos_mensal_br_AAAAMM.csv`) e concatena localmente
+(`_concatenar_csvs_mensais` — mantém só o cabeçalho do primeiro mês,
+descarta o dos demais) num arquivo com o mesmo nome de sempre
+(`focos_anual_br_{ano}.csv`), pra nenhum outro módulo precisar mudar (só
+`baixar_focos_ano` conhece a URL real). Mês ainda não publicado (404 —
+esperado no(s) último(s) mês(es) do ano corrente) é pulado, não é erro;
+erro só se nenhum mês do ano estiver disponível.
+
+**Não fechado:** ainda não confirmado contra o servidor real (só evidência
+de busca) — próxima rodada de `ingest-inpe.yml` confirma ou refuta.
+
+**Testado nesta sessão:** cache/forçar (comportamento preservado, agora
+contando 12 requisições por chamada em vez de 1), pular mês com 404,
+erro se nenhum mês disponível, e a concatenação em si (dedup de
+cabeçalho) — 4 testes novos, 74 no total.
+
+**Status:** Aberto — evidência forte, não confirmação real.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)

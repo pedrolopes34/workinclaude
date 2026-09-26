@@ -6,7 +6,7 @@ contra o MapBiomas Fogo. É quem popula o Postgres/PostGIS lido pelo
 `/webapp` e pela `/api`.
 
 Decisões de arquitetura, proveniência dos notebooks portados e pendências
-técnicas: `docs/DECISIONS.md` seções 6.11 a 6.16.
+técnicas: `docs/DECISIONS.md` seções 6.11 a 6.18.
 
 ## Setup
 
@@ -25,7 +25,7 @@ cp .env.example .env   # aponta pro Postgres local — ver /pipeline/db/README.m
 | `common/geo.py` | Fuso UTM/SIRGAS2000 por longitude, projeção de focos pra metros, união de buffers | Sim (`tests/pipeline/`) |
 | `common/particionamento.py` | Divide os 645 municípios em N grupos pra jobs paralelos | Sim |
 | `common/ibge_malhas.py` | Polígono do município via API de malhas do IBGE (substitui o shapefile `SP_Municipios_2024` dos notebooks, ainda não importado em `/geodata`) | Não — API bloqueada neste sandbox (`docs/DECISIONS.md` seção 6.2) |
-| `ingest/inpe.py` | Baixa/lê o CSV anual do INPE, cruza com `municipios` por nome normalizado | Parcial — parsing/cruzamento testado; URL de download **não confirmada** |
+| `ingest/inpe.py` | Baixa os 12 CSVs mensais do INPE e concatena em um anual (não existe produto anual pronto, seção 6.18), cruza com `municipios` por nome normalizado | Parcial — parsing/cruzamento/concatenação testados; URL mensal tem evidência forte de busca, mas não confirmação real (seção 6.18) |
 | `stdbscan/core.py` | ST-DBSCAN oficial (`eps_space_km=3`, `eps_time_days=1`) + `calcular_min_samples` (fórmula validada contra os 12 casos reais) + `poligono_stdbscan_municipio` | Sim |
 | `dnbr/sentinel2.py` | Cálculo do dNBR via Sentinel-2/GEE, com fallback de nuvem e checagem de cobertura real de pixels | Não — precisa de rede/credenciais do Earth Engine, indisponíveis neste sandbox de propósito |
 | `dnbr/validacao.py` | Severidade espectral por evento (buffer 500 m + `rasterstats`) | Sim (raster sintético) |
@@ -43,14 +43,14 @@ automaticamente via `.github/workflows/tests.yml` a cada push/PR.
 
 Os 4 workflows planejados desde `docs/DECISIONS.md` seção 2.4, mais o
 `audit-anual.yml` da seção 2.5, estão todos escritos. Execução real em
-andamento nesta sessão — ver `docs/DECISIONS.md` seção 6.17 pro histórico
-das tentativas e o que já foi confirmado (IAM do GEE) vs. o que ainda
-falta (URL do INPE).
+andamento nesta sessão — ver `docs/DECISIONS.md` seções 6.17/6.18 pro
+histórico das tentativas e o que já foi confirmado (IAM do GEE) vs. o que
+tem evidência forte mas ainda não confirmação real (URL mensal do INPE).
 
 | Workflow | Cadência | Precisa de |
 |---|---|---|
 | `tests.yml` | a cada push/PR em `pipeline/`/`tests/` | nada — já roda de verdade |
-| `ingest-inpe.yml` | diário | `secrets.DATABASE_URL`; URL do INPE **confirmada errada** (404 real, seção 6.12/6.17) |
+| `ingest-inpe.yml` | diário | `secrets.DATABASE_URL`; 1ª tentativa deu 404 (URL "anual" não existe); trocado por download mensal+concatenação, evidência forte mas não confirmado rodando de verdade ainda (seção 6.18) |
 | `process-sentinel-dnbr.yml` | mensal, 2 jobs paralelos (seção 2.1) | `secrets.DATABASE_URL`, `secrets.GEE_SERVICE_ACCOUNT_KEY`; janela mês-a-mês é decisão nova não confirmada (seção 6.14) |
 | `check-mapbiomas.yml` | mensal, 2 jobs paralelos (seção 6.16) | mesmos secrets do dNBR; herda as 3 pendências da seção 6.15 |
 | `audit-anual.yml` | manual, 1×/ano, executado pelo Pedro | `secrets.DATABASE_URL`; sem pendência externa — só depende de o Pedro decidir o que auditar |
@@ -59,12 +59,14 @@ falta (URL do INPE).
 
 - **Confirmar a origem exata do CSV do INPE** (`ingest/inpe.py`, topo do
   arquivo) — a pesquisa original usava um arquivo `focos_br_sp_ref_AAAA.csv`
-  baixado manualmente pelo portal BDQueimadas (sem URL fixa programável);
-  a URL pública usada aqui (`dataserver-coids.inpe.br`) é a única
-  confirmada nesta sessão, mas pode não ser o mesmo produto ("_ref_" pode
-  ser o satélite de referência do INPE, cientificamente diferente do
-  produto "todos os satélites"). Próximo passo concreto: inspecionar a aba
-  Network do navegador durante um download manual real.
+  baixado manualmente pelo portal BDQueimadas (sem URL fixa programável).
+  O produto anual "todos os satélites" não existe no dataserver do INPE
+  (404 real; a versão atual baixa os 12 meses e concatena, seção 6.18,
+  com evidência forte de busca mas ainda não confirmada rodando de
+  verdade); mesmo confirmando a URL mensal, pode não ser o mesmo produto
+  do "_ref_" original. Próximo passo concreto, se a próxima rodada real
+  ainda falhar: inspecionar a aba Network do navegador durante um download
+  manual real pelo BDQueimadas.
 - **Confirmar o asset do MapBiomas Fogo no Earth Engine**
   (`validacao/mapbiomas_gee.py`) — 2 candidatos encontrados por busca na
   web, nenhum verificado (seção 6.15).
