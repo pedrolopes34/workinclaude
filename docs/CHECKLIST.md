@@ -126,8 +126,18 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 em 26/09/2026: pipeline de produção rodando de verdade pela 1ª vez
 (`ingest-inpe.yml`, `process-sentinel-dnbr.yml`, `audit-anual.yml`
 confirmados por log real; `check-mapbiomas.yml` **ainda quebrado** — o fix
-de geometria da seção 6.25 foi testado de verdade e refutado, ver
-`docs/DECISIONS.md` seções 6.17 a 6.28), auditoria WCAG AA rodada de
-verdade no webapp (3 de 4 violações corrigidas), Dependabot configurado.
+de geometria da seção 6.25 foi testado de verdade e refutado), auditoria
+WCAG AA rodada de verdade no webapp (3 de 4 violações corrigidas),
+Dependabot configurado.
+
+**⚠️ Incidente real (26/09/2026, `docs/DECISIONS.md` seção 6.29):** o
+`check-mapbiomas.yml` bugado sobrescreveu pelo menos 33 dos 63 municípios
+da amostra validada manualmente (Ibitinga incluído) com resultado errado
+antes de eu cancelar a rodada — coluna `validacao_mapbiomas.fonte` já
+escrita e testada (83 testes) pra impedir recorrência, mas **a
+restauração ainda não foi aplicada em produção**. Não disparar
+`check-mapbiomas.yml` de novo (nem manual nem esperar o `schedule` mensal)
+antes de rodar `--restaurar-amostra-manual`.
+
 Este checklist é sobre prontidão de produção (SEO, segurança, testes) —
 para o que foi implementado nesta sessão, ver `docs/DECISIONS.md` seção 6.

@@ -156,8 +156,13 @@ def main():
         f.write("-- Gerado por generate_seed_sql.py — nao editar a mao.\n")
         f.write("-- confiabilidade calculada pela regra fixa (docs/DECISIONS.md secao 1.3), nao copiada\n")
         f.write("-- da coluna 'Resultado Positivo?' da planilha original (criterio diferente, mais simples).\n\n")
+        f.write("-- fonte='manual' sempre — e exatamente essa marcacao que faz o pipeline\n")
+        f.write("-- automatico (run_validacao_mapbiomas.py) nunca sobrescrever essas 63 linhas\n")
+        f.write("-- (docs/DECISIONS.md secao 6.29; ON CONFLICT abaixo tambem forca de volta pra\n")
+        f.write("-- 'manual' — reaplicar este seed e como esse arquivo restaura a amostra se o\n")
+        f.write("-- pipeline automatico algum dia escrever por cima antes da protecao existir).\n\n")
         f.write("INSERT INTO validacao_mapbiomas (codigo_ibge, ano, area_mapbiomas_km2, interseccao_pct, "
-                "p_valor, recall_pct, complemento_mb_km2, confiabilidade, validacao_temporal, data_comparacao)\nVALUES\n")
+                "p_valor, recall_pct, complemento_mb_km2, confiabilidade, validacao_temporal, data_comparacao, fonte)\nVALUES\n")
         values = []
         stats = {"Alta": 0, "Média": 0, "Baixa": 0, "Insuficiente": 0}
         for codigo, r in sorted(amostra_by_codigo.items()):
@@ -172,14 +177,14 @@ def main():
                 f"    ({sql_str(codigo)}, {ANO_REFERENCIA}, {sql_num(r['area_mapbiomas_km2'])}, "
                 f"{sql_num(interseccao_pct)}, {sql_num(p_valor)}, {sql_num(recall_pct)}, "
                 f"{sql_num(r['comp_mb_km2'])}, {sql_str(conf)}, {sql_str(r['validacao_temporal'])}, "
-                f"DATE '2024-08-31')"
+                f"DATE '2024-08-31', 'manual')"
             )
         f.write(",\n".join(values))
         f.write("\nON CONFLICT (codigo_ibge, ano) DO UPDATE SET\n")
         f.write("    area_mapbiomas_km2 = EXCLUDED.area_mapbiomas_km2, interseccao_pct = EXCLUDED.interseccao_pct,\n")
         f.write("    p_valor = EXCLUDED.p_valor, recall_pct = EXCLUDED.recall_pct,\n")
         f.write("    complemento_mb_km2 = EXCLUDED.complemento_mb_km2, confiabilidade = EXCLUDED.confiabilidade,\n")
-        f.write("    validacao_temporal = EXCLUDED.validacao_temporal, atualizado_em = now();\n")
+        f.write("    validacao_temporal = EXCLUDED.validacao_temporal, fonte = EXCLUDED.fonte, atualizado_em = now();\n")
 
     print(f"OK: {len(municipios_by_name)} municipios | {len(amostra_by_codigo)} na amostra")
     print(f"Distribuicao de confiabilidade calculada: {stats}")

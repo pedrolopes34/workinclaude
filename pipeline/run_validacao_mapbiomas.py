@@ -43,6 +43,10 @@ MAPBIOMAS_COLECAO = "Coleção 4"
 # Coleção 4 tem exatamente 40 bandas = 1985-2024. Pedir um ano além disso
 # derruba TODOS os municípios com "Invalid band number" — não é suposição.
 ULTIMO_ANO_MAPBIOMAS_COLECAO4 = 2024
+# Seed oficial dos 63 municípios validados manualmente (fonte='manual') — usado
+# por restaurar_amostra_validada() pra reaplicar/proteger essas linhas
+# (docs/DECISIONS.md seção 6.29).
+CAMINHO_SEED_AMOSTRA_MANUAL = Path(__file__).resolve().parent / "db" / "seeds" / "003_seed_validacao_mapbiomas_2024.sql"
 
 
 def inicializar_gee() -> None:
@@ -125,24 +129,68 @@ def _dominio_em_metros(geom_municipio, epsg_metrico: int):
     return gpd.GeoSeries([geom_municipio], crs="EPSG:4326").to_crs(epsg_metrico).iloc[0]
 
 
-def _buscar_municipios(conn) -> pd.DataFrame:
+def _garantir_coluna_fonte(conn) -> None:
+    """Migração idempotente — schema.sql é aplicado manualmente no Neon
+    (docs/DECISIONS.md seção 6.6), então uma coluna nova só chega lá se um
+    script garantir isso. `ADD COLUMN IF NOT EXISTS` não faz nada se a coluna
+    já existir (seguro rodar em toda execução)."""
     with conn.cursor() as cur:
-        cur.execute("SELECT codigo_ibge, nome FROM municipios ORDER BY codigo_ibge")
+        cur.execute(
+            "ALTER TABLE validacao_mapbiomas ADD COLUMN IF NOT EXISTS fonte TEXT "
+            "NOT NULL DEFAULT 'automatico' CHECK (fonte IN ('manual', 'automatico'))"
+        )
+
+
+def restaurar_amostra_validada(conn) -> None:
+    """Reaplica o seed dos 63 municípios validados manualmente
+    (fonte='manual'), sobrescrevendo o que estiver lá pra esses códigos —
+    é o que corrige um incidente como o da seção 6.29 (pipeline automático
+    sobrescreveu a amostra antes dessa proteção existir). Não toca em
+    nenhum outro município."""
+    sql_seed = "\n".join(
+        linha for linha in CAMINHO_SEED_AMOSTRA_MANUAL.read_text(encoding="utf-8").splitlines()
+        if not linha.strip().startswith("--")
+    )
+    with conn.cursor() as cur:
+        cur.execute(sql_seed)
+
+
+def _buscar_municipios(conn, ano: int) -> pd.DataFrame:
+    """Nunca inclui município com linha fonte='manual' pro `ano` pedido — é
+    a amostra validada na pesquisa original, protegida do pipeline
+    automático (docs/DECISIONS.md seção 6.29)."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT m.codigo_ibge, m.nome
+            FROM municipios m
+            WHERE NOT EXISTS (
+                SELECT 1 FROM validacao_mapbiomas v
+                WHERE v.codigo_ibge = m.codigo_ibge AND v.ano = %(ano)s AND v.fonte = 'manual'
+            )
+            ORDER BY m.codigo_ibge
+            """,
+            {"ano": ano},
+        )
         linhas = cur.fetchall()
     return pd.DataFrame(linhas, columns=["codigo_ibge", "nome"])
 
 
 def _gravar_validacao(conn, codigo_ibge: str, ano: int, resultado: dict) -> None:
+    """`WHERE ... fonte != 'manual'` é defesa em profundidade — `_buscar_municipios`
+    já exclui esses códigos do loop, isso só garante que nenhum caminho de
+    código futuro consiga sobrescrever a amostra validada manualmente
+    chamando esta função direto (docs/DECISIONS.md seção 6.29)."""
     with conn.cursor() as cur:
         cur.execute(
             """
             INSERT INTO validacao_mapbiomas
                 (codigo_ibge, ano, area_mapbiomas_km2, interseccao_pct, p_valor,
                  n_permutacoes, recall_pct, complemento_mb_km2, confiabilidade,
-                 validacao_temporal, mapbiomas_colecao, data_comparacao)
+                 validacao_temporal, mapbiomas_colecao, data_comparacao, fonte)
             VALUES (%(codigo_ibge)s, %(ano)s, %(area_mapbiomas_km2)s, %(interseccao_pct)s, %(p_valor)s,
                     %(n_permutacoes)s, %(recall_pct)s, %(complemento_mb_km2)s, %(confiabilidade)s,
-                    %(validacao_temporal)s, %(mapbiomas_colecao)s, %(data_comparacao)s)
+                    %(validacao_temporal)s, %(mapbiomas_colecao)s, %(data_comparacao)s, 'automatico')
             ON CONFLICT (codigo_ibge, ano) DO UPDATE SET
                 area_mapbiomas_km2 = EXCLUDED.area_mapbiomas_km2,
                 interseccao_pct = EXCLUDED.interseccao_pct,
@@ -155,6 +203,7 @@ def _gravar_validacao(conn, codigo_ibge: str, ano: int, resultado: dict) -> None
                 mapbiomas_colecao = EXCLUDED.mapbiomas_colecao,
                 data_comparacao = EXCLUDED.data_comparacao,
                 atualizado_em = now()
+            WHERE validacao_mapbiomas.fonte != 'manual'
             """,
             {"codigo_ibge": codigo_ibge, "ano": ano, **resultado},
         )
@@ -168,11 +217,32 @@ def main() -> None:
         default=ULTIMO_ANO_MAPBIOMAS_COLECAO4,
         help="Ano da coleção MapBiomas sendo processada (padrão: último ano coberto pela Coleção 4).",
     )
-    parser.add_argument("--pasta-focos", type=Path, required=True)
+    parser.add_argument(
+        "--pasta-focos", type=Path, default=None, help="Obrigatório, exceto com --restaurar-amostra-manual."
+    )
     parser.add_argument("--grupo", type=int, default=1, help="1-indexado (ex.: 1 ou 2 pra 2 jobs)")
     parser.add_argument("--de-grupos", type=int, default=1)
     parser.add_argument("--baixar-faltantes", action="store_true")
+    parser.add_argument(
+        "--restaurar-amostra-manual",
+        action="store_true",
+        help=(
+            "Reaplica o seed dos 63 municípios validados manualmente (fonte='manual') e sai — "
+            "não roda o resto do pipeline. Usar se a amostra foi sobrescrita pelo pipeline "
+            "automático (docs/DECISIONS.md seção 6.29). Não precisa de --pasta-focos nem do GEE."
+        ),
+    )
     args = parser.parse_args()
+
+    if args.restaurar_amostra_manual:
+        with get_connection() as conn:
+            _garantir_coluna_fonte(conn)
+            restaurar_amostra_validada(conn)
+        print("Amostra validada manualmente (63 municípios) restaurada — fonte='manual', protegida contra sobrescrita automática.")
+        return
+
+    if args.pasta_focos is None:
+        raise SystemExit("--pasta-focos é obrigatório fora do modo --restaurar-amostra-manual.")
 
     inicializar_gee()
     anos = range(args.ano - ANOS_HISTORICO, args.ano + 1)
@@ -183,12 +253,18 @@ def main() -> None:
         baixar_anos_necessarios(anos, args.ano, args.pasta_focos, forcar_alvo=False)  # ano alvo ja fechado: nunca forcar
 
     with get_connection() as conn:
-        todos_municipios = _buscar_municipios(conn)
-    municipios = dividir_em_grupo(todos_municipios, args.grupo, args.de_grupos)
+        _garantir_coluna_fonte(conn)
+        # Já vem sem a amostra validada manualmente (docs/DECISIONS.md seção
+        # 6.29) — não é "todos os 645", é só os elegíveis pro pipeline
+        # automático neste `ano`. carregar_focos_sp só usa isso pra casar
+        # nome->codigo_ibge, e os excluídos nunca entram no loop abaixo, então
+        # não ter os focos deles aqui não muda nada.
+        municipios_elegiveis = _buscar_municipios(conn, args.ano)
+    municipios = dividir_em_grupo(municipios_elegiveis, args.grupo, args.de_grupos)
 
     focos_todos_anos = pd.concat(
         [
-            carregar_focos_sp(args.pasta_focos / f"focos_anual_br_{ano}.csv", todos_municipios)
+            carregar_focos_sp(args.pasta_focos / f"focos_anual_br_{ano}.csv", municipios_elegiveis)
             for ano in anos
             if (args.pasta_focos / f"focos_anual_br_{ano}.csv").exists()
         ],

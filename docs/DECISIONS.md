@@ -1333,7 +1333,107 @@ entrada já inválida).
 
 **Status:** Aberto — hipótese da seção 6.25 refutada por execução real;
 causa raiz ainda não identificada; ciclo de diagnóstico mais barato
-planejado, não implementado ainda.
+planejado, não implementado ainda (superado em prioridade pelo incidente
+da seção 6.29, resolvido antes de voltar a este diagnóstico).
+
+### 6.29 Incidente: pipeline automático sobrescreveu a amostra dos 63 municípios validados manualmente — corrigido com coluna `fonte` (26/09/2026)
+
+**Como foi achado:** o Pedro perguntou se dava pra "resolver de forma mais
+simples" replicando/escalando proporcionalmente os dados de IoU já
+validados dos 63 municípios pros outros 582, em vez de continuar caçando
+o bug do `reduceToVectors` (seção 6.25/6.28). Ao avaliar essa pergunta,
+percebi um problema mais urgente: os 63 municípios validados
+(`pipeline/db/seeds/003_seed_validacao_mapbiomas_2024.sql`, transcrição da
+`Tabela_Final_63_Municipios.xlsx`) usam **`ano=2024`** — exatamente o
+mesmo `(codigo_ibge, ano)` que `check-mapbiomas.yml` processa
+automaticamente todo mês, com `UPSERT` sem nenhuma proteção.
+
+**Confirmado por execução real:** cruzei a lista dos 63 códigos IBGE
+contra o log do job "grupo 1/2" da run `36244063350` (a mesma rodada da
+seção 6.25/6.28) — **33 dos 63 municípios já validados, incluindo
+Ibitinga**, tinham sido reprocessados nesse job e sobrescritos com o
+resultado bugado `Baixa (IoU=0,0%, p=1,0)`, apagando o dado real (Ibitinga
+era `Alta`, interseção 17,32%, p=0,003). O job "grupo 2/2" já estava
+rodando havia mais tempo que o "grupo 1/2" levou pra terminar — ou seja,
+muito provavelmente também já tinha processado a maior parte (ou todos)
+os 30 municípios validados restantes, mas o `stdout` do job usa buffer
+de bloco (sem `PYTHONUNBUFFERED=1`), então o log não mostrou nenhuma
+linha de resultado ainda — **não dá pra confirmar pelo log quantos dos 30
+restantes já tinham sido escritos no banco antes do cancelamento**
+(as escritas no Postgres não usam esse buffer, só o `print` usa).
+
+**Contenção imediata:** cancelei a run `36244063350`
+(`cancel_workflow_run`) assim que o padrão ficou claro, pra não seguir
+sobrescrevendo o resto da amostra enquanto a causa raiz do bug (seção
+6.28) continua em aberto.
+
+**Resposta à pergunta original do Pedro (extrapolar/escalar os 63 pros
+outros 582) — rejeitada:** IoU, recall e p-valor são medidas empíricas de
+concordância entre duas fontes de satélite independentes pros incêndios
+**específicos** de um município num ano específico — não existe relação
+matemática que permita derivar o valor de um município a partir do de
+outro (não é função de área, população, ou proximidade; dois municípios
+vizinhos podem ter regimes de queima completamente diferentes num mesmo
+ano). Fazer isso significaria mostrar pro produtor/brigadista de um
+município um selo de confiabilidade que não veio de nenhuma comparação
+real com aquele município — o oposto do que o produto promete
+("comunicar... o quanto dá pra confiar", `CLAUDE.md`). Numa pesquisa
+financiada por CNPq, apresentar número extrapolado como se fosse medição
+seria grave se descoberto depois. **A solução "mais simples" que já
+existe e é honesta** (`docs/DECISIONS.md` seção 1.2, já implementada em
+`webapp/src/app/page.tsx`): município fora da amostra mostra "não
+comparado/validado" — sem inventar número. Um modelo estatístico
+preditivo (regressão usando bioma/cobertura/clima como covariáveis,
+treinado nos 63 pontos) até seria uma abordagem legítima, mas é outra
+pesquisa em si, exigiria comunicar o resultado como estimativa/modelo
+(não como "confiabilidade" nos mesmos 4 níveis fixos da seção 1.3) — não
+foi implementado, só registrado aqui como alternativa real caso o Pedro
+queira perseguir depois.
+
+**Decisão — correção estrutural, não só pontual:** nova coluna
+`validacao_mapbiomas.fonte` (`'manual'` | `'automatico'`, default
+`'automatico'`):
+1. `schema.sql` — coluna adicionada com `CHECK` e comentário.
+2. `generate_seed_sql.py`/`003_seed_validacao_mapbiomas_2024.sql` —
+   regenerado com `fonte='manual'` nas 63 linhas; o `ON CONFLICT DO
+   UPDATE` do seed força `fonte` de volta pra `'manual'` mesmo se já
+   sobrescrito — reaplicar esse arquivo **é** como restaurar a amostra.
+3. `run_validacao_mapbiomas.py`:
+   - `_garantir_coluna_fonte()` — `ALTER TABLE ... ADD COLUMN IF NOT
+     EXISTS`, idempotente, roda no início de `main()`. Neon de produção
+     não tem a coluna ainda (schema aplicado manualmente, seção 6.6) —
+     essa migração automática resolve isso na próxima execução, sem
+     Pedro precisar rodar SQL a mão.
+   - `_buscar_municipios(conn, ano)` — agora exclui município com linha
+     `fonte='manual'` pro `ano` pedido; a amostra nem entra mais no loop
+     automático (economia real de ~10% do tempo de execução, já que
+     eram 63 chamadas ao GEE descartadas a cada rodada).
+   - `_gravar_validacao` — grava `fonte='automatico'`; guarda extra
+     `WHERE validacao_mapbiomas.fonte != 'manual'` no `DO UPDATE` (defesa
+     em profundidade — `_buscar_municipios` já devia bastar, isso cobre
+     qualquer caminho de código futuro que chame direto).
+   - `--restaurar-amostra-manual` — reaplica o seed oficial e sai, sem
+     precisar de `--pasta-focos` nem do GEE; exposto em
+     `check-mapbiomas.yml` via input `restaurar_amostra_manual` do
+     `workflow_dispatch` (passado por `env:`, não interpolado no `run:`
+     — aproveitei pra corrigir o input `ano` já existente, que
+     interpolava direto, mesmo padrão anti shell-injection do
+     `audit-anual.yml`).
+
+**Testado nesta sessão:** 3 testes novos com `conn`/`cursor` mockados —
+`_garantir_coluna_fonte` gera o `ALTER TABLE` esperado,
+`_buscar_municipios` inclui `fonte = 'manual'` na query,
+`restaurar_amostra_validada` executa o SQL do seed sem as linhas de
+comentário e com as 63 linhas `'manual'` (83 testes no total agora).
+Não testado (precisa do Neon real): a migração e a restauração de fato
+rodando contra produção — próximo passo imediato, fora desta sessão de
+código.
+
+**Status:** Código escrito e testado; run bugada cancelada; **restauração
+ainda não aplicada em produção** — falta disparar
+`check-mapbiomas.yml` com `restaurar_amostra_manual=true` (ou local, se o
+Pedro preferir) pra devolver os 33+ municípios sobrescritos ao valor
+correto antes de mexer em qualquer outra coisa do MapBiomas.
 
 ---
 

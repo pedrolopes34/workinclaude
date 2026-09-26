@@ -19,6 +19,14 @@ name: Validação MapBiomas Fogo (IoU + permutação)
 # forte (seção 6.21) mas ainda não confirmado contra a fonte primária, nem
 # executado de verdade com sucesso. Não habilitar de verdade (cron) antes
 # de confirmar — o workflow_dispatch manual é pra isso.
+#
+# Bug confirmado (seção 6.25/6.28): a rodada automática ainda devolve
+# Baixa/IoU=0%/p=1.0 pra todo município. Ela já JÁ SOBRESCREVEU duas vezes
+# os 63 municípios validados manualmente na pesquisa original (incidente
+# real, seção 6.29) — por isso validacao_mapbiomas tem a coluna `fonte`
+# ('manual' nunca é sobrescrita pelo pipeline) e este workflow tem o input
+# `restaurar_amostra_manual` pra reaplicar o seed oficial se acontecer de
+# novo.
 
 on:
   schedule:
@@ -27,6 +35,9 @@ on:
     inputs:
       ano:
         description: "Ano a processar (padrão: ano corrente - 1)"
+        required: false
+      restaurar_amostra_manual:
+        description: "true = só restaura os 63 municípios validados manualmente (fonte='manual') a partir do seed oficial e sai — não roda o pipeline normal. Usar se a amostra foi sobrescrita (docs/DECISIONS.md seção 6.29)."
         required: false
 
 jobs:
@@ -60,9 +71,15 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GEE_SERVICE_ACCOUNT_KEY: ${{ secrets.GEE_SERVICE_ACCOUNT_KEY }}
+          ANO_INPUT: ${{ github.event.inputs.ano }}
+          RESTAURAR_AMOSTRA_MANUAL: ${{ github.event.inputs.restaurar_amostra_manual }}
         run: |
-          python -m pipeline.run_validacao_mapbiomas \
-            --pasta-focos focos_cache \
-            --baixar-faltantes \
-            --grupo ${{ matrix.grupo }} --de-grupos 2 \
-            ${{ github.event.inputs.ano && format('--ano {0}', github.event.inputs.ano) || '' }}
+          if [ "$RESTAURAR_AMOSTRA_MANUAL" = "true" ]; then
+            python -m pipeline.run_validacao_mapbiomas --restaurar-amostra-manual
+          else
+            python -m pipeline.run_validacao_mapbiomas \
+              --pasta-focos focos_cache \
+              --baixar-faltantes \
+              --grupo ${{ matrix.grupo }} --de-grupos 2 \
+              ${ANO_INPUT:+--ano "$ANO_INPUT"}
+          fi

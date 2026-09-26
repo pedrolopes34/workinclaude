@@ -85,6 +85,11 @@ CREATE TABLE validacao_mapbiomas (
     validacao_temporal      TEXT,
     mapbiomas_colecao       TEXT NOT NULL DEFAULT 'Coleção 4',
     data_comparacao         DATE,
+    -- 'manual' = Tabela_Final_63_Municipios.xlsx (pesquisa original, conferida
+    -- a mao); run_validacao_mapbiomas.py nunca sobrescreve essas linhas —
+    -- incidente real de sobrescrita (docs/DECISIONS.md secao 6.29) que motivou
+    -- essa coluna. 'automatico' = calculado pelo pipeline sem revisao humana.
+    fonte                   TEXT NOT NULL DEFAULT 'automatico' CHECK (fonte IN ('manual', 'automatico')),
     criado_em               TIMESTAMPTZ NOT NULL DEFAULT now(),
     atualizado_em           TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (codigo_ibge, ano)
@@ -95,6 +100,7 @@ CREATE INDEX idx_validacao_mapbiomas_confiabilidade ON validacao_mapbiomas (conf
 
 COMMENT ON TABLE validacao_mapbiomas IS 'Fato: comparacao formal contra o MapBiomas Fogo. So existe linha aqui para municipio x ano ja avaliado — ausencia de linha = "nao comparado/validado" na interface (docs/DECISIONS.md secao 1.2).';
 COMMENT ON COLUMN validacao_mapbiomas.confiabilidade IS 'Regra fixa (docs/DECISIONS.md secao 1.3): Alta=recall>=50% E p<0,05; Media=so um passa; Baixa=nenhum passa mas ha agrupamento; Insuficiente=nenhum agrupamento formado no ano (recall_pct/interseccao_pct/p_valor ficam NULL).';
+COMMENT ON COLUMN validacao_mapbiomas.fonte IS '"manual" (amostra validada a mao na pesquisa original) nunca e sobrescrita pelo pipeline automatico (docs/DECISIONS.md secao 6.29).';
 
 -- =========================================================================
 -- 4. status_processamento (log automatico — nao e mais gate manual)
