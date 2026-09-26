@@ -1143,6 +1143,61 @@ rodada é confiável.
 
 **Status:** Aberto — bug real confirmado, causa raiz ainda não isolada.
 
+### 6.25 Debug ao vivo com o Pedro no GEE Code Editor — geometria do IBGE é a suspeita (26/09/2026)
+
+**Método:** sem acesso direto ao GEE, pedi pro Pedro rodar diagnósticos no
+Code Editor (`code.earthengine.google.com`) e me colar o resultado —
+4 testes progressivos, cada um eliminando uma hipótese:
+
+1. **Bandas do asset:** `bandNames()` confirma `burned_coverage_1985` até
+   `burned_coverage_2024` (40 bandas nomeadas, exatamente como assumido
+   na seção 6.21) — asset e nome de banda corretos, confirmado de
+   verdade, não só por busca.
+2. **Pixels queimados perto de Ibitinga:** `reduceRegion(sum)` num raio de
+   15km deu **74.407** (≈67 km² queimados em 2024) — há queimada real e
+   significativa ali. Elimina "banda vazia pro ano".
+3. **`reduceToVectors` com os mesmos parâmetros do pipeline (scale=30,
+   crs=EPSG:31982) sobre um círculo simples de 15km:** **139 polígonos**.
+   Funciona. Elimina "bug de projeção/crs".
+4. **Mesmo `reduceToVectors`, mas com o limite administrativo REAL de
+   Ibitinga (`FAO/GAUL_SIMPLIFIED_500m/2015/level2`, 690 km²) em vez do
+   círculo:** **119 polígonos**. Funciona também. Elimina "polígono
+   complexo/côncavo quebra o reduceToVectors" como explicação genérica.
+
+**Conclusão:** a única variável que resta, não testada diretamente (não dá
+pra buscar a API do IBGE de dentro do GEE Code Editor — sem `fetch()`), é
+a fonte específica da geometria: o GeoJSON `qualidade=maxima` da API do
+IBGE (`common/ibge_malhas.py`), passado por shapely → `mapping()` →
+`ee.Geometry()`, contra o `reduceToVectors` especificamente (não contra
+`reduceRegion`, que é o que `run_dnbr.py` usa com a MESMA geometria do
+IBGE e funciona — confirmado seção 6.23). Hipótese mais provável:
+"qualidade=maxima" tem milhares de vértices, e algo nesse volume/formato
+específico faz o `reduceToVectors` (mas não o `reduceRegion`) devolver
+zero feições silenciosamente — não confirmado 100% contra a fonte
+primária, mas é a explicação que sobra depois de eliminar asset, banda,
+projeção e complexidade genérica de polígono.
+
+**Decisão:** `processar_municipio` (run_validacao_mapbiomas.py) simplifica
+a geometria do município (`shapely.simplify(0.0001, preserve_topology=
+True)`, ~11m de tolerância, bem abaixo dos 30m de pixel do MapBiomas —
+não deveria perder precisão que importe) antes de virar `ee.Geometry`,
+tanto pro `buscar_area_queimada` quanto pro domínio do teste de
+permutação (mesma geometria simplificada nos dois, por consistência).
+`run_dnbr.py`/`buscar_geometria_municipio` **não foram tocados** — o
+caminho do dNBR já está confirmado funcionando (seção 6.23), sem motivo
+pra mexer nele por precaução.
+
+**Testado nesta sessão:** só os 77 testes de sempre (a simplificação em si
+não tem teste dedicado — é uma linha de shapely, comportamento padrão da
+biblioteca). **Não confirmado ainda por execução real** — próxima rodada
+de `check-mapbiomas.yml` é o teste decisivo: se sair confiabilidade
+variada (Ibitinga = Alta, outros municípios com valores diferentes), a
+hipótese se confirma; se continuar tudo "Baixa/IoU=0%", a causa é outra
+e a simplificação não ajudou.
+
+**Status:** Aberto — fix aplicado com base em eliminação de hipóteses,
+ainda não confirmado.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)

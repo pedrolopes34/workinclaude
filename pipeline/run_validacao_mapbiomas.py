@@ -86,11 +86,21 @@ def processar_municipio(
     cluster_geom, epsg_metrico = poligono_stdbscan_municipio(clusterizado)
 
     geom_municipio = buscar_geometria_municipio(codigo_ibge)
-    dominio_ee = ee.Geometry(mapping(geom_municipio))
+    # Simplifica antes de virar ee.Geometry — o polígono "qualidade=maxima" do
+    # IBGE tem provavelmente milhares de vértices; diagnosticado ao vivo (Pedro,
+    # GEE Code Editor, docs/DECISIONS.md seção 6.25) que reduceToVectors volta 0
+    # feições com a geometria REAL do município, mas funciona com um polígono
+    # simples (círculo) ou com um limite administrativo de outra fonte
+    # (FAO/GAUL, bem mais simplificado) nos mesmos parâmetros — suspeita é
+    # complexidade/tamanho do payload do GeoJSON, não confirmada 100% contra a
+    # fonte primária. Tolerância bem abaixo dos 30m de pixel do MapBiomas, não
+    # perde precisão que importe pra essa comparação.
+    geom_simplificada = geom_municipio.simplify(0.0001, preserve_topology=True)
+    dominio_ee = ee.Geometry(mapping(geom_simplificada))
     mapbiomas_geom = buscar_area_queimada(dominio_ee, ano, epsg_metrico)
 
     resultado_iou = calcular_iou_recall(cluster_geom, mapbiomas_geom)
-    _, p_valor = permutacao_iou(cluster_geom, mapbiomas_geom, _dominio_em_metros(geom_municipio, epsg_metrico))
+    _, p_valor = permutacao_iou(cluster_geom, mapbiomas_geom, _dominio_em_metros(geom_simplificada, epsg_metrico))
 
     confiabilidade = classificar_confiabilidade(len(eventos), resultado_iou.recall_pct, p_valor)
     complemento_mb_km2 = cluster_geom.difference(mapbiomas_geom).area / 1_000_000
