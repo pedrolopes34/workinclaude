@@ -946,6 +946,43 @@ histórico (não para no meio, avisa), propaga falha do ano alvo, e respeita
 **Status:** Aberto — degradação graciosa implementada; extensão real da
 janela de histórico do INPE ainda desconhecida.
 
+### 6.20 Coluna de data do CSV real do INPE é `data_hora_gmt`, não `data_pas` — mensal confirmado de verdade pra 2024-2026 (26/09/2026)
+
+**Contexto:** 3ª execução real de `ingest-inpe.yml`, já com as correções
+das seções 6.18/6.19. Progresso real e duplo:
+
+1. **A degradação graciosa funcionou exatamente como projetado** — o log
+   mostra `[AVISO] 2020/2021/2022/2023 indisponível no INPE...` pros 4 anos
+   mais antigos, sem derrubar a rodada. Como não apareceu aviso pra
+   2024/2025/2026, **os 3 baixaram com sucesso** — isso confirma de
+   verdade (não só busca) que o download mensal da seção 6.18 funciona
+   contra o servidor real, pelo menos pra esses 3 anos.
+2. Mas caiu num erro novo, mais adiante: `KeyError: 'data_pas'` em
+   `carregar_focos_sp`. O nome de coluna assumido (copiado do código da
+   pesquisa original, que partia de um arquivo já pré-processado) estava
+   errado pro CSV bruto do dataserver.
+
+**Descoberta:** busquei o schema real do CSV do INPE (2 fontes
+independentes convergiram no mesmo resultado): `id, lat, lon,
+data_hora_gmt, satelite, municipio, estado, pais, municipio_id, estado_id,
+pais_id, numero_dias_sem_chuva, precipitacao, risco_fogo, bioma, frp`.
+`lat`/`lon`/`municipio`/`estado` já estavam certos (por isso o código
+chegou até a linha da data sem quebrar antes) — só a coluna de
+data/hora é `data_hora_gmt`, não `data_pas`.
+
+**Decisão:** trocado `focos["data_pas"]` por `focos["data_hora_gmt"]` em
+`carregar_focos_sp` (pipeline/ingest/inpe.py). Testes atualizados pro nome
+de coluna real.
+
+**Testado nesta sessão:** fixtures de teste corrigidas pro nome de coluna
+real — 77 testes (mesma contagem, 3 arquivos de teste ajustados, nenhum
+teste novo pra essa troca pontual). Não executado de verdade ainda —
+próxima rodada confirma.
+
+**Status:** Aberto — próximo passo é rodar de novo; se passar dessa etapa,
+`ingest-inpe.yml` fica pertinho de completar de ponta a ponta pela
+primeira vez.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)

@@ -6,7 +6,7 @@ contra o MapBiomas Fogo. É quem popula o Postgres/PostGIS lido pelo
 `/webapp` e pela `/api`.
 
 Decisões de arquitetura, proveniência dos notebooks portados e pendências
-técnicas: `docs/DECISIONS.md` seções 6.11 a 6.19.
+técnicas: `docs/DECISIONS.md` seções 6.11 a 6.20.
 
 ## Setup
 
@@ -25,7 +25,7 @@ cp .env.example .env   # aponta pro Postgres local — ver /pipeline/db/README.m
 | `common/geo.py` | Fuso UTM/SIRGAS2000 por longitude, projeção de focos pra metros, união de buffers | Sim (`tests/pipeline/`) |
 | `common/particionamento.py` | Divide os 645 municípios em N grupos pra jobs paralelos | Sim |
 | `common/ibge_malhas.py` | Polígono do município via API de malhas do IBGE (substitui o shapefile `SP_Municipios_2024` dos notebooks, ainda não importado em `/geodata`) | Não — API bloqueada neste sandbox (`docs/DECISIONS.md` seção 6.2) |
-| `ingest/inpe.py` | Baixa os 12 CSVs mensais do INPE e concatena em um anual (não existe produto anual pronto, seção 6.18), cruza com `municipios` por nome normalizado | Parcial — parsing/cruzamento/concatenação testados; URL mensal tem evidência forte de busca, mas não confirmação real (seção 6.18) |
+| `ingest/inpe.py` | Baixa os 12 CSVs mensais do INPE e concatena em um anual (não existe produto anual pronto, seção 6.18), cruza com `municipios` por nome normalizado | Parcial — download mensal **confirmado de verdade** pra 2024-2026 (seção 6.20); coluna de data corrigida pra `data_hora_gmt` (real), ainda não re-testado; anos <2024 indisponíveis no dataserver (seção 6.19, degrada sem quebrar) |
 | `stdbscan/core.py` | ST-DBSCAN oficial (`eps_space_km=3`, `eps_time_days=1`) + `calcular_min_samples` (fórmula validada contra os 12 casos reais) + `poligono_stdbscan_municipio` | Sim |
 | `dnbr/sentinel2.py` | Cálculo do dNBR via Sentinel-2/GEE, com fallback de nuvem e checagem de cobertura real de pixels | Não — precisa de rede/credenciais do Earth Engine, indisponíveis neste sandbox de propósito |
 | `dnbr/validacao.py` | Severidade espectral por evento (buffer 500 m + `rasterstats`) | Sim (raster sintético) |

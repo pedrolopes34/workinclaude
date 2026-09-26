@@ -13,7 +13,7 @@ from pipeline.ingest.inpe import (
 
 
 class _RespostaFalsa:
-    def __init__(self, status_code: int = 200, content: bytes = b"lat,lon,data_pas,municipio,estado\n"):
+    def __init__(self, status_code: int = 200, content: bytes = b"lat,lon,data_hora_gmt,municipio,estado\n"):
         self.status_code = status_code
         self.content = content
 
@@ -54,7 +54,7 @@ def test_baixar_focos_ano_pula_mes_ainda_nao_publicado(tmp_path: Path, monkeypat
     destino = baixar_focos_ano(2026, tmp_path)
 
     conteudo = destino.read_text()
-    assert conteudo.count("lat,lon,data_pas,municipio,estado") == 1  # 1 so cabecalho, mesmo com 9 meses concatenados
+    assert conteudo.count("lat,lon,data_hora_gmt,municipio,estado") == 1  # 1 so cabecalho, mesmo com 9 meses concatenados
 
 
 def test_baixar_focos_ano_lanca_erro_se_nenhum_mes_disponivel(tmp_path: Path, monkeypatch):
@@ -124,7 +124,7 @@ def test_padronizar_nome_remove_acento_e_normaliza_caixa():
 def test_carregar_focos_sp_cruza_por_nome_e_filtra_estado(tmp_path: Path):
     csv_bruto = tmp_path / "focos_anual_br_2024.csv"
     csv_bruto.write_text(
-        "lat,lon,data_pas,municipio,estado\n"
+        "lat,lon,data_hora_gmt,municipio,estado\n"
         "-21.00,-48.22,2024-08-05,Pitangueiras,São Paulo\n"
         "-23.10,-46.60,2024-08-06,Santana de Parnaíba,São Paulo\n"
         "-15.00,-47.00,2024-08-05,Pitangueiras,Distrito Federal\n"  # nome duplicado em outro estado

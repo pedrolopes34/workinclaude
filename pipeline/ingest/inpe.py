@@ -18,15 +18,19 @@ docs/DECISIONS.md secao 6.12/6.18, "Pendencias da ingestao INPE"):
    isso `baixar_focos_ano` baixa os 12 meses e concatena localmente (ver
    docs/DECISIONS.md secao 6.18). Ainda nao executado de verdade contra o
    servidor real nesta sessao — a proxima rodada do workflow confirma.
-3. Nomes de coluna: confirmados a partir do codigo real (`data_pas`,
-   `municipio`, `lat`, `lon`) — mas nao confirmamos se o arquivo bruto do
-   INPE tem uma coluna de estado/UF utilizavel pra filtrar SP antes do
-   cruzamento por nome de municipio (risco: nomes de municipio duplicados
-   entre estados diferentes no Brasil). O nome "_sp_" no arquivo original
-   sugere que ele ja vinha pre-filtrado pra SP antes de chegar no notebook
-   — aqui, como partimos do arquivo Brasil inteiro, filtramos por estado
-   quando a coluna existir, com fallback pro cruzamento so por nome (igual
-   ao notebook original) se nao existir.
+3. **Nomes de coluna — confirmados por execucao real (26/09/2026, ver
+   docs/DECISIONS.md secao 6.20).** A 1a suposicao (`data_pas`, copiada do
+   codigo da pesquisa original, que partia de um arquivo ja pre-processado)
+   estava errada: o CSV bruto do dataserver usa `data_hora_gmt`. Confirmado
+   contra o schema real (`id, lat, lon, data_hora_gmt, satelite, municipio,
+   estado, pais, municipio_id, estado_id, pais_id, numero_dias_sem_chuva,
+   precipitacao, risco_fogo, bioma, frp`) por busca (2 fontes
+   independentes) + o proprio erro real do workflow. `lat`/`lon`/
+   `municipio`/`estado` ja estavam certos. O nome "_sp_" do arquivo
+   original da pesquisa sugere que ele ja vinha pre-filtrado pra SP antes
+   de chegar no notebook — aqui, como partimos do arquivo Brasil inteiro,
+   filtramos por estado quando a coluna existir, com fallback pro
+   cruzamento so por nome (igual ao notebook original) se nao existir.
 """
 
 import unicodedata
@@ -150,7 +154,7 @@ def carregar_focos_sp(caminho_csv: Path, municipios_ibge: pd.DataFrame) -> pd.Da
     else:
         focos = focos.copy()
 
-    focos["data_hora"] = pd.to_datetime(focos["data_pas"])
+    focos["data_hora"] = pd.to_datetime(focos["data_hora_gmt"])
     focos["ano"] = focos["data_hora"].dt.year
     focos["mes"] = focos["data_hora"].dt.month
     focos["periodo_seco"] = focos["mes"].isin(MESES_PERIODO_SECO)
