@@ -1442,6 +1442,53 @@ exceção, ou seja, depois do commit). Município fora da amostra continua
 protegido daqui pra frente: `_buscar_municipios` nunca mais inclui os 63
 no loop automático.
 
+### 6.30 Modo debug `--municipio` implementado — volta ao diagnóstico do `reduceToVectors` (26/09/2026)
+
+Com o incidente da seção 6.29 resolvido, voltei ao plano que a seção 6.28
+tinha deixado planejado (adiado na hora pra tratar a prioridade maior).
+
+**Implementado em `run_validacao_mapbiomas.py`:**
+- `--municipio <codigo_ibge>` — testa 1 município só, ignorando
+  `--grupo`/`--de-grupos`; roda em minutos em vez de ~2h por iteração de
+  diagnóstico. Pode mirar em qualquer um dos 63 da amostra manual (ex.:
+  Ibitinga, pra comparar contra o valor já conhecido) **sem risco** — a
+  gravação já é bloqueada por `fonte='manual'` (seção 6.29) de qualquer
+  jeito, então o modo debug não precisa nem se preocupar em excluir esses
+  códigos.
+- `processar_municipio(..., debug=True)` — liga:
+  1. Reparo defensivo: `geom_simplificada.buffer(0)` se `is_valid` for
+     `False` depois do `simplify()` (idioma padrão do shapely — cobre a
+     hipótese revisada de geometria tecnicamente inválida, já que o
+     `simplify(preserve_topology=True)` sozinho, testado por execução
+     real na seção 6.28, não resolveu). **Esse reparo roda sempre**,
+     debug ligado ou não — é o `print` que é condicional, não o fix.
+  2. Prints `[DEBUG]`: tipo de geometria, nº de partes (se
+     `MultiPolygon`), contagem de vértices antes/depois do simplify,
+     validade original/pós-simplify/pós-reparo, bounding box (tudo
+     local/shapely, sem custo de rede) — e a área do domínio já dentro
+     do GEE (`ee.Geometry.area().getInfo()`, 1 chamada extra só no modo
+     debug).
+- `buscar_area_queimada(..., debug=True)` (`mapbiomas_gee.py`) — imprime
+  quantas feições o `reduceToVectors` devolveu. É o sinal mais direto
+  que existe: esse número é exatamente o que fica sempre 0 no bug em
+  aberto, então é o que confirma ou refuta qualquer fix sem esperar o
+  pipeline inteiro nem olhar `IoU`/`p-valor`.
+- Input `municipio` equivalente em `check-mapbiomas.yml`
+  (`workflow_dispatch`, via `env:`).
+
+**Testado nesta sessão:** 5 testes novos, todos puros/mockados —
+`_contar_vertices` (polígono simples, `MultiPolygon`, anel interno) e
+`_buscar_municipio_unico` (encontrado / não encontrado) — 88 testes no
+total agora. O comportamento do reparo (`buffer(0)`) e os prints em si só
+são verificáveis com geometria real do IBGE + GEE — não dá nesta sessão
+(mesma limitação de sempre, seção 6.2/6.9).
+
+**Status:** Código pronto; próximo passo é disparar
+`check-mapbiomas.yml` com `municipio=3519600` (Ibitinga) e ler o log
+real — se `reduceToVectors` continuar em 0 feições mesmo com o reparo,
+os prints de vértices/validade/bounds dão o próximo diagnóstico sem
+precisar de outra rodada cega.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)

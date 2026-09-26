@@ -2,9 +2,13 @@ from datetime import datetime
 from unittest.mock import MagicMock
 
 import pandas as pd
+import pytest
+from shapely.geometry import MultiPolygon, Polygon
 
 from pipeline.run_validacao_mapbiomas import (
+    _buscar_municipio_unico,
     _buscar_municipios,
+    _contar_vertices,
     _descrever_validacao_temporal,
     _garantir_coluna_fonte,
     restaurar_amostra_validada,
@@ -45,6 +49,39 @@ def test_buscar_municipios_exclui_fonte_manual_do_ano_pedido():
     query, params = _cursor_mock(conn).execute.call_args[0]
     assert "fonte = 'manual'" in query
     assert params == {"ano": 2024}
+
+
+def test_contar_vertices_poligono_simples():
+    quadrado = Polygon([(0, 0), (0, 1), (1, 1), (1, 0), (0, 0)])
+    assert _contar_vertices(quadrado) == 5  # shapely fecha o anel repetindo o 1º ponto
+
+
+def test_contar_vertices_multipoligono_soma_as_partes():
+    quadrado = Polygon([(0, 0), (0, 1), (1, 1), (1, 0), (0, 0)])
+    triangulo = Polygon([(2, 2), (2, 3), (3, 2), (2, 2)])
+    assert _contar_vertices(MultiPolygon([quadrado, triangulo])) == 5 + 4
+
+
+def test_contar_vertices_conta_aneis_internos():
+    com_buraco = Polygon(
+        [(0, 0), (0, 10), (10, 10), (10, 0), (0, 0)],
+        holes=[[(2, 2), (2, 4), (4, 4), (4, 2), (2, 2)]],
+    )
+    assert _contar_vertices(com_buraco) == 5 + 5
+
+
+def test_buscar_municipio_unico_encontrado():
+    conn = MagicMock()
+    _cursor_mock(conn).fetchone.return_value = ("3519600", "Ibitinga")
+    df = _buscar_municipio_unico(conn, "3519600")
+    assert list(df.itertuples(index=False)) == [("3519600", "Ibitinga")]
+
+
+def test_buscar_municipio_unico_nao_encontrado_levanta_erro():
+    conn = MagicMock()
+    _cursor_mock(conn).fetchone.return_value = None
+    with pytest.raises(SystemExit):
+        _buscar_municipio_unico(conn, "0000000")
 
 
 def test_restaurar_amostra_validada_reaplica_seed_sem_comentarios():

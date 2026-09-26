@@ -25,11 +25,16 @@ ASSET_MAPBIOMAS_FOGO_ANUAL = (
 )
 
 
-def buscar_area_queimada(area_ee, ano: int, epsg_metrico: int, scale: int = 30):
+def buscar_area_queimada(area_ee, ano: int, epsg_metrico: int, scale: int = 30, debug: bool = False):
     """Poligono (shapely, na projecao epsg_metrico) da area que o MapBiomas
     Fogo classificou como queimada em algum mes do `ano`, dentro de
     `area_ee` (ee.Geometry do municipio). Poligono vazio se nao houver
-    nenhum pixel queimado."""
+    nenhum pixel queimado.
+
+    `debug=True` (docs/DECISIONS.md secao 6.28/6.30) imprime quantas feicoes
+    o reduceToVectors devolveu — e exatamente o numero que fica sempre 0 no
+    bug em aberto, entao e o sinal mais direto pra confirmar se um fix
+    funcionou sem esperar o pipeline inteiro."""
     import ee
     from shapely.geometry import shape
     from shapely.ops import unary_union
@@ -48,6 +53,8 @@ def buscar_area_queimada(area_ee, ano: int, epsg_metrico: int, scale: int = 30):
     )
 
     features = vetorizado.getInfo()["features"]
+    if debug:
+        print(f"[DEBUG] reduceToVectors: {len(features)} feições")
     if not features:
         from shapely.geometry import GeometryCollection
 

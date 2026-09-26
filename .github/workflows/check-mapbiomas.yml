@@ -39,6 +39,9 @@ on:
       restaurar_amostra_manual:
         description: "true = só restaura os 63 municípios validados manualmente (fonte='manual') a partir do seed oficial e sai — não roda o pipeline normal. Usar se a amostra foi sobrescrita (docs/DECISIONS.md seção 6.29)."
         required: false
+      municipio:
+        description: "Código IBGE pra testar 1 município só (debug, minutos em vez de ~2h) — ex.: 3519600 (Ibitinga). Liga os prints [DEBUG] de geometria (docs/DECISIONS.md seção 6.28/6.30)."
+        required: false
 
 jobs:
   validacao:
@@ -73,9 +76,16 @@ jobs:
           GEE_SERVICE_ACCOUNT_KEY: ${{ secrets.GEE_SERVICE_ACCOUNT_KEY }}
           ANO_INPUT: ${{ github.event.inputs.ano }}
           RESTAURAR_AMOSTRA_MANUAL: ${{ github.event.inputs.restaurar_amostra_manual }}
+          MUNICIPIO_INPUT: ${{ github.event.inputs.municipio }}
         run: |
           if [ "$RESTAURAR_AMOSTRA_MANUAL" = "true" ]; then
             python -m pipeline.run_validacao_mapbiomas --restaurar-amostra-manual
+          elif [ -n "$MUNICIPIO_INPUT" ]; then
+            python -m pipeline.run_validacao_mapbiomas \
+              --pasta-focos focos_cache \
+              --baixar-faltantes \
+              --municipio "$MUNICIPIO_INPUT" \
+              ${ANO_INPUT:+--ano "$ANO_INPUT"}
           else
             python -m pipeline.run_validacao_mapbiomas \
               --pasta-focos focos_cache \

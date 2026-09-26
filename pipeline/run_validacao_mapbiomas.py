@@ -63,14 +63,23 @@ def _descrever_validacao_temporal(eventos: pd.DataFrame) -> str | None:
     return f"{len(eventos)} evento(s) entre {inicio:%d/%m/%Y} e {fim:%d/%m/%Y}"
 
 
+def _contar_vertices(geom) -> int:
+    partes = geom.geoms if geom.geom_type.startswith("Multi") else [geom]
+    return sum(len(p.exterior.coords) + sum(len(anel.coords) for anel in p.interiors) for p in partes)
+
+
 def processar_municipio(
-    codigo_ibge: str, nome: str, focos_todos_anos: pd.DataFrame, ano: int
+    codigo_ibge: str, nome: str, focos_todos_anos: pd.DataFrame, ano: int, *, debug: bool = False
 ) -> dict | None:
     """None se nao houver geometria de nenhum dos dois lados util pra
     comparar (ex.: municipio sem nenhum foco no ano — fica so com
     metricas_anuais.num_agrupamentos=0, confiabilidade "Insuficiente" e nem
     entra em validacao_mapbiomas, que so existe pra ano/municipio ja
-    comparado — docs/DECISIONS.md secao 1.2)."""
+    comparado — docs/DECISIONS.md secao 1.2).
+
+    `debug=True` (via --municipio, docs/DECISIONS.md secao 6.28/6.30) imprime
+    diagnostico de geometria e da 1 chamada extra ao GEE (area do dominio) —
+    nunca ligado nas rodadas normais de producao, so no modo de 1 municipio."""
     import ee
     from shapely.geometry import mapping
 
@@ -98,10 +107,32 @@ def processar_municipio(
     # (FAO/GAUL, bem mais simplificado) nos mesmos parâmetros — suspeita é
     # complexidade/tamanho do payload do GeoJSON, não confirmada 100% contra a
     # fonte primária. Tolerância bem abaixo dos 30m de pixel do MapBiomas, não
-    # perde precisão que importe pra essa comparação.
+    # perde precisão que importe pra essa comparação. Testado por execução real
+    # (seção 6.28): sozinho, não resolveu — reduceToVectors continua voltando
+    # vazio mesmo simplificado, então o `.buffer(0)` abaixo cobre a hipótese
+    # revisada de geometria tecnicamente inválida (auto-interseção) que
+    # `preserve_topology=True` não repara sozinho.
     geom_simplificada = geom_municipio.simplify(0.0001, preserve_topology=True)
+    valido_antes = geom_simplificada.is_valid
+    if not valido_antes:
+        geom_simplificada = geom_simplificada.buffer(0)
+
+    if debug:
+        n_partes = len(geom_municipio.geoms) if geom_municipio.geom_type.startswith("Multi") else 1
+        print(
+            f"[DEBUG] {codigo_ibge}: tipo={geom_municipio.geom_type} partes={n_partes} "
+            f"vértices={_contar_vertices(geom_municipio)}->{_contar_vertices(geom_simplificada)} "
+            f"válido={geom_municipio.is_valid}->{valido_antes}->{geom_simplificada.is_valid} (orig->simplificado->reparado) "
+            f"bounds={tuple(round(v, 3) for v in geom_municipio.bounds)}"
+        )
+
     dominio_ee = ee.Geometry(mapping(geom_simplificada))
-    mapbiomas_geom = buscar_area_queimada(dominio_ee, ano, epsg_metrico)
+    if debug:
+        print(f"[DEBUG] {codigo_ibge}: área do domínio no GEE = {dominio_ee.area().getInfo() / 1_000_000:.1f} km²")
+
+    mapbiomas_geom = buscar_area_queimada(dominio_ee, ano, epsg_metrico, debug=debug)
+    if debug:
+        print(f"[DEBUG] {codigo_ibge}: mapbiomas_geom.area={mapbiomas_geom.area / 1_000_000:.2f} km² vazio={mapbiomas_geom.is_empty}")
 
     resultado_iou = calcular_iou_recall(cluster_geom, mapbiomas_geom)
     _, p_valor = permutacao_iou(cluster_geom, mapbiomas_geom, _dominio_em_metros(geom_simplificada, epsg_metrico))
@@ -153,6 +184,19 @@ def restaurar_amostra_validada(conn) -> None:
     )
     with conn.cursor() as cur:
         cur.execute(sql_seed)
+
+
+def _buscar_municipio_unico(conn, codigo_ibge: str) -> pd.DataFrame:
+    """Pra --municipio (debug de 1 município só) — não aplica a exclusão da
+    amostra manual: o ponto é poder testar contra um caso já conhecido (ex.:
+    Ibitinga) sem risco, já que `_gravar_validacao` bloqueia a gravação de
+    qualquer jeito se fonte='manual' (docs/DECISIONS.md seção 6.29)."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT codigo_ibge, nome FROM municipios WHERE codigo_ibge = %(codigo_ibge)s", {"codigo_ibge": codigo_ibge})
+        linha = cur.fetchone()
+    if linha is None:
+        raise SystemExit(f"codigo_ibge={codigo_ibge!r} não encontrado em municipios.")
+    return pd.DataFrame([linha], columns=["codigo_ibge", "nome"])
 
 
 def _buscar_municipios(conn, ano: int) -> pd.DataFrame:
@@ -224,6 +268,16 @@ def main() -> None:
     parser.add_argument("--de-grupos", type=int, default=1)
     parser.add_argument("--baixar-faltantes", action="store_true")
     parser.add_argument(
+        "--municipio",
+        default=None,
+        help=(
+            "Testa 1 código IBGE só, ignorando --grupo/--de-grupos — roda em minutos em vez de ~2h "
+            "por rodada de diagnóstico. Liga os prints [DEBUG] de geometria (docs/DECISIONS.md seção "
+            "6.28/6.30). Pode ser um dos 63 da amostra manual (ex.: Ibitinga, pra comparar contra o "
+            "valor já conhecido) sem risco — fonte='manual' bloqueia a gravação de qualquer jeito."
+        ),
+    )
+    parser.add_argument(
         "--restaurar-amostra-manual",
         action="store_true",
         help=(
@@ -254,13 +308,16 @@ def main() -> None:
 
     with get_connection() as conn:
         _garantir_coluna_fonte(conn)
-        # Já vem sem a amostra validada manualmente (docs/DECISIONS.md seção
-        # 6.29) — não é "todos os 645", é só os elegíveis pro pipeline
-        # automático neste `ano`. carregar_focos_sp só usa isso pra casar
-        # nome->codigo_ibge, e os excluídos nunca entram no loop abaixo, então
-        # não ter os focos deles aqui não muda nada.
-        municipios_elegiveis = _buscar_municipios(conn, args.ano)
-    municipios = dividir_em_grupo(municipios_elegiveis, args.grupo, args.de_grupos)
+        if args.municipio:
+            municipios_elegiveis = _buscar_municipio_unico(conn, args.municipio)
+        else:
+            # Já vem sem a amostra validada manualmente (docs/DECISIONS.md
+            # seção 6.29) — não é "todos os 645", é só os elegíveis pro
+            # pipeline automático neste `ano`. carregar_focos_sp só usa isso
+            # pra casar nome->codigo_ibge, e os excluídos nunca entram no
+            # loop abaixo, então não ter os focos deles aqui não muda nada.
+            municipios_elegiveis = _buscar_municipios(conn, args.ano)
+    municipios = municipios_elegiveis if args.municipio else dividir_em_grupo(municipios_elegiveis, args.grupo, args.de_grupos)
 
     focos_todos_anos = pd.concat(
         [
@@ -277,12 +334,15 @@ def main() -> None:
             "Rode com --baixar-faltantes ou confira o cache do GitHub Actions."
         )
 
-    print(f"Grupo {args.grupo}/{args.de_grupos}: {len(municipios)} municípios, ano {args.ano}")
+    if args.municipio:
+        print(f"Modo debug --municipio: {municipios.iloc[0]['codigo_ibge']} ({municipios.iloc[0]['nome']}), ano {args.ano}")
+    else:
+        print(f"Grupo {args.grupo}/{args.de_grupos}: {len(municipios)} municípios, ano {args.ano}")
 
     for codigo_ibge, nome in municipios.itertuples(index=False):
         focos_municipio = focos_todos_anos[focos_todos_anos["codigo_ibge"] == codigo_ibge]
         try:
-            resultado = processar_municipio(codigo_ibge, nome, focos_municipio, args.ano)
+            resultado = processar_municipio(codigo_ibge, nome, focos_municipio, args.ano, debug=bool(args.municipio))
         except Exception as e:
             print(f"[ERRO] {codigo_ibge} ({nome}): {type(e).__name__}: {e}")
             continue
