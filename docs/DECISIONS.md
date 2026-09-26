@@ -1626,6 +1626,130 @@ pré-existentes de sempre, 0 erros novos.
 seção 6.27 estão todas resolvidas agora (2 pela troca de cinza da seção
 6.27, 3 por esta seção). Nenhum hex mudou.
 
+### 6.33 Cor de ação revertida pra azul — Pedro comparou os dois visuais e decidiu (26/09/2026)
+
+**Contexto:** pendência aberta na seção 7 — o mockup "Painel Queimadas SP"
+usa azul `#3C7DA6` como cor de ação, mas a seção 6.8 tinha trocado essa
+cor pra argila `--color-acento` `#C17A4E` no restyle, no mesmo dia da
+publicação do mockup. Não dava pra saber, só pelos dois artefatos, qual
+refletia a intenção mais recente do Pedro.
+
+**Decisão:** Pedro revisou os dois visuais lado a lado e escolheu o azul.
+
+**Mudança:** só em `globals.css`, `--color-acento`/`--color-acento-hover` —
+claro `#c17a4e`/`#a8663f` → `#3c7da6`/`#316788`; escuro `#d98f63`/`#e6a67d`
+→ `#5fa8d9`/`#77b5df`. Não muda nenhuma das cores protegidas pelo
+`CLAUDE.md` (selos verde/mostarda/terracota de confiabilidade) nem o
+critério de quando cada uma se aplica — `--color-acento` sempre foi
+documentado como token separado, de troca livre com aprovação do Pedro.
+
+**Testado:** as 5 páginas reais (home, Pitangueiras, Amparo, Quem somos,
+Como produzimos) via Playwright — screenshot conferido visualmente, sem
+erro de console novo. Recalculei o contraste WCAG do novo azul à mão
+(fórmula de luminância relativa, mesma do axe-core): azul `#3c7da6` sobre
+o fundo creme `#f7f3ec` dá **4,06:1**, branco sobre fundo azul dá
+**4,49:1** — os dois folgados acima do 3:1 mínimo pra "texto grande" da
+seção 6.32, e na prática **melhores** que os 3,08–3,4:1 da argila que
+substituíram (mais próximos até do 4,5:1 de texto normal). O
+`text-[19px] font-bold` da seção 6.32 continua necessário e válido, só
+não ficou mais apertado com a troca de cor — ficou mais folgado.
+
+**Status:** Fechado.
+
+### 6.34 Fonte AvantGarde Std Bold: arquivo do Google Drive corrompido, sem conserto viável (26/09/2026)
+
+**Contexto:** Pedro pediu explicitamente pra aplicar "AvantGardeStd-Bold"
+nos títulos (h1) do site e deixou o arquivo
+(`FontsFree-Net-ITCAvantGardeStdBold.ttf`) no Google Drive dele.
+
+**O que eu tentei:** carreguei via `next/font/local` (`layout.tsx`),
+numa variável CSS própria `--font-display` (`globals.css`, separada de
+`--font-sans`, com fallback pro Public Sans) — assim o resto da
+tipografia do site não seria afetado, só os `<h1>`. No Chromium
+(`document.fonts`, mais confiável que print de tela pra isso), a fonte
+sempre reporta status `"error"`, mesmo com o arquivo baixando com sucesso
+(200, confirmado por log de rede).
+
+**Diagnóstico:** validação estrutural com `fontTools` (Python) achou
+corrupção em quase toda tabela relevante do arquivo — `name` (offset de
+string errado), `post` (valor de formato inválido, 27748.0, não existe
+esse formato), e `cmap`/`glyf`/`gasp`/`BASE`/`GDEF`/`GPOS`/`GSUB` todos
+falham ao parsear (erro típico: tabela truncada, "unpack requires a
+buffer of 2 bytes"). Tentei reconstruir só a tabela `name` do zero —
+funcionou isoladamente (fontTools passou a ler os metadados certos), mas
+não resolveu o carregamento no navegador, porque o problema real está em
+outras tabelas, `glyf` incluída (os contornos dos glifos em si, não
+metadado). Reconfirmei rodando a mesma validação no arquivo original,
+nunca tocado por mim — os mesmos erros já existiam antes de eu mexer.
+
+**Avaliação:** corrupção de `glyf`/`GPOS`/`GSUB`/`GDEF`/`BASE` não é
+metadado com "cabeçalho errado" que dá pra reescrever — são os dados reais
+de desenho/kerning da fonte, truncados/ilegíveis. Não existe reconstrução
+automática sem o arquivo-fonte original íntegro; `fontforge` (ferramenta
+padrão pra recuperação mais agressiva) não está disponível neste ambiente
+e, dado o padrão do dano (tabelas inteiras truncadas a poucos bytes), é
+improvável que ajudasse de qualquer forma. Suspeita adicional: "ITC Avant
+Garde Std Bold" é fonte comercial da Monotype/ITC, não gratuita — sites
+tipo "FontsFree.net" que a oferecem de graça costumam servir cópia
+pirata ou arquivo deliberadamente quebrado ("amostra" inutilizável); o
+padrão de dano encontrado é consistente com isso.
+
+**Ação tomada nesta sessão (reversível):** removido `next/font/local` e o
+`.ttf` corrompido do repositório — não faz sentido manter uma referência
+de código pra uma fonte que nunca carrega (fica "código morto" confuso
+pra quem for mexer depois). `--font-display` continua existindo como
+variável separada de `--font-sans` (resolve pro Public Sans por enquanto,
+igual todo o resto do texto) — é o encaixe já pronto pra receber a fonte
+certa assim que houver um arquivo válido, sem precisar reestruturar nada.
+
+**Status:** diagnóstico fechado (causa é o arquivo, não o código);
+encaminhamento em aberto — só o Pedro decide como seguir (ver seção 7).
+
+### 6.35 Rodada completa dos 645 municípios do MapBiomas confirmada em produção — run 36254268271 (26/09/2026)
+
+**Contexto:** seção 6.31 deixou como próximo passo "rodar os 645
+municípios de verdade e confirmar que a confiabilidade varia de forma
+plausível". Disparada às 16:06 UTC, terminou com sucesso nos 2 jobs
+paralelos (grupo 1/2 e 2/2) às ~18:05 UTC — ~1h59 no total.
+
+**Resultado — confirmado, a confiabilidade varia de verdade agora,** não é
+mais valor morto uniforme. Dos 645 municípios, 582 são elegíveis pro
+pipeline automático (645 − 63 da amostra validada manualmente, protegida
+desde a seção 6.29); desses, 516 tiveram agrupamento formado em 2024 e
+entraram na comparação — os outros 66 tiveram zero agrupamento no ano e
+viram "Insuficiente" por outro caminho do pipeline (`metricas_anuais`),
+não aparecem nesta lista por design (ver docstring de
+`processar_municipio`, não é bug nem lacuna de log). Distribuição real dos
+516: **29 Alta, 378 Média, 109 Baixa.**
+
+**Zero erros:** busquei a tag `[ERRO]` (impressa em qualquer exceção não
+tratada, `run_validacao_mapbiomas.py` linha ~342) e `Traceback`/`Exception`
+nos logs completos dos 2 jobs — nenhuma ocorrência. As únicas linhas fora
+do padrão são 6 avisos `[AVISO]` (INPE sem os anos 2018–2023 disponíveis
+"ainda" no servidor deles — degradação graciosa já coberta pela seção
+6.19; o pipeline seguiu normalmente só com 2024).
+
+**Sobre o valor-p** (pendência separada, seção 6.15/6.21): **também
+varia**, não fica travado em 1,0 — valores de 0,001 até 0,987 espalhados
+pelos 516 resultados (~81% batem exatamente em 1,0, o resto varia
+continuamente). Isso refuta a hipótese de permutação mecanicamente travada;
+não confirma, por si só, que a mecânica bate 100% com o notebook oficial
+de referência (verificação separada, se um dia for necessária) — só que
+produz uma distribuição plausível, não um valor fixo suspeito.
+
+**4 exemplos reais** (código IBGE, confiabilidade, IoU, p-valor):
+- Auriflama (3504206): **Alta** — IoU=3,1%, p=0,002 (os dois critérios passam)
+- Itaberá (3521705): **Média** — IoU=3,12%, p=0,001 (só o p-valor passa;
+  recall deve ficar abaixo de 50%)
+- Ipuã (3521309): **Média** — IoU=19,31%, p=1,0 (maior interseção de toda
+  a rodada, mas não significativa — mostra que IoU alto sozinho não
+  garante Alta)
+- Águas de Lindóia (3500501): **Baixa** — IoU=0,0%, p=1,0 (nenhum critério
+  passa)
+
+**Status:** Fechado — validação em escala confirma o fix da seção 6.31 de
+ponta a ponta. Dados já gravados em produção (Neon).
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)
@@ -1689,30 +1813,34 @@ seção 6.27 estão todas resolvidas agora (2 pela troca de cinza da seção
   visual (26/09/2026):** o Pedro achou o site atual "muito simplista"
   comparado a um artefato anterior ("Painel Queimadas SP", publicado
   25/09/2026 em claude.ai — mesmo dia do restyle da seção 6.8). Comparei
-  os dois de verdade. Faltam no `/webapp` real:
-  - **Página de município sem nenhum mapa** — a maior lacuna; o mockup
-    mostra a imagem do mapa dNBR, a página real só tem números em tabela.
-  - Tiles de métrica com "?" expansível, faixa de anos 2018–2024, gráfico
-    de barras comparando método próprio × satélite × MapBiomas, busca com
-    autocomplete, barra de cobertura segmentada, grid de "municípios em
-    destaque" com thumbnail — nenhum desses existe hoje.
-  - **Duas páginas inteiras só existem no mockup:** "Como produzimos"
-    (metodologia em 3 passos, os 4 níveis de confiabilidade explicados,
-    limitações assumidas, cadência de atualização) e "Quem somos" (perfil
-    do Pedro, contato, Lattes/LinkedIn, endereço) — motivou corrigir o
-    `docs/CHECKLIST.md` (o item "Endereço de contato real" estava marcado
-    `[x]` citando a página "Quem somos" como se já existisse no produto
-    real; virou `[~]`, e as 2 páginas entraram como pendência própria).
-  - Visualmente, o mockup usa vidro fosco (`backdrop-filter`), orbs
-    animados no fundo do hero, badges com bolinha colorida e um toggle de
-    tema claro/escuro visível — nada disso existe no `/webapp` real hoje.
-  **Pendência que trava decidir o escopo:** o mockup usa **azul `#3C7DA6`**
-  como cor de ação (links, números grandes, gráficos) — mas a seção 6.8
-  documenta a troca dessa cor pra argila `--color-acento` `#C17A4E`,
-  **no mesmo dia** de publicação do mockup. Não dá pra saber, só pelos
-  dois artefatos, qual reflete a intenção mais recente do Pedro. Perguntei
-  a ele; resposta ainda pendente.
-  **Status:** nenhuma decisão tomada, nenhuma implementação iniciada —
-  achado registrado aqui pra não se perder só na conversa (regra do
-  `CLAUDE.md`). Path do artefato original:
+  os dois de verdade. **Resolvido nesta sessão:** cor de ação (seção 6.33,
+  Pedro escolheu o azul do mockup), mapa dNBR na página de município
+  (Pitangueiras tem a imagem real da pesquisa — `dnbr-pitangueiras.png` —
+  os outros municípios mostram um aviso "ainda não disponível" em vez de
+  espaço vazio, já que o pipeline hoje não exporta imagem pra nenhum outro),
+  e as páginas **"Como produzimos"** e **"Quem somos"** (portadas pro
+  produto real, `/como-produzimos` e `/quem-somos`, com o conteúdo do
+  mockup adaptado ao design system do site — não copiado 1:1; sem vidro
+  fosco/glassmorphism, que não é a estética do restyle da seção 6.8).
+  Isso corrigiu o `docs/CHECKLIST.md` (o item "Endereço de contato real"
+  volta a `[x]`, e as 2 páginas saem de pendente).
+  **Ainda faltam** (não bloqueiam nada, só não foram pedidas ainda): tiles
+  de métrica com "?" expansível, faixa de anos 2018–2024, gráfico de
+  barras comparando método próprio × satélite × MapBiomas, busca com
+  autocomplete, barra de cobertura segmentada, grid de "municípios em
+  destaque" com thumbnail, orbs animados no hero, toggle de tema
+  claro/escuro visível.
+  **Status:** 3 dos 4 gaps originais resolvidos; o resto é backlog de
+  design, não pendência travando nada. Path do artefato original:
   `https://claude.ai/artifact/XUKMwTerRzGjnXJkRhVvrJ`.
+- **Fonte AvantGarde Std Bold não carrega — arquivo do Pedro está
+  corrompido (26/09/2026, ver seção 6.34):** diagnóstico técnico completo
+  e fechado (não é bug do código, é o arquivo `.ttf` mesmo, corrompido em
+  várias tabelas incluindo os glifos). Decisão de como seguir é só do
+  Pedro: (a) conseguir uma cópia legítima do arquivo (compra avulsa,
+  Adobe Fonts/MyFonts, ou alguma biblioteca de fontes institucional da
+  UNESP, se existir); (b) trocar por uma fonte gratuita de estilo
+  parecido — geométrica tipo Futura/Avant Garde — ex. "Jost" ou "Poppins"
+  no Google Fonts (licença livre, OFL); (c) manter Public Sans nos
+  títulos também por ora (é o que está no ar agora) e revisitar depois.
+  **Status:** nenhuma das 3 opções decidida ainda.

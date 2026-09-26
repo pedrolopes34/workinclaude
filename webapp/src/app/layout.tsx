@@ -30,7 +30,7 @@ export default function RootLayout({
     <html lang="pt-BR">
       <body className={`${publicSans.variable} ${ibmPlexMono.variable} antialiased flex min-h-screen flex-col`}>
         <header>
-          <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-5">
+          <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-5">
             <Link href="/" className="flex items-center gap-2.5">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-acento text-sm font-semibold text-white">
                 Q
@@ -39,7 +39,15 @@ export default function RootLayout({
                 Painel de Queimadas SP
               </span>
             </Link>
-            <span className="hidden text-sm text-stone-600 sm:inline">
+            <nav className="hidden items-center gap-5 text-sm font-medium text-stone-600 sm:flex">
+              <Link href="/como-produzimos" className="hover:text-foreground">
+                Como produzimos
+              </Link>
+              <Link href="/quem-somos" className="hover:text-foreground">
+                Quem somos
+              </Link>
+            </nav>
+            <span className="hidden text-sm text-stone-600 lg:inline">
               pesquisa PIBIC/CNPq
             </span>
           </div>

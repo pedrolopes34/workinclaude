@@ -35,17 +35,20 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
       (`docs/legal/termos-de-uso.md`), mesmo aviso de revisão pendente
 - [x] Banner de cookies — **não se aplica**: Vercel Analytics (decidido
       abaixo) não usa cookies nem dado pessoal identificável
-- [~] Endereço de contato real — endereço institucional (UNESP FCE Tupã)
-      já aparece no rodapé real (`layout.tsx`); e-mails pessoal/institucional,
-      Lattes e LinkedIn só existem hoje na página "Quem somos" do mockup
-      (ver `docs/DECISIONS.md` seção 7) — **não** numa página real do
-      `/webapp`, ao contrário do que esta linha dizia antes
-- [ ] Página "Quem somos" — perfil do Pedro, contato completo, cadência
-      de atualização por fonte de dado; conteúdo já redigido no mockup
-      (`docs/DECISIONS.md` seção 7), nunca portado pra uma rota real
-- [ ] Página "Como produzimos" — metodologia em 3 passos, os 4 níveis de
-      confiabilidade explicados, limitações assumidas; conteúdo já
-      redigido no mockup, nunca portado pra uma rota real
+- [x] Endereço de contato real — endereço institucional (UNESP FCE Tupã)
+      no rodapé (`layout.tsx`) **e** na página "Quem somos" real
+      (`/quem-somos`), junto com e-mail pessoal, e-mail institucional,
+      Lattes e LinkedIn — portado do mockup pro produto de verdade nesta
+      sessão (`docs/DECISIONS.md` seção 7)
+- [x] Página "Quem somos" — perfil do Pedro, contato completo (e-mails,
+      Lattes, LinkedIn, endereço institucional); nome da orientadora
+      deliberadamente omitido até autorização dela (`docs/DECISIONS.md`
+      seção 7). Rota real: `/quem-somos`
+- [x] Página "Como produzimos" — metodologia em 3 passos, os 4 níveis de
+      confiabilidade explicados (reaproveitando `CONFIABILIDADE_STYLE`,
+      mesmas cores/critérios protegidos do `CLAUDE.md`), limitações
+      assumidas, cadência de atualização por fonte. Rota real:
+      `/como-produzimos`
 
 ## UX e acessibilidade
 
@@ -133,27 +136,26 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 
 ---
 
-**Contagem atual:** 11 itens feitos, 11 parciais, 13 pendentes — atualizado
-em 26/09/2026: pipeline de produção rodando de verdade pela 1ª vez
-(`ingest-inpe.yml`, `process-sentinel-dnbr.yml`, `audit-anual.yml`
-confirmados por log real), auditoria WCAG AA **fechada** (5 de 5
-violações de contraste corrigidas, seção 6.32), Dependabot **fechado**
-(alertas confirmados ativos pelo Pedro). Contagem de pendentes subiu (11
-→ 13) por causa de 2 itens novos, não de retrocesso: comparação real do
-`/webapp` contra o mockup visual revelou que "Quem somos" e "Como
-produzimos" nunca foram portadas pro produto real (`docs/DECISIONS.md`
-seção 7) — e corrigiu um item que estava marcado feito por engano
-("Endereço de contato real", que citava a página "Quem somos" como se
-já existisse).
+**Contagem atual:** 14 itens feitos, 10 parciais, 11 pendentes —
+atualizado em 26/09/2026: as páginas "Quem somos" e "Como produzimos"
+foram portadas pro produto real (`/quem-somos`, `/como-produzimos`),
+fechando também o item "Endereço de contato real" que tinha virado `[~]`
+na revisão anterior. Cor de ação revertida pra azul por decisão do Pedro
+e mapa dNBR real adicionado na página de Pitangueiras (`docs/DECISIONS.md`
+seção 6.33/7). Identidade tipográfica dos títulos (fonte AvantGarde que o
+Pedro pediu) fica pendente — arquivo fornecido está corrompido sem
+conserto viável, decisão de como seguir é dele (seção 6.34/7).
 
-**✅ `check-mapbiomas.yml` corrigido e confirmado por execução real
-(`docs/DECISIONS.md` seção 6.31):** a causa raiz de verdade era projeção
-— `getInfo()` do Earth Engine sempre devolve geometria em EPSG:4326,
+**✅ `check-mapbiomas.yml` corrigido E confirmado em escala real
+(`docs/DECISIONS.md` seções 6.31 e 6.35):** a causa raiz era projeção —
+`getInfo()` do Earth Engine sempre devolve geometria em EPSG:4326,
 independente do `crs` pedido no `reduceToVectors`; o código tratava essas
-coordenadas em graus como se já estivessem em metros. Confirmado com
-Ibitinga: área foi de 0,00 km² pra 88,40 km², IoU de 0% pra 10,23%.
-Próximo passo: rodar os 645 municípios de verdade pra confirmar que
-varia de forma plausível em escala.
+coordenadas em graus como se já estivessem em metros. Confirmado primeiro
+com Ibitinga (área de 0,00 km² pra 88,40 km², IoU de 0% pra 10,23%) e
+depois com a rodada completa dos 645 municípios em produção (run
+`36254268271`): 516 município-ano comparados, confiabilidade **variando
+de verdade** (29 Alta, 378 Média, 109 Baixa — nada de "sempre Baixa"),
+zero erros nos logs.
 
 **✅ Incidente da amostra manual, corrigido (`docs/DECISIONS.md` seção
 6.29):** o `check-mapbiomas.yml` bugado sobrescreveu pelo menos 33 dos 63

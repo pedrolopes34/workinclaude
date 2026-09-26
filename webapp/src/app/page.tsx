@@ -87,7 +87,7 @@ export default async function Home({
   return (
     <div className="space-y-8">
       <section className="space-y-3">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           Monitoramento de queimadas em São Paulo
         </h1>
         <p className="max-w-xl text-stone-600 dark:text-stone-400">

@@ -1,8 +1,15 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getMunicipioDetalhe } from "@/lib/queries";
 import { CONFIABILIDADE_STYLE, formatKm2, formatPct, formatPValor } from "@/lib/format";
+
+// Único município com imagem real de mapa dNBR disponível hoje — o
+// pipeline (run_dnbr.py) calcula área direto no servidor do GEE, nunca
+// exportou raster/imagem em produção (docs/DECISIONS.md seção 7). Esta é
+// a imagem real da pesquisa original (ago/2024), não um mock.
+const CODIGO_IBGE_COM_MAPA_REAL = "3539509"; // Pitangueiras
 
 export async function generateMetadata({
   params,
@@ -46,7 +53,7 @@ export default async function MunicipioPage({
       </div>
 
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           {municipio.nome}
         </h1>
         <dl className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-stone-600">
@@ -104,6 +111,31 @@ export default async function MunicipioPage({
                       {CONFIABILIDADE_STYLE[v.confiabilidade].label}
                     </span>
                   </div>
+
+                  <div className="mb-4 overflow-hidden rounded-xl border border-border bg-background">
+                    {municipio.codigoIbge === CODIGO_IBGE_COM_MAPA_REAL ? (
+                      <>
+                        <Image
+                          src="/dnbr-pitangueiras.png"
+                          alt={`Mapa de severidade de queimada (dNBR) de ${municipio.nome} em ${v.ano}, estilo QGIS: verde é baixa severidade (perto de 0,10), do amarelo ao vermelho é severidade alta (até 0,75).`}
+                          width={1400}
+                          height={1244}
+                          className="h-auto w-full"
+                        />
+                        <p className="px-3 py-2 text-xs text-stone-600">
+                          Mapa dNBR · Sentinel-2/ESA, processado no Google Earth Engine
+                        </p>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1 px-4 py-10 text-center text-xs text-stone-600">
+                        <span>Mapa dNBR ainda não disponível para este município</span>
+                        <span className="text-stone-400">
+                          o pipeline hoje calcula a área direto no servidor, sem exportar imagem
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
                   <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
                     <div>
                       <dt className="text-xs text-stone-600">Recall</dt>

@@ -13,12 +13,15 @@
   --color-mostarda: #d9a441;
   --color-terracota: #c1442d;
 
-  /* Acento de UI geral (botões, links, foco) — argila quente inspirada no
-     visual do Claude.ai, deliberadamente diferente do terracota de alerta
-     acima pra não confundir "ação" com "confiabilidade baixa". Substitui
-     o azul como cor de ação primária (docs/DECISIONS.md seção 7). */
-  --color-acento: #c17a4e;
-  --color-acento-hover: #a8663f;
+  /* Acento de UI geral (botões, links, foco) — azul do mockup "Painel
+     Queimadas SP" (claude.ai), revertido de volta depois que o Pedro
+     comparou os dois visuais (docs/DECISIONS.md seção 7/6.33). A argila
+     quente do restyle anterior fica só de histórico nesse comentário —
+     mesmo #c17a4e que substituiu este azul antes, agora substituído de
+     volta. Deliberadamente diferente do terracota de alerta abaixo pra
+     não confundir "ação" com "confiabilidade baixa". */
+  --color-acento: #3c7da6;
+  --color-acento-hover: #316788;
 }
 
 @theme inline {
@@ -33,6 +36,13 @@
   --color-acento-hover: var(--color-acento-hover);
   --font-sans: var(--font-public-sans);
   --font-mono: var(--font-ibm-plex-mono);
+  /* Usada só em títulos de página (h1). Pedro pediu AvantGarde Std Bold
+     pra esse papel (docs/DECISIONS.md seção 7); o arquivo que ele achou
+     (mirror de fonte grátis) está corrompido de um jeito que não dá pra
+     consertar (seção 6.34) — por ora resolve igual ao Public Sans, mas
+     mantém a classe utilitária `font-display` já separada de `font-sans`
+     pra trocar só este valor quando tiver um arquivo de fonte válido. */
+  --font-display: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -41,8 +51,8 @@
     --foreground: #ede6db;
     --surface: #2b2622;
     --border: #3d362e;
-    --color-acento: #d98f63;
-    --color-acento-hover: #e6a67d;
+    --color-acento: #5fa8d9;
+    --color-acento-hover: #77b5df;
   }
 }
 
