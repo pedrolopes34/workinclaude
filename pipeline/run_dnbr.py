@@ -47,6 +47,7 @@ também por run_validacao_mapbiomas.py) e é testado lá.
 import argparse
 import json
 import os
+import re
 from datetime import date, timedelta
 from io import BytesIO
 
@@ -71,17 +72,24 @@ def _env_r2(nome: str) -> str:
     return os.environ[nome].strip()
 
 
-def _endpoint_r2(account_id: str) -> str:
-    """Normaliza R2_ACCOUNT_ID pra so' o ID puro, mesmo se alguem colar sem
-    querer a URL do endpoint inteira (que a propria Cloudflare mostra em
-    outras telas) em vez de so' o account id — achado real na primeira
-    tentativa desta sessao (docs/DECISIONS.md secao 6.41): boto3 rejeitava
-    com "Invalid endpoint" porque o valor colado ja' vinha com
-    "https://...r2.cloudflarestorage.com" dentro, virando um endpoint
-    duplicado/malformado."""
-    account_id = account_id.removeprefix("https://").removeprefix("http://")
-    account_id = account_id.removesuffix("/").removesuffix(".r2.cloudflarestorage.com")
-    return f"https://{account_id}.r2.cloudflarestorage.com"
+def _endpoint_r2(account_id_bruto: str) -> str:
+    """Normaliza R2_ACCOUNT_ID puxando so' os 32 caracteres hex do ID de
+    verdade de dentro do que foi colado — mais robusto que tirar
+    prefixo/sufixo fixo (1a tentativa, docs/DECISIONS.md secao 6.41, nao
+    resolveu: o valor colado tinha 53 caracteres, sem espaco interno, e
+    nao comecava com "http" nem terminava em ".com" — improvavel de ser a
+    URL inteira; mais provavel um ID colado junto com texto extra da UI
+    da Cloudflare). Um account ID de verdade e' sempre 32 caracteres
+    hexadecimais; procurar esse padrao dentro da string bruta funciona
+    não importa o que mais tenha sido colado."""
+    match = re.search(r"[0-9a-f]{32}", account_id_bruto, re.IGNORECASE)
+    if match is None:
+        raise ValueError(
+            f"R2_ACCOUNT_ID não parece conter um account id válido (32 caracteres hex) — "
+            f"valor colado tem {len(account_id_bruto)} caracteres. Confira em Cloudflare > R2 > "
+            f"Overview (o ID aparece na barra lateral direita, é só o código hex, sem URL nem rótulo)."
+        )
+    return f"https://{match.group(0).lower()}.r2.cloudflarestorage.com"
 
 
 def _diagnostico_seguro(nome: str, valor: str) -> str:

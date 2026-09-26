@@ -36,16 +36,28 @@ def test_r2_configurado_verdadeiro_com_valor(monkeypatch):
     assert _r2_configurado() is True
 
 
+ACCOUNT_ID_VALIDO = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"  # 32 hex — formato real da Cloudflare
+
+
 @pytest.mark.parametrize(
     "valor_colado,esperado",
     [
-        ("abc123def456", "https://abc123def456.r2.cloudflarestorage.com"),
-        # Erro real da 1a tentativa em produção (docs/DECISIONS.md secao
-        # 6.41): colar a URL do endpoint inteira em vez de so' o ID.
-        ("https://abc123def456.r2.cloudflarestorage.com", "https://abc123def456.r2.cloudflarestorage.com"),
-        ("https://abc123def456.r2.cloudflarestorage.com/", "https://abc123def456.r2.cloudflarestorage.com"),
-        ("http://abc123def456.r2.cloudflarestorage.com", "https://abc123def456.r2.cloudflarestorage.com"),
+        (ACCOUNT_ID_VALIDO, f"https://{ACCOUNT_ID_VALIDO}.r2.cloudflarestorage.com"),
+        (ACCOUNT_ID_VALIDO.upper(), f"https://{ACCOUNT_ID_VALIDO}.r2.cloudflarestorage.com"),
+        # Colar a URL do endpoint inteira em vez de so' o ID (1a hipotese
+        # desta sessao, docs/DECISIONS.md secao 6.41).
+        (f"https://{ACCOUNT_ID_VALIDO}.r2.cloudflarestorage.com", f"https://{ACCOUNT_ID_VALIDO}.r2.cloudflarestorage.com"),
+        # Erro real confirmado por diagnostico em produção (53 caracteres,
+        # sem espaço, não começava com "http" nem terminava em ".com" —
+        # provavelmente o ID colado junto com texto extra da UI da
+        # Cloudflare, tipo um rotulo ou espaço de outra fonte antes/depois).
+        (f"conta: {ACCOUNT_ID_VALIDO} (produção)", f"https://{ACCOUNT_ID_VALIDO}.r2.cloudflarestorage.com"),
     ],
 )
 def test_endpoint_r2_normaliza_account_id(valor_colado, esperado):
     assert _endpoint_r2(valor_colado) == esperado
+
+
+def test_endpoint_r2_sem_id_valido_da_erro_claro():
+    with pytest.raises(ValueError, match="não parece conter um account id válido"):
+        _endpoint_r2("isso não é um account id")
