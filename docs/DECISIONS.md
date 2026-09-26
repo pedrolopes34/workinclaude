@@ -1930,6 +1930,81 @@ warnings de sempre). `npm run build`: limpo.
 **Status:** Fechado — cobertura de WCAG agora inclui os dois temas, não
 só o claro.
 
+### 6.40 Miniatura dNBR real pros 645 municípios — arquitetura implementada, falta só o Pedro criar a conta R2 (26/09/2026)
+
+**Contexto:** Pedro pediu urgência no mapa dNBR pra todos os 645
+municípios (não só Pitangueiras) e reclamou do estilo "gráfico
+científico" da imagem existente. Escolhido como prioridade #1 entre 3
+pedidos concorrentes da mesma mensagem (o próprio Pedro confirmou via
+pergunta direta).
+
+**Descoberta que simplificou tudo:** `pipeline/dnbr/sentinel2.py::preparar_exportacao`
+**já existia** desde a seção 6.11 (portado de notebook) e **já produzia**
+a imagem colorida certa (`dnbr.visualize(min=0.1, max=0.7,
+palette=["green","yellow","orange","red","black"])`) — só nunca tinha
+sido chamada em produção (`run_dnbr.py` só usava o raster bruto pra
+`reduceRegion`). Não precisou desenhar paleta nenhuma do zero.
+
+**Decisão de mecanismo:** `ee.Image.getThumbURL()` em vez de exportar
+GeoTIFF completo — pega a MESMA imagem colorida que a chamada de área já
+calcula (nenhum custo extra de quota do GEE em recomputar Sentinel-2),
+renderiza um PNG leve (800px, `DIMENSAO_MINIATURA_PX`) direto no servidor
+do Earth Engine. Muito mais barato que a rota "exportar raster" que o
+`CHECKLIST.md` já descrevia como não-trivial.
+
+**Decisão de armazenamento:** Cloudflare R2 (já cogitado no
+`CHECKLIST.md` pra isso), **não** Vercel Blob — apesar do Vercel Blob ter
+zero fricção de conta nova (Pedro já tem Vercel), a API do R2 é
+compatível com S3 (`boto3`, biblioteca extremamente madura e bem
+documentada) — mais confiança de escrever a integração certa de primeira
+do que a API própria do Vercel Blob, que eu conhecia com menos certeza.
+Pipeline baixa o PNG do `getThumbURL` (`requests.get`) e sobe pro bucket
+via `boto3` — endpoint `https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+path `dnbr/{codigo_ibge}-{ano}-{mes:02d}.png`.
+
+**Implementado:**
+- `metricas_anuais.dnbr_imagem_url` (coluna nova, `schema.sql` +
+  migração idempotente `_garantir_coluna_imagem` em `run_dnbr.py`, mesmo
+  padrão de `_garantir_coluna_fonte`).
+- `run_dnbr.py`: `processar_municipio` agora devolve `(area_km2, imagem_url)`;
+  gera a miniatura só se `R2_ACCESS_KEY_ID` estiver no ambiente
+  (`_r2_configurado()`) — **sem os secrets, o pipeline roda exatamente
+  igual a antes, só sem imagem** (nunca bloqueia `area_dnbr_km2`, o dado
+  principal). Falha na miniatura vira `[AVISO]`, não `[ERRO]`.
+  `ON CONFLICT ... DO UPDATE` usa `COALESCE` pra nunca apagar uma URL já
+  gravada com uma rodada que rodou sem R2 configurado.
+- `.github/workflows/process-sentinel-dnbr.yml`: 5 secrets novos
+  (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ACCOUNT_ID`,
+  `R2_BUCKET_NAME`, `R2_PUBLIC_URL_BASE`) passados como env, todos
+  opcionais.
+- `webapp`: `MetricasAnuais.dnbrImagemUrl` (tipo + query), e a página de
+  município troca a regra hardcoded `CODIGO_IBGE_COM_MAPA_REAL` por uma
+  prioridade real: `dnbr_imagem_url` do banco → fallback local (só
+  Pitangueiras, legado) → aviso de indisponível. O fallback local some
+  sozinho assim que o pipeline gerar uma imagem de verdade pra
+  Pitangueiras. Trocado `next/image` por `<img>` simples nessa imagem
+  especificamente — o domínio do R2 só existe depois que o Pedro criar o
+  bucket, e `next/image` exige o domínio pré-cadastrado em
+  `next.config.ts`; `<img>` evita essa dependência de ordem.
+
+**Testado:** 3 testes novos pra `_r2_configurado` (91 testes agora no
+pipeline). No `webapp`, testado manualmente contra o Postgres local: (1)
+sem `dnbr_imagem_url`, Pitangueiras cai no fallback legado e outros
+municípios mostram o aviso; (2) com uma URL de teste gravada na linha de
+Pitangueiras/2024, a página passa a usar exatamente essa URL; (3)
+revertido, volta ao estado (1) — as 3 combinações de prioridade
+confirmadas. `npm run lint`/`build` limpos. **O caminho do GEE
+(`getThumbURL` + upload R2) não é executável nesta sessão** — mesma
+limitação de sempre (rede/credenciais), precisa de execução real em CI.
+
+**Pendência que só o Pedro resolve:** criar a conta/bucket R2 e os 5
+secrets no GitHub — sem isso, `_r2_configurado()` fica `False` pra
+sempre e o pipeline roda igual a antes (sem quebrar, só sem miniatura
+nova). Passo a passo fica pro chat, não pra este documento.
+
+**Status:** Arquitetura e código fechados; ativação em produção
+bloqueada só pelo setup externo do Pedro.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)
@@ -2004,45 +2079,37 @@ só o claro.
   ver seção 6.36):** Pedro escolheu a opção (b) das 3 propostas na seção
   6.34 — trocar por fonte livre de estilo parecido. Jost (Google Fonts,
   geométrica) está no ar nos títulos, peso 700, funcionando sem erro.
-- **Mapa dNBR real pros 645 municípios (pedido 26/09/2026, "URGENTE"):**
-  hoje só existe 1 imagem real (Pitangueiras, seção 6.38, recortada de um
-  gráfico científico já existente) — não é algo que dá pra "aplicar em
-  escala" porque **a imagem nunca foi gerada pros outros municípios**; o
-  pipeline (`run_dnbr.py`) só calcula `area_dnbr_km2` num número
-  (`reduceRegion`), nunca exportou raster nem gerou visualização. Isso é
-  uma feature nova, não um ajuste — precisa de: (1) decidir o mecanismo
-  de geração (recomendo miniatura via `ee.Image.getThumbURL` com paleta
-  de cor estilizada — gera um PNG leve, sem precisar exportar/guardar
-  GeoTIFF completo, muito mais barato em quota do GEE e em armazenamento
-  do que a rota "exportar raster" que o `docs/CHECKLIST.md` já descreve
-  como bloqueada); (2) decidir onde guardar os PNGs (Cloudflare R2 já
-  cogitado no checklist pra isso, ou Vercel Blob); (3) rodar isso pros
-  645 municípios × anos existentes, que é trabalho de GEE de verdade
-  (não dá pra fazer nesta sessão de chat — precisa rodar via GitHub
-  Actions, como os outros workflows). **Nada disso foi implementado
-  ainda** — fica como próximo passo de pipeline, não de interface.
-- **Rodar ST-DBSCAN + dNBR + IoU pra todos os outros anos (pedido
-  26/09/2026):** esbarra em 2 limites de dado externo já documentados
-  nesta sessão, não é coisa de código:
-  - **2018–2023:** o dataserver do INPE não tinha esses anos disponíveis
-    "ainda" na rodada mais recente (seção 6.35, avisos `[AVISO]` reais do
-    log de produção) — não é intermitência, é o próprio servidor do INPE
-    sem o dado publicado pra esses anos nesse endpoint. Rodar de novo não
-    resolve; precisa esperar o INPE publicar (ou achar uma fonte
-    alternativa pros anos antigos, o que seria outra decisão de
-    arquitetura).
-  - **2025–2026:** o MapBiomas Fogo Coleção 4 (fonte de comparação/IoU)
-    só cobre **até 2024** (seção 6.22, confirmado por execução real) —
-    comparar contra MapBiomas pra 2025/2026 é impossível até uma coleção
-    nova ser publicada (sem previsão). ST-DBSCAN + dNBR sozinhos (sem a
-    comparação IoU) já rodam pra 2025/2026 desde que haja foco de calor
-    do INPE — mas o resultado ficaria sem confiabilidade calculada
-    (fica "Insuficiente" ou sem `validacao_mapbiomas`, não por bug, por
-    não ter com o que comparar ainda).
-  **Status:** nenhuma decisão tomada — fica pro Pedro dizer se quer (a)
-  esperar os dados externos, (b) rodar só o que já é possível agora
-  (INPE+dNBR sem IoU pra 2025/2026), ou (c) investigar fonte alternativa
-  pro histórico pré-2018.
+- ~~Mapa dNBR real pros 645 municípios~~ — **arquitetura e código
+  fechados (seção 6.40)**, Pedro confirmou essa como a prioridade #1
+  entre os 3 pedidos da mensagem. Só falta ele criar a conta/bucket
+  Cloudflare R2 e os 5 secrets — sem isso, roda igual a hoje, sem imagem
+  nova.
+- **Rodar ST-DBSCAN + dNBR + IoU pra 2018–2023 (pedido 26/09/2026,
+  Pedro confirmou querer só esse recorte, não 2025/2026 — ver próximo
+  item):** o achado da seção 6.35 sobre "INPE não tem 2018–2023" estava
+  **impreciso** — Pedro questionou e checar de novo (código +
+  documentação anterior, seção 6.19) mostrou que a `[AVISO]` real é sobre
+  **um endpoint específico** (`dataserver-coids.inpe.br/.../mensal/...`,
+  uma janela rolante recente, não um arquivo histórico completo) — a
+  seção 6.19 já suspeitava disso e nunca fechou a pergunta. O histórico
+  real do INPE quase certamente existe no **BDQueimadas** (portal oficial
+  de consulta/download que a pesquisa original usou manualmente, seção
+  6.19) — só que o pipeline atual **não sabe buscar lá**, é uma integração
+  nova (URL/formato de export do BDQueimadas ainda não mapeado neste
+  código, coluna de data pode vir diferente de novo — mesmo tipo de
+  armadilha da seção 6.20). Não é "rodar de novo", é construir a busca
+  certa antes.
+  **Status:** Pedro confirmou querer isso, mas a prioridade desta sessão
+  ficou a seção 6.40 (dNBR em escala) — este item entra na fila depois.
+- **Rodar ST-DBSCAN + dNBR pros 645 sem confiabilidade, 2025–2026
+  (pedido 26/09/2026, Pedro confirmou):** tecnicamente mais simples que o
+  item acima — o endpoint atual do INPE já está confirmado funcionando
+  pra 2024–2026 (seção 6.20), então não precisa de integração nova, só
+  disparar `ingest-inpe.yml`/`process-sentinel-dnbr.yml` pra esses anos
+  pros 645 (não só a amostra de 63). MapBiomas Fogo Coleção 4 só cobre
+  até 2024 (seção 6.22) — esses anos ficam sem `validacao_mapbiomas`
+  mesmo, por design, não por bug. **Status:** confirmado pelo Pedro,
+  ainda não executado — entra na fila depois da seção 6.40.
 - **"Mudanças de segurança" (pedido 26/09/2026, sem detalhar quais):**
   conferido nesta sessão que a proteção contra SQL injection **já
   existe** — `webapp/src/lib/queries.ts` usa só template tagged do
@@ -2052,3 +2119,25 @@ só o claro.
   seguem em aberto no `docs/CHECKLIST.md` são rate limiting na API,
   política de retenção de dados, e ambiente de staging — nenhuma foi
   especificada como a prioridade pelo Pedro ainda.
+- **Reorganizar/esconder a confiabilidade — mudança de paleta pedida
+  (pedido 26/09/2026, ainda NÃO implementada, Pedro pediu pra focar na
+  seção 6.40 primeiro):** Pedro considera a confiabilidade "dado
+  ligeiramente sensível" que pode "comprometer a credibilidade" se
+  ficar exposto do jeito atual (selo grande, sempre visível) — quer
+  deixá-la "mais escondida" na interface. Proposta dele pra paleta nova
+  (substitui a de badge de sempre): **verde = Alta** (igual hoje),
+  **verde claro = Média** (hoje é mostarda `#D9A441`), **amarelo escuro
+  com fonte preta = Baixa** (hoje é terracota `#C1442D` com fonte
+  branca), **cinza = Insuficiente** (igual hoje). Isso muda 2 das 3 cores
+  que o `CLAUDE.md` documenta como "não mudam nunca" — só é uma mudança
+  válida porque é o próprio Pedro pedindo agora, explicitamente (a regra
+  do `CLAUDE.md` existe pra eu não mudar sozinho, não pra travar o Pedro
+  de mudar de ideia). Ainda em aberto, não travando nada: (1) o que
+  exatamente "esconder mais" significa em termos de interface — remover
+  o selo da lista/visão geral e só mostrar dentro do detalhe? Atrás de
+  um clique/expansão? (2) hex exato do "verde claro" e do "amarelo
+  escuro" (Pedro não deu valores, só o conceito); (3) se muda também o
+  código (`Confiabilidade`, `CONFIABILIDADE_STYLE`) ou só a
+  representação visual. **Quando isso for implementado, atualizar
+  também o `CLAUDE.md`** (não só aqui) — é lá que as cores "fixas" estão
+  documentadas como regra do projeto.

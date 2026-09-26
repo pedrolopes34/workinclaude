@@ -134,19 +134,17 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 - [x] Atribuição obrigatória das fontes de terceiros (INPE, MapBiomas,
       Sentinel-2/Copernicus/ESA) — presente no rodapé do mockup (aparece em
       toda tela, por ser global) e no README raiz do repositório
-- [ ] Imagens/rasters comprimidos em produção — **bloqueado, não "só
-      aplicar em escala" como a redação anterior sugeria**: conferido nesta
-      sessão que não existe nenhum script de compressão nem raster/GeoTIFF
-      no repositório — a validação nos "5 municípios de teste" foi feita
-      fora daqui, na pesquisa original. O pipeline atual (`run_dnbr.py`)
-      nem exporta GeoTIFF, só calcula `area_dnbr_km2` direto no servidor do
-      GEE (`reduceRegion`, ver seu próprio docstring). Esse item só fica
-      acionável depois que a exportação de raster virar uma feature real do
-      pipeline — não é uma pendência pequena
+- [~] Imagens/rasters comprimidos em produção — **desbloqueado
+      26/09/2026 (`docs/DECISIONS.md` seção 6.40)**: `run_dnbr.py` agora
+      gera uma miniatura PNG colorida (já leve por natureza — 800px via
+      `getThumbURL` do GEE, não GeoTIFF completo) e sobe pro Cloudflare
+      R2, pros 645 municípios daqui pra frente. Código e schema prontos;
+      falta só o Pedro criar a conta/bucket R2 e os secrets pra ativar de
+      verdade em produção
 
 ---
 
-**Contagem atual:** 16 itens feitos, 10 parciais, 9 pendentes —
+**Contagem atual:** 16 itens feitos, 11 parciais, 8 pendentes —
 atualizado em 26/09/2026: site publicado em produção
 (`workinclaude.vercel.app`, seção 6.37 — HTTPS fecha sozinho), proteção
 contra SQL injection confirmada já existente, restyle "vidro" completo

@@ -45,6 +45,10 @@ CREATE TABLE metricas_anuais (
     num_agrupamentos    INT,
     area_st_dbscan_km2  NUMERIC(10, 2),
     area_dnbr_km2       NUMERIC(10, 2),
+    -- Miniatura do dNBR colorido (Cloudflare R2), gerada como subproduto do
+    -- mesmo calculo de area_dnbr_km2 (docs/DECISIONS.md secao 6.40) — NULL
+    -- ate o pipeline rodar de novo pra esse codigo_ibge/ano.
+    dnbr_imagem_url     TEXT,
     -- Parametros do ST-DBSCAN usados nesta rodada (rastreabilidade — ver
     -- CONTEXTO_PROJETO.md). Guardados por linha, nao fixos globalmente,
     -- porque cidades de sinal fraco usaram min_samples=2 como teste de

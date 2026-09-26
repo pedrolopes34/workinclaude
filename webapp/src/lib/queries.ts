@@ -65,7 +65,7 @@ export const getMunicipioDetalhe = cache(async function getMunicipioDetalhe(
   if (!municipio) return null;
 
   const metricas = await sql<MetricasAnuais[]>`
-    SELECT ano, num_focos_calor, num_agrupamentos, area_st_dbscan_km2, area_dnbr_km2
+    SELECT ano, num_focos_calor, num_agrupamentos, area_st_dbscan_km2, area_dnbr_km2, dnbr_imagem_url
     FROM metricas_anuais
     WHERE codigo_ibge = ${codigoIbge}
     ORDER BY ano DESC

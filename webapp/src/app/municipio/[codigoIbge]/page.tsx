@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getMunicipioDetalhe } from "@/lib/queries";
@@ -165,7 +164,17 @@ export default async function MunicipioPage({
             </p>
           ) : (
             <div className="space-y-4">
-              {validacoes.map((v) => (
+              {validacoes.map((v) => {
+                // Prioridade: imagem real gerada pelo pipeline (dnbr_imagem_url,
+                // via R2 — docs/DECISIONS.md seção 6.40) > o único fallback local
+                // legado (Pitangueiras, seção 7) > "ainda não disponível". O
+                // fallback local some sozinho assim que o pipeline gerar uma
+                // miniatura de verdade pra esse código/ano.
+                const imagemUrl =
+                  metricas.find((m) => m.ano === v.ano)?.dnbrImagemUrl ??
+                  (municipio.codigoIbge === CODIGO_IBGE_COM_MAPA_REAL ? "/dnbr-pitangueiras.png" : null);
+
+                return (
                 <div
                   key={v.ano}
                   className="rounded-2xl border border-border bg-surface p-5 shadow-sm"
@@ -180,13 +189,13 @@ export default async function MunicipioPage({
                   </div>
 
                   <div className="mb-4 overflow-hidden rounded-xl border border-border bg-background">
-                    {municipio.codigoIbge === CODIGO_IBGE_COM_MAPA_REAL ? (
+                    {imagemUrl ? (
                       <>
-                        <Image
-                          src="/dnbr-pitangueiras.png"
+                        {/* eslint-disable-next-line @next/next/no-img-element -- URL vem do R2 (domínio só decidido quando o Pedro criar o bucket), plain <img> evita depender de next.config.ts saber o domínio de antemão */}
+                        <img
+                          src={imagemUrl}
                           alt={`Mapa de severidade de queimada (dNBR) de ${municipio.nome} em ${v.ano}, estilo QGIS: verde é baixa severidade (perto de 0,10), do amarelo ao vermelho é severidade alta (até 0,75).`}
-                          width={994}
-                          height={1005}
+                          loading="lazy"
                           className="h-auto w-full"
                         />
                         <div className="flex items-center gap-2 px-3 py-2">
@@ -257,7 +266,8 @@ export default async function MunicipioPage({
                     Comparado contra MapBiomas Fogo {v.mapbiomasColecao}
                   </p>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 

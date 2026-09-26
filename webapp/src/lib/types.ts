@@ -25,6 +25,7 @@ export interface MetricasAnuais {
   numAgrupamentos: number | null;
   areaStDbscanKm2: string | null;
   areaDnbrKm2: string | null;
+  dnbrImagemUrl: string | null;
 }
 
 export interface ValidacaoMapbiomas {

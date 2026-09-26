@@ -9,6 +9,10 @@ name: dNBR mensal (Sentinel-2/GEE)
 #   - DATABASE_URL: mesma string de conexão do ingest-inpe.yml (Neon)
 #   - GEE_SERVICE_ACCOUNT_KEY: JSON completo da service account do Earth
 #     Engine (nunca commitado — roteado só pra cá, ver docs/DECISIONS.md)
+#   - R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_ACCOUNT_ID / R2_BUCKET_NAME
+#     / R2_PUBLIC_URL_BASE: Cloudflare R2, pra miniatura dNBR colorida
+#     (docs/DECISIONS.md seção 6.40) — OPCIONAIS: sem eles, o job roda igual
+#     e só não gera `dnbr_imagem_url` (degrada, nunca falha por causa disso)
 
 on:
   schedule:
@@ -38,5 +42,10 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GEE_SERVICE_ACCOUNT_KEY: ${{ secrets.GEE_SERVICE_ACCOUNT_KEY }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_PUBLIC_URL_BASE: ${{ secrets.R2_PUBLIC_URL_BASE }}
         run: |
           python -m pipeline.run_dnbr --grupo ${{ matrix.grupo }} --de-grupos 2
