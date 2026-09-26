@@ -815,6 +815,59 @@ original dos "4 workflows" — é o controle manual da seção 2.5, roda só
 INPE, asset do MapBiomas) antes de qualquer execução real valer como
 resultado científico.
 
+### 6.17 Primeira execução real dos workflows — INPE confirmado quebrado, GEE liberado após 2 ajustes de IAM (26/09/2026)
+
+**Contexto:** com `DATABASE_URL` e `GEE_SERVICE_ACCOUNT_KEY` configurados
+como secrets do repositório (Pedro confirmou os dois já presentes), fizemos
+o merge da branch de desenvolvimento pra `main` (`workflow_dispatch`/
+`schedule` só são disparáveis pela API do GitHub em workflows que já
+existem na branch padrão — 404 na tentativa a partir da feature branch) e
+disparamos `ingest-inpe.yml` e `process-sentinel-dnbr.yml` pela primeira
+vez de verdade.
+
+**`ingest-inpe.yml`:** falhou como esperado — 404 real em
+`dataserver-coids.inpe.br/.../focos_anual_br_2020.csv`. A URL da seção 6.12
+sai de "presunção não verificada" pra **confirmada errada**. Segue
+bloqueado; precisa da investigação manual do Pedro (aba Network do
+navegador durante um export real do BDQueimadas).
+
+**`process-sentinel-dnbr.yml`:** falhou 3 vezes seguidas, cada uma expondo
+uma camada de permissão diferente do GCP — nenhuma documentada
+antecipadamente, porque criar a service account e baixar a chave JSON não
+configura sozinho nenhuma delas:
+1. `ee.Initialize()` → `403 USER_PROJECT_DENIED` (service account sem
+   nenhum papel de IAM no projeto `concrete-bloom-374223`).
+   **Corrigido** concedendo o papel **Administrador do Service Usage**
+   (mais amplo que o mínimo pedido pelo erro, `serviceusage.
+   serviceUsageConsumer` — mas Admin inclui as permissões de Consumer, e
+   não há razão pra seguir o mínimo estrito num projeto pessoal de uso
+   único).
+2. Novo erro, já dentro do `ee.Initialize()`: `403 Permission
+   'earthengine.computations.create' denied`. Permissão de uma família de
+   IAM totalmente separada (Earth Engine, não Service Usage) — o papel do
+   passo 1 não cobria isso. **Corrigido** concedendo papel de administrador
+   do Earth Engine (`roles/earthengine.admin` ou equivalente) à mesma
+   service account.
+3. Com os dois papéis somados, a rodada passou de falhar em segundos (na
+   autenticação) pra ficar minutos em execução real — sinal de que está
+   processando municípios de verdade. Resultado final (sucesso/falha) ainda
+   em apuração no momento em que este parágrafo foi escrito; ver o
+   parágrafo seguinte assim que confirmado.
+
+**Recalibração de expectativa de tempo:** a seção 2.1 já projetava ~3h por
+job (~322 municípios × ~0,556 min/município) — ou seja, mesmo com todas as
+permissões corretas, uma rodada de teste não termina em minutos. Isso não
+é uma falha nova, é o comportamento normal e esperado do dimensionamento já
+fechado.
+
+**Lição de processo:** rodar o workflow de verdade continua sendo o jeito
+mais rápido de descobrir pendências que nenhuma revisão de código teria
+achado — cada uma das 2 permissões de IAM só apareceu depois de tentar e
+falhar, uma de cada vez.
+
+**Status:** GEE parcialmente desbloqueado (autenticação passa; resultado
+do processamento em si ainda não confirmado). INPE continua bloqueado.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)

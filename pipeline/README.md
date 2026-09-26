@@ -34,23 +34,26 @@ cp .env.example .env   # aponta pro Postgres local — ver /pipeline/db/README.m
 | `run_ingest_stdbscan.py` | CLI que liga ingestão + ST-DBSCAN e grava em `metricas_anuais` — processa o **ano corrente inteiro**, não um mês específico (seção 6.13) | Sim, ponta-a-ponta contra o Postgres local (dados sintéticos) |
 | `run_dnbr.py` | CLI que orquestra o dNBR pra um grupo de municípios e grava `area_dnbr_km2` — compara mês anterior x mês corrente, cálculo síncrono via `reduceRegion` (sem exportar GeoTIFF) | Parcial — só a lógica pura (`janela_mes_anterior`) é testada; o cálculo em si precisa de GEE |
 | `run_validacao_mapbiomas.py` | CLI que reconstrói o ST-DBSCAN (pra obter a geometria), compara contra o MapBiomas e grava em `validacao_mapbiomas` | Parcial — só as partes que orquestra são testadas isoladamente |
+| `run_audit_anual.py` | CLI da auditoria manual anual — grava em `auditorias_anuais` (avança `ano_ativo`), com correção pontual opcional de um campo de `metricas_anuais`/`validacao_mapbiomas` (lista fixa em `CAMPOS_CORRIGIVEIS`) | Parcial — validação de campo e coerção de tipo testadas; escrita real precisa de `DATABASE_URL` |
 
 Rodar os testes: `pytest` na raiz do repositório (usa `pytest.ini`), ou
 automaticamente via `.github/workflows/tests.yml` a cada push/PR.
 
 ## Workflows do GitHub Actions
 
-Os 4 workflows planejados desde `docs/DECISIONS.md` seção 2.4 estão todos
-escritos. Nenhum foi executado de verdade nesta sessão (dependem dos
-secrets do repositório e das pendências externas abaixo).
+Os 4 workflows planejados desde `docs/DECISIONS.md` seção 2.4, mais o
+`audit-anual.yml` da seção 2.5, estão todos escritos. Execução real em
+andamento nesta sessão — ver `docs/DECISIONS.md` seção 6.17 pro histórico
+das tentativas e o que já foi confirmado (IAM do GEE) vs. o que ainda
+falta (URL do INPE).
 
 | Workflow | Cadência | Precisa de |
 |---|---|---|
 | `tests.yml` | a cada push/PR em `pipeline/`/`tests/` | nada — já roda de verdade |
-| `ingest-inpe.yml` | diário | `secrets.DATABASE_URL`; URL do INPE não confirmada |
+| `ingest-inpe.yml` | diário | `secrets.DATABASE_URL`; URL do INPE **confirmada errada** (404 real, seção 6.12/6.17) |
 | `process-sentinel-dnbr.yml` | mensal, 2 jobs paralelos (seção 2.1) | `secrets.DATABASE_URL`, `secrets.GEE_SERVICE_ACCOUNT_KEY`; janela mês-a-mês é decisão nova não confirmada (seção 6.14) |
 | `check-mapbiomas.yml` | mensal, 2 jobs paralelos (seção 6.16) | mesmos secrets do dNBR; herda as 3 pendências da seção 6.15 |
-| `audit-anual.yml` | manual, 1×/ano, executado pelo Pedro | ⏳ não escrito — é o controle manual da seção 2.5, sem urgência (só roda 1x/ano) |
+| `audit-anual.yml` | manual, 1×/ano, executado pelo Pedro | `secrets.DATABASE_URL`; sem pendência externa — só depende de o Pedro decidir o que auditar |
 
 ## O que ainda falta antes de habilitar de verdade
 
@@ -79,5 +82,3 @@ secrets do repositório e das pendências externas abaixo).
   importada pro banco, `common/ibge_malhas.py` pode ser trocado por uma
   consulta direta à coluna `municipios.geom`, evitando a chamada de rede por
   município a cada rodada.
-- **`audit-anual.yml`** — ainda não escrito (baixa prioridade, roda só
-  1×/ano pelo próprio Pedro).

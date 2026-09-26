@@ -1,0 +1,74 @@
+name: Auditoria anual (manual)
+
+# Só workflow_dispatch, nunca schedule — é o controle manual que substituiu
+# o gate de aprovação do pipeline (docs/DECISIONS.md seção 2.5), rodado
+# pelo próprio Pedro 1x/ano. Registra a decisão humana de aceitar (ou
+# corrigir) o ano em `auditorias_anuais`, o que avança `ano_ativo`
+# (schema.sql: MAX(ano_referencia) dessa tabela).
+#
+# Deixar --tabela/--campo/--valor-novo em branco = auditoria sem correção
+# (caso comum: dado do ano já conferido e ok). Preencher os 4 campos de
+# correção juntos (codigo_ibge + tabela + campo + valor_novo) = corrige um
+# dado pontual, com o valor anterior registrado automaticamente.
+#
+# Precisa do secret do repositório:
+#   - DATABASE_URL (mesma string de conexão dos outros 3 workflows)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ano:
+        description: "Ano de referência da auditoria (ex.: 2025)"
+        required: true
+      descricao:
+        description: "O que foi conferido/decidido nesta auditoria"
+        required: true
+      executado_por:
+        description: "Quem executou a auditoria"
+        required: false
+        default: "Pedro Lopes de Oliveira"
+      codigo_ibge:
+        description: "[Correção] código IBGE do município (deixe em branco se não for corrigir nada)"
+        required: false
+      tabela:
+        description: "[Correção] metricas_anuais ou validacao_mapbiomas"
+        required: false
+      campo:
+        description: "[Correção] nome da coluna a corrigir"
+        required: false
+      valor_novo:
+        description: "[Correção] novo valor da coluna"
+        required: false
+
+jobs:
+  auditoria:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: pipeline/requirements.txt
+
+      - name: Instalar dependências
+        run: pip install -r pipeline/requirements.txt
+
+      - name: Registrar auditoria anual
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ANO: ${{ github.event.inputs.ano }}
+          DESCRICAO: ${{ github.event.inputs.descricao }}
+          EXECUTADO_POR: ${{ github.event.inputs.executado_por }}
+          CODIGO_IBGE: ${{ github.event.inputs.codigo_ibge }}
+          TABELA: ${{ github.event.inputs.tabela }}
+          CAMPO: ${{ github.event.inputs.campo }}
+          VALOR_NOVO: ${{ github.event.inputs.valor_novo }}
+        run: |
+          args=(--ano "$ANO" --descricao "$DESCRICAO" --executado-por "$EXECUTADO_POR")
+          [ -n "$CODIGO_IBGE" ] && args+=(--codigo-ibge "$CODIGO_IBGE")
+          [ -n "$TABELA" ] && args+=(--tabela "$TABELA")
+          [ -n "$CAMPO" ] && args+=(--campo "$CAMPO")
+          [ -n "$VALOR_NOVO" ] && args+=(--valor-novo "$VALOR_NOVO")
+          python -m pipeline.run_audit_anual "${args[@]}"
