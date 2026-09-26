@@ -2025,29 +2025,50 @@ já com os 5 secrets do Pedro configurados) — **achou um bug de verdade**:
 `ValueError: Invalid endpoint: https://***.r2.cloudflarestorage.com`. O
 resto funcionou perfeito (dNBR calculado, `area_dnbr_km2=115,82`,
 `getThumbURL` funcionou, PNG de 179KB baixado) — só a subida pro R2
-falhou. Causa mais provável: `R2_ACCOUNT_ID` colado com a URL do
-endpoint inteira (que a própria Cloudflare mostra em outras telas do
-painel), não só o ID puro — meu código fazia
-`f"https://{account_id}.r2.cloudflarestorage.com"` sem normalizar,
-então um valor colado errado vira um endpoint duplicado/malformado.
+falhou. **Hipótese 1 (refutada depois):** `R2_ACCOUNT_ID` colado com a
+URL do endpoint inteira — `_endpoint_r2()` v1 tirava `https://`/`http://`
+e `.r2.cloudflarestorage.com` se já vierem inclusos.
 
-**Fix:** `_endpoint_r2()` normaliza o `R2_ACCOUNT_ID` (tira
-`https://`/`http://` e `.r2.cloudflarestorage.com` se já vierem
-inclusos) antes de montar a URL do endpoint; `_env_r2()` tira
-espaço/quebra de linha de todos os secrets R2 (armadilha comum de
-copiar-colar de UI web). 4 testes novos (`test_endpoint_r2_normaliza_account_id`,
-parametrizado com o caso exato do bug) — 95 testes no pipeline agora.
+**3ª rodada real** (run `36274997084`, já com o fix da hipótese 1) —
+**mesmo erro exato**, byte a byte. Hipótese 1 estava errada.
 
-**Por que valeu a pena o `--municipio`:** cada uma dessas 2 rodadas de
-descoberta levou ~15 segundos. Sem o modo debug, o mesmo bug só
-apareceria depois de esperar a rodada completa (~2h) tentar (e falhar)
-pros 645 municípios — 1 vez pra achar o erro, outra pra confirmar o
-fix, e ainda uma 3ª pra validar de vez. A mesma lição da seção 6.30
-(MapBiomas) se repetiu aqui.
+**4ª rodada real** (run `36275160292`, com `_diagnostico_seguro()` novo —
+imprime só metadados do secret, nunca o valor, pra não vazar credencial
+em log): revelou que `R2_ACCOUNT_ID` bruto tem **53 caracteres, sem
+espaço interno**, e o `.strip()` não mudou nada — não é a URL inteira
+(que teria "http" no começo) nem tem espaço sobrando. **Hipótese 2:** o
+ID de verdade (32 hex) está colado junto com texto extra da própria UI
+da Cloudflare. Fix: `_endpoint_r2()` v2 usa regex (`[0-9a-f]{32}`) pra
+extrair o ID de dentro do que foi colado, não importa o que mais esteja
+junto.
 
-**Status:** Diagnóstico e fix commitados; falta confirmar com uma 3ª
-rodada `--municipio` que o R2 funciona de ponta a ponta agora, antes de
-liberar a rodada completa dos 645.
+**5ª rodada real** (run `36275320666`, com a v2) — **hipótese 2 também
+errada**: a regex não achou nenhum trecho de 32 caracteres hex em lugar
+nenhum dos 53 caracteres colados. Ou seja, o valor colado provavelmente
+não é o Account ID de jeito nenhum — é outro campo (token de API, um
+UUID com hífen que quebra a sequência hex contígua, etc.). Pedido pro
+Pedro conferir de novo, direto na página R2 Object Storage → Overview
+(não dentro de um bucket específico), o campo rotulado exatamente
+"Account ID" (32 caracteres hex, sem hífen, sem "https://").
+
+**Por que valeu a pena o `--municipio`:** cada uma dessas 4 rodadas de
+descoberta levou ~15 segundos a ~1 minuto. Sem o modo debug, cada
+tentativa de diagnóstico custaria uma rodada completa de ~2h nos 645
+municípios — 4 rodadas seriam ~8h em vez de ~4 minutos. Mesma lição da
+seção 6.30 (MapBiomas).
+
+**Testes:** 96 no pipeline agora (`test_endpoint_r2_normaliza_account_id`
+parametrizado, incluindo o caso "ID junto com texto extra";
+`test_endpoint_r2_sem_id_valido_da_erro_claro` — o `ValueError` agora diz
+claramente "não parece conter um account id válido" em vez de deixar o
+boto3 falhar com uma mensagem genérica).
+
+**Status:** Diagnóstico e código commitados; **bloqueado esperando o
+Pedro reconferir o valor exato do `R2_ACCOUNT_ID`** direto no painel da
+Cloudflare (R2 Object Storage → Overview, não dentro do bucket) e
+regravar o secret no GitHub. Depois disso, repetir
+`--municipio 3539509` mais uma vez antes de liberar a rodada completa
+dos 645 (nunca rodar em escala sem confirmar o caminho fim-a-fim antes).
 
 ---
 

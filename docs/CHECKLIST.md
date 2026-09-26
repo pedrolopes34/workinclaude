@@ -135,12 +135,15 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
       Sentinel-2/Copernicus/ESA) — presente no rodapé do mockup (aparece em
       toda tela, por ser global) e no README raiz do repositório
 - [~] Imagens/rasters comprimidos em produção — **desbloqueado
-      26/09/2026 (`docs/DECISIONS.md` seção 6.40)**: `run_dnbr.py` agora
-      gera uma miniatura PNG colorida (já leve por natureza — 800px via
-      `getThumbURL` do GEE, não GeoTIFF completo) e sobe pro Cloudflare
-      R2, pros 645 municípios daqui pra frente. Código e schema prontos;
-      falta só o Pedro criar a conta/bucket R2 e os secrets pra ativar de
-      verdade em produção
+      26/09/2026 (`docs/DECISIONS.md` seções 6.40/6.41)**: `run_dnbr.py`
+      agora gera uma miniatura PNG colorida (já leve por natureza — 800px
+      via `getThumbURL` do GEE, não GeoTIFF completo) e sobe pro
+      Cloudflare R2, pros 645 municípios daqui pra frente. Código e
+      schema prontos, conta/bucket R2 já criados pelo Pedro — em
+      andamento: 5 rodadas de teste reais (`--municipio`) acharam e
+      corrigiram 2 bugs de normalização; a 5ª ainda falhou (`R2_ACCOUNT_ID`
+      não bate com nenhum ID válido), bloqueado esperando o Pedro
+      reconferir esse valor específico no painel da Cloudflare
 
 ---
 
