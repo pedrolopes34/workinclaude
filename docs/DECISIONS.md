@@ -1685,3 +1685,34 @@ seção 6.27 estão todas resolvidas agora (2 pela troca de cinza da seção
   **Status:** ideia registrada, nenhuma decisão tomada — nem a
   geolocalização-como-atalho (que é viável) foi pedida como
   implementação ainda.
+- **Interface do `/webapp` real ficou mais simples do que o mockup
+  visual (26/09/2026):** o Pedro achou o site atual "muito simplista"
+  comparado a um artefato anterior ("Painel Queimadas SP", publicado
+  25/09/2026 em claude.ai — mesmo dia do restyle da seção 6.8). Comparei
+  os dois de verdade. Faltam no `/webapp` real:
+  - **Página de município sem nenhum mapa** — a maior lacuna; o mockup
+    mostra a imagem do mapa dNBR, a página real só tem números em tabela.
+  - Tiles de métrica com "?" expansível, faixa de anos 2018–2024, gráfico
+    de barras comparando método próprio × satélite × MapBiomas, busca com
+    autocomplete, barra de cobertura segmentada, grid de "municípios em
+    destaque" com thumbnail — nenhum desses existe hoje.
+  - **Duas páginas inteiras só existem no mockup:** "Como produzimos"
+    (metodologia em 3 passos, os 4 níveis de confiabilidade explicados,
+    limitações assumidas, cadência de atualização) e "Quem somos" (perfil
+    do Pedro, contato, Lattes/LinkedIn, endereço) — motivou corrigir o
+    `docs/CHECKLIST.md` (o item "Endereço de contato real" estava marcado
+    `[x]` citando a página "Quem somos" como se já existisse no produto
+    real; virou `[~]`, e as 2 páginas entraram como pendência própria).
+  - Visualmente, o mockup usa vidro fosco (`backdrop-filter`), orbs
+    animados no fundo do hero, badges com bolinha colorida e um toggle de
+    tema claro/escuro visível — nada disso existe no `/webapp` real hoje.
+  **Pendência que trava decidir o escopo:** o mockup usa **azul `#3C7DA6`**
+  como cor de ação (links, números grandes, gráficos) — mas a seção 6.8
+  documenta a troca dessa cor pra argila `--color-acento` `#C17A4E`,
+  **no mesmo dia** de publicação do mockup. Não dá pra saber, só pelos
+  dois artefatos, qual reflete a intenção mais recente do Pedro. Perguntei
+  a ele; resposta ainda pendente.
+  **Status:** nenhuma decisão tomada, nenhuma implementação iniciada —
+  achado registrado aqui pra não se perder só na conversa (regra do
+  `CLAUDE.md`). Path do artefato original:
+  `https://claude.ai/artifact/XUKMwTerRzGjnXJkRhVvrJ`.

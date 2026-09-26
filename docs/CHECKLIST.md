@@ -35,9 +35,17 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
       (`docs/legal/termos-de-uso.md`), mesmo aviso de revisão pendente
 - [x] Banner de cookies — **não se aplica**: Vercel Analytics (decidido
       abaixo) não usa cookies nem dado pessoal identificável
-- [x] Endereço de contato real — e-mails, Lattes/LinkedIn e endereço
-      institucional (UNESP FCE Tupã) presentes na página "Quem somos", no
-      rodapé do mockup e nos dois textos legais
+- [~] Endereço de contato real — endereço institucional (UNESP FCE Tupã)
+      já aparece no rodapé real (`layout.tsx`); e-mails pessoal/institucional,
+      Lattes e LinkedIn só existem hoje na página "Quem somos" do mockup
+      (ver `docs/DECISIONS.md` seção 7) — **não** numa página real do
+      `/webapp`, ao contrário do que esta linha dizia antes
+- [ ] Página "Quem somos" — perfil do Pedro, contato completo, cadência
+      de atualização por fonte de dado; conteúdo já redigido no mockup
+      (`docs/DECISIONS.md` seção 7), nunca portado pra uma rota real
+- [ ] Página "Como produzimos" — metodologia em 3 passos, os 4 níveis de
+      confiabilidade explicados, limitações assumidas; conteúdo já
+      redigido no mockup, nunca portado pra uma rota real
 
 ## UX e acessibilidade
 
@@ -125,12 +133,18 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 
 ---
 
-**Contagem atual:** 12 itens feitos, 10 parciais, 11 pendentes — atualizado
+**Contagem atual:** 11 itens feitos, 11 parciais, 13 pendentes — atualizado
 em 26/09/2026: pipeline de produção rodando de verdade pela 1ª vez
 (`ingest-inpe.yml`, `process-sentinel-dnbr.yml`, `audit-anual.yml`
 confirmados por log real), auditoria WCAG AA **fechada** (5 de 5
 violações de contraste corrigidas, seção 6.32), Dependabot **fechado**
-(alertas confirmados ativos pelo Pedro).
+(alertas confirmados ativos pelo Pedro). Contagem de pendentes subiu (11
+→ 13) por causa de 2 itens novos, não de retrocesso: comparação real do
+`/webapp` contra o mockup visual revelou que "Quem somos" e "Como
+produzimos" nunca foram portadas pro produto real (`docs/DECISIONS.md`
+seção 7) — e corrigiu um item que estava marcado feito por engano
+("Endereço de contato real", que citava a página "Quem somos" como se
+já existisse).
 
 **✅ `check-mapbiomas.yml` corrigido e confirmado por execução real
 (`docs/DECISIONS.md` seção 6.31):** a causa raiz de verdade era projeção
