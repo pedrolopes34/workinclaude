@@ -1075,6 +1075,28 @@ seguem passando.
 real (próxima rodada de `check-mapbiomas.yml` testa este fix junto com o
 da seção 6.21).
 
+### 6.23 `process-sentinel-dnbr.yml` completou de ponta a ponta — 2ª rodada de produção confirmada (26/09/2026)
+
+**Status:** ✅ **Confirmado por log real** (não só `conclusion`, lição da
+seção 6.22). 2h32min (dentro do ~3h esperado, seção 2.1). Os dois jobs
+gravaram `area_dnbr_km2` real em `metricas_anuais` pra maioria dos ~645
+municípios (ex.: São Simão 89,03 km², Sertãozinho 180,72 km²) — GEE, a
+service account, o cálculo síncrono via `reduceRegion` e a escrita no
+Neon de produção todos confirmados funcionando de verdade.
+
+**Ruído recorrente confirmado (mesmo padrão da seção 6.22, agora em 2
+workflows diferentes):** vários municípios (espalhados, não um padrão
+óbvio) falharam com `ConnectTimeout` na API de malhas do IBGE
+(`servicodados.ibge.gov.br`, `common/ibge_malhas.py`), não com erro do
+GEE. Como aparece tanto em `run_dnbr.py` quanto em
+`run_validacao_mapbiomas.py`, é flakiness real da API do IBGE sob muitas
+chamadas sequenciais (645 municípios, uma requisição HTTP cada, sem
+retry) — não um bug de código. Não corrigido ainda: um retry com backoff
+em `buscar_geometria_municipio` resolveria a maior parte, mas como o
+UPSERT é idempotente, o município só fica sem dado numa rodada e se
+resolve sozinho na próxima (diário pro dNBR/ingest, mensal pro
+MapBiomas) — baixa prioridade, mas vale um retry se incomodar.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)
