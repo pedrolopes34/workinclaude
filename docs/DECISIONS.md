@@ -1489,6 +1489,75 @@ real — se `reduceToVectors` continuar em 0 feições mesmo com o reparo,
 os prints de vértices/validade/bounds dão o próximo diagnóstico sem
 precisar de outra rodada cega.
 
+### 6.31 Causa raiz real do bug "sempre Baixa/IoU=0%/p=1.0" — não era geometria, era projeção (26/09/2026)
+
+Disparei `check-mapbiomas.yml` com `municipio=3519600` (Ibitinga) — o
+modo debug da seção 6.30 terminou em **2min53s** (vs. ~2h de uma rodada
+completa) e o log real deu a resposta definitiva:
+
+```
+[DEBUG] 3519600: tipo=Polygon partes=1 vértices=581->580 válido=True->True->True bounds=(-49.084, -21.928, -48.643, -21.651)
+[DEBUG] 3519600: área do domínio no GEE = 691.1 km²
+[DEBUG] reduceToVectors: 117 feições
+[DEBUG] 3519600: mapbiomas_geom.area=0.00 km² vazio=False
+3519600 (Ibitinga): Baixa (IoU=0.0%, p=1.0)
+```
+
+**Isso refuta as seções 6.25/6.28/6.29 por completo:** a geometria do
+IBGE nunca teve "milhares de vértices" (Ibitinga tem 581, um número
+normal) nem foi tecnicamente inválida (`válido=True` antes E depois do
+simplify) — a simplificação e o `.buffer(0)` da seção 6.30 são inócuos
+aqui, não fizeram diferença nenhuma. Domínio de 691,1 km² bate quase
+exato com os 690 km² do teste ao vivo com FAO/GAUL (seção 6.25). E o mais
+decisivo: **`reduceToVectors` sempre funcionou** — 117 feições reais
+devolvidas, mesma ordem de grandeza das 119/139 do teste ao vivo no Code
+Editor. Nunca foi "reduceToVectors volta 0 feições com a geometria real",
+como as seções 6.24/6.25 concluíram.
+
+**A causa raiz de verdade:** `mapbiomas_geom.area=0.00 km² vazio=False` —
+uma geometria REAL (não vazia) com área efetivamente zero. Isso só faz
+sentido se as coordenadas estiverem na unidade errada. `reduceToVectors`
+recebeu `crs=f"EPSG:{epsg_metrico}"`, mas esse parâmetro só define a
+**grade de cálculo interna** do Earth Engine — `getInfo()` numa
+`FeatureCollection` sempre serializa a geometria de volta em **EPSG:4326**
+(convenção GeoJSON/RFC 7946), independente do `crs` pedido. `mapbiomas_gee.py`
+convertia essas coordenadas (reais, em graus) direto pra shapely via
+`shape()` e tratava como se já estivessem em `epsg_metrico` (metros) —
+então uma área real de ~67 km² (as mesmas 74.407 pixels queimados da
+seção 6.25) virava algo como 0,005 grau², que dividido por 1.000.000 pra
+"converter" pra km² dá um número que arredonda pra 0,00. Com
+`mapbiomas_geom` em graus e `cluster_geom` em metros (`epsg_metrico`, via
+`poligono_stdbscan_municipio`), os dois nunca podiam ter overlap — não por
+falta de queimada real, mas porque as escalas numéricas das coordenadas
+são incomparáveis (graus ~dezena vs. metros ~centena de milhar). Isso
+também explica por que `run_dnbr.py`/`reduceRegion` sempre funcionou: ele
+devolve estatística agregada (número), nunca geometria — esse bug de
+serialização só existe pra operações que retornam `FeatureCollection`.
+E explica por que os testes ao vivo do Code Editor (seção 6.25) pareciam
+"funcionar": só contavam nº de feições devolvidas, nunca checaram se a
+área calculada a partir delas batia com a área real esperada.
+
+**Fix:** `buscar_area_queimada` (`mapbiomas_gee.py`) agora reprojeta
+explicitamente as feições de EPSG:4326 pra `epsg_metrico`
+(`gpd.GeoSeries(geometrias, crs="EPSG:4326").to_crs(epsg_metrico)`) antes
+do `unary_union` — mesmo padrão já usado em `_dominio_em_metros`
+(`run_validacao_mapbiomas.py`). Comentário desatualizado sobre "milhares
+de vértices"/geometria inválida removido de `processar_municipio`; o
+`simplify`+`buffer(0)` da seção 6.30 continuam (precaução barata, nunca
+foram o problema, não custam nada tirar nem manter).
+
+**Testado nesta sessão:** 88 testes de sempre (o fix em si — reprojeção
+de uma `FeatureCollection` real do GEE — só é verificável contra o GEE
+real, não localmente). Próximo passo imediato: disparar de novo
+`municipio=3519600` com o fix aplicado e confirmar que a área/IoU sai
+diferente de zero antes de rodar os 645 municípios de verdade.
+
+**Status:** Aberto até a próxima execução real confirmar — mas essa é a
+primeira vez nas 5 tentativas anteriores (seções 6.21/6.24/6.25/6.28) que
+o diagnóstico chega numa explicação mecanicamente completa e consistente
+com todas as evidências já coletadas (nenhuma parte "sobra sem explicar"),
+em vez de eliminação de hipóteses por falta de uma alternativa melhor.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)

@@ -99,19 +99,14 @@ def processar_municipio(
     cluster_geom, epsg_metrico = poligono_stdbscan_municipio(clusterizado)
 
     geom_municipio = buscar_geometria_municipio(codigo_ibge)
-    # Simplifica antes de virar ee.Geometry — o polígono "qualidade=maxima" do
-    # IBGE tem provavelmente milhares de vértices; diagnosticado ao vivo (Pedro,
-    # GEE Code Editor, docs/DECISIONS.md seção 6.25) que reduceToVectors volta 0
-    # feições com a geometria REAL do município, mas funciona com um polígono
-    # simples (círculo) ou com um limite administrativo de outra fonte
-    # (FAO/GAUL, bem mais simplificado) nos mesmos parâmetros — suspeita é
-    # complexidade/tamanho do payload do GeoJSON, não confirmada 100% contra a
-    # fonte primária. Tolerância bem abaixo dos 30m de pixel do MapBiomas, não
-    # perde precisão que importe pra essa comparação. Testado por execução real
-    # (seção 6.28): sozinho, não resolveu — reduceToVectors continua voltando
-    # vazio mesmo simplificado, então o `.buffer(0)` abaixo cobre a hipótese
-    # revisada de geometria tecnicamente inválida (auto-interseção) que
-    # `preserve_topology=True` não repara sozinho.
+    # Simplifica antes de virar ee.Geometry — precaução barata (tolerância
+    # bem abaixo dos 30m de pixel do MapBiomas, não perde precisão que
+    # importe) e o `.buffer(0)` repara qualquer geometria tecnicamente
+    # inválida (auto-interseção) que o simplify não resolva sozinho. NÃO
+    # era a causa do bug "sempre Baixa/IoU=0%/p=1.0" (essa suspeita, seção
+    # 6.25/6.28, foi refutada por execução real — Ibitinga tem só 581
+    # vértices, geometria sempre válida; a causa raiz real, corrigida em
+    # `mapbiomas_gee.py`, era projeção: docs/DECISIONS.md seção 6.31).
     geom_simplificada = geom_municipio.simplify(0.0001, preserve_topology=True)
     valido_antes = geom_simplificada.is_valid
     if not valido_antes:
