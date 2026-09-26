@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { CONFIABILIDADE_STYLE } from "@/lib/format";
+import { Hero } from "@/components/Hero";
 
 export const metadata: Metadata = {
   title: "Como produzimos — Painel de Queimadas SP",
@@ -57,33 +58,29 @@ const ATUALIZACOES = [
 export default function ComoProduzimosPage() {
   return (
     <div className="space-y-10">
-      <section className="space-y-3">
-        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          De onde vêm esses números
-        </h1>
-        <p className="max-w-xl text-stone-600 dark:text-stone-400">
-          Cruzamos duas fontes independentes de dado por satélite pra estimar onde o fogo
-          passou — e avisamos, com clareza, o quanto dá pra confiar em cada resultado.
-        </p>
-      </section>
+      <Hero
+        eyebrow="Como produzimos · metodologia"
+        titulo="De onde vêm esses números"
+        descricao="Cruzamos duas fontes independentes de dado por satélite pra estimar onde o fogo passou — e avisamos, com clareza, o quanto dá pra confiar em cada resultado."
+      />
 
       <section className="space-y-4">
-        <h2 className="text-sm font-medium text-stone-600">O método, em três passos</h2>
+        <h2 className="text-sm font-medium text-muted">O método, em três passos</h2>
         <div className="grid gap-4 sm:grid-cols-3">
           {PASSOS.map((passo, i) => (
             <div key={passo.titulo} className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-acento font-mono text-xs font-semibold text-white">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-acento-botao font-mono text-xs font-semibold text-white">
                 {i + 1}
               </span>
               <h3 className="mt-3 text-sm font-semibold text-foreground">{passo.titulo}</h3>
-              <p className="mt-2 text-sm text-stone-600">{passo.texto}</p>
+              <p className="mt-2 text-sm text-muted">{passo.texto}</p>
             </div>
           ))}
         </div>
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-sm font-medium text-stone-600">A nota de confiabilidade</h2>
+        <h2 className="text-sm font-medium text-muted">A nota de confiabilidade</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           {NIVEIS.map(({ nivel, texto }) => (
             <div key={nivel} className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
@@ -92,18 +89,18 @@ export default function ComoProduzimosPage() {
               >
                 {CONFIABILIDADE_STYLE[nivel].label}
               </span>
-              <p className="mt-3 text-sm text-stone-600">{texto}</p>
+              <p className="mt-3 text-sm text-muted">{texto}</p>
             </div>
           ))}
         </div>
-        <p className="text-xs text-stone-400">
+        <p className="text-xs text-faint">
           Critério fixo: Recall ≥ 50% <strong>ou</strong> p &lt; 0,05 conta como &ldquo;passou&rdquo;.
         </p>
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-sm font-medium text-stone-600">Limitações que assumimos</h2>
-        <ul className="list-disc space-y-2 pl-5 text-sm text-stone-600">
+        <h2 className="text-sm font-medium text-muted">Limitações que assumimos</h2>
+        <ul className="list-disc space-y-2 pl-5 text-sm text-muted">
           <li>
             O MapBiomas Fogo é um <strong className="text-foreground">ponto de comparação</strong>{" "}
             independente, não uma verdade absoluta — ele também tem sua própria margem de erro.
@@ -124,14 +121,14 @@ export default function ComoProduzimosPage() {
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-sm font-medium text-stone-600">Como os dados se atualizam</h2>
+        <h2 className="text-sm font-medium text-muted">Como os dados se atualizam</h2>
         <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
           {ATUALIZACOES.map((item) => (
             <div key={item.fonte} className="flex items-start gap-3 px-4 py-3.5">
               <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-acento" />
               <div>
                 <p className="text-sm font-semibold text-foreground">{item.fonte}</p>
-                <p className="text-sm text-stone-600">{item.cadencia}</p>
+                <p className="text-sm text-muted">{item.cadencia}</p>
               </div>
             </div>
           ))}

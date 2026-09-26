@@ -1816,6 +1816,120 @@ Vercel e redeployar.
 **Status:** Fechado (deploy funcionando) — a pendência do `SITE_URL` fica
 registrada pra não se perder, mas não trava nada.
 
+### 6.38 Restyle "vidro" — portado do mockup pro produto real (26/09/2026)
+
+**Contexto:** Pedro pediu explicitamente "deixar a interface como esse
+artefato" (o mockup "Painel Queimadas SP", mesmo da seção 7/6.33), depois
+de ver o site real publicado. Reimplementado do zero em cima do design
+system existente (Tailwind v4 + tokens CSS já usados) — **não** copiado
+o CSS/HTML do mockup, que usa um framework de tema (light-dark via classe)
+incompatível com a estrutura Next.js App Router daqui.
+
+**O que entrou:**
+- **Header fixo em vidro** (`position: sticky`, formato pílula,
+  `backdrop-blur-xl`, tokens novos `--glass`/`--glass-border`/`--glass-hi`).
+- **Hero com orbs animados + anéis decorativos** (`components/Hero.tsx`,
+  reaproveitado em `/`, `/como-produzimos`, `/quem-somos` — a página de
+  município não usa, igual o mockup, que vai direto pro painel de dados).
+- **Alternância manual clara/escura** (`components/ThemeToggle.tsx`,
+  botão no header) — além do escuro automático via `prefers-color-scheme`
+  que já existia. Decisão de implementação: o ícone (sol/lua) é decidido
+  só por CSS (`.icon-sol`/`.icon-lua` em `globals.css`), sem estado em
+  React — evita tanto o novo lint `react-hooks/set-state-in-effect`
+  quanto mismatch de hidratação (server nunca sabe a preferência salva
+  no localStorage do visitante). O `<html>` ganhou
+  `suppressHydrationWarning` (mesmo padrão da biblioteca `next-themes`):
+  o script que aplica o tema salvo roda antes da hidratação de propósito,
+  então o React sempre acusaria um mismatch nesse atributo específico,
+  mesmo funcionando certo.
+- **Barra de comparação** (`BarraComparacao`, dentro da página de
+  município) — mesmas 3 áreas que já existiam no banco (método próprio,
+  satélite, MapBiomas), só que visualizadas como barras em vez de só
+  números em grid.
+- **Tira de anos 2018–atual** na página de município, marcando quais anos
+  já têm validação registrada — deixa visível, na própria interface, a
+  mesma lacuna que motivou o pedido do Pedro de rodar mais anos (seção 7).
+- **Tiles de métrica com "?" expansível** (`components/InfoTile.tsx`) —
+  explica Recall/Interseção/valor-p/Área MapBiomas em linguagem simples,
+  princípio já estabelecido do projeto.
+- **Mapa de Pitangueiras recortado** — a imagem original (seção anterior)
+  era o gráfico científico completo (eixos, título, barra de cor do
+  matplotlib). Pedro achou "feio" nesse formato dentro do card novo.
+  Recortada (Pillow) só a área do mapa colorido, mesmos dados reais, sem
+  gerar imagem nova — trocado o eixo/legenda do matplotlib por uma barra
+  de gradiente CSS compacta abaixo do mapa. Vira pendência separada (seção
+  7) gerar esse recorte pros outros municípios via GEE de verdade.
+
+**Deliberadamente não portado do mockup** (motivo em cada item):
+- **Grid de "municípios em destaque" com thumbnail** — precisa de imagem
+  real por município, mesma pendência do mapa em escala (seção 7).
+- **Barra de cobertura em 4 estados** (processado/sem foco/fora da
+  janela/não processado) — o banco não distingue essas 4 categorias hoje
+  (só "na amostra" + "tem validação ou não"); inventar uma classificação
+  fina sem dado real por trás pareceu pior que não ter.
+- **Busca com dropdown ao vivo (autocomplete)** — a busca real continua
+  no modelo atual (formulário GET, recarrega a lista) em vez de virar um
+  componente cliente com filtro instantâneo; muda o modelo de interação,
+  não só o visual, e não foi pedido explicitamente.
+- **Cor de "ink" levemente esverdeada do mockup** (`#1E2A22` vs. o
+  `--foreground` atual `#26221d`) — mantido o neutro quente ("stone, não
+  zinc") que o `CLAUDE.md` já fecha; a diferença entre os dois tons é
+  pequena demais pra justificar reabrir essa decisão sem pedido explícito.
+
+**Testado:** as 6 páginas reais (home, 2 municípios, Quem somos, Como
+produzimos, 404) — visual (screenshot claro/escuro), `document.fonts`,
+lint (0 erros) e build de produção (8 rotas, sem erro) limpos.
+
+**Status:** Fechado.
+
+### 6.39 Auditoria WCAG do restyle: modo escuro nunca tinha sido testado — 3 achados reais, todos corrigidos (26/09/2026)
+
+**Contexto:** a auditoria WCAG anterior (seções 6.27/6.32) rodou só em
+modo claro. Ao portar o restyle da seção 6.38 (que adiciona um botão de
+alternância manual), rodei `axe-core` nas 6 páginas reais **nos dois
+temas** pela primeira vez — e achei 3 problemas reais, 2 deles **já
+existentes antes desta sessão**, nunca detectados por falta de teste:
+
+1. **`text-stone-600`/`-500`/`-400` (Tailwind) no escuro:** esses tons
+   foram calibrados pra fundo claro; contra o `--background`/`--surface`
+   escuros (que já existiam desde o restyle de 25/09) davam só ~2:1 de
+   contraste — bem abaixo do 4,5:1 mínimo. Passavam despercebidos porque
+   ninguém tinha testado o escuro automático (`prefers-color-scheme`)
+   com `axe-core` antes. Fix: 2 tokens novos, `--muted` (substitui
+   stone-600) e `--faint` (substitui stone-500/400), com valor calibrado
+   pra passar em claro **e** escuro, registrados em `@theme inline` como
+   `text-muted`/`text-faint`. Removidos os 5 pares manuais
+   `dark:text-stone-400` que existiam (redundantes agora, e a maioria das
+   ~57 ocorrências de `text-stone-*` no código nem tinha par manual —
+   ninguém tinha se dado conta que precisava).
+2. **Botões com fundo `bg-acento` e texto branco, no escuro:** só 2,6:1
+   de contraste. Causa: `--color-acento` fica mais claro no modo escuro
+   de propósito (pra funcionar bem como cor de TEXTO sobre fundo escuro),
+   mas os 4 lugares que usam a mesma cor como **fundo de botão** com
+   texto branco em cima (`/`, `/404`, `error.tsx`, os círculos "1/2/3" de
+   Como produzimos) precisavam do valor mais escuro/saturado de sempre,
+   não do valor pensado pra texto. Fix: token novo `--color-acento-botao`
+   (fixo nos dois temas, `#3c7da6`) separado de `--color-acento` (que
+   continua variando por tema, uso correto pra links/texto). Also
+   aplicado ao círculo do logo no header (decorativo, mas ficou mais
+   consistente).
+3. **Texto pequeno em `text-acento` sobre branco puro (não creme):**
+   eyebrow do Hero (11px) e os links de Lattes/LinkedIn em Quem somos
+   (14px) — 4,49:1, a régua de texto normal é 4,5:1 (achado novo desta
+   sessão, introduzido pelos componentes novos). Fix: token
+   `--color-acento-texto`, mesma cor levemente mais escura
+   (`#38759c`, 4,74–5,01:1) só pra esses casos de texto pequeno/peso
+   normal — segue o mesmo princípio da seção 6.32 (menor mudança
+   possível), mas aqui o texto é pequeno demais pra usar a saída
+   "negrito + grande" que resolveu os casos anteriores.
+
+**Testado:** `axe-core` (`wcag2a`+`wcag2aa`) nas 6 páginas reais × 2 temas
+= 12 combinações, **0 violações em todas**. `npm run lint`: 0 erros (2
+warnings de sempre). `npm run build`: limpo.
+
+**Status:** Fechado — cobertura de WCAG agora inclui os dois temas, não
+só o claro.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)
@@ -1875,31 +1989,66 @@ registrada pra não se perder, mas não trava nada.
   **Status:** ideia registrada, nenhuma decisão tomada — nem a
   geolocalização-como-atalho (que é viável) foi pedida como
   implementação ainda.
-- **Interface do `/webapp` real ficou mais simples do que o mockup
-  visual (26/09/2026):** o Pedro achou o site atual "muito simplista"
-  comparado a um artefato anterior ("Painel Queimadas SP", publicado
-  25/09/2026 em claude.ai — mesmo dia do restyle da seção 6.8). Comparei
-  os dois de verdade. **Resolvido nesta sessão:** cor de ação (seção 6.33,
-  Pedro escolheu o azul do mockup), mapa dNBR na página de município
-  (Pitangueiras tem a imagem real da pesquisa — `dnbr-pitangueiras.png` —
-  os outros municípios mostram um aviso "ainda não disponível" em vez de
-  espaço vazio, já que o pipeline hoje não exporta imagem pra nenhum outro),
-  e as páginas **"Como produzimos"** e **"Quem somos"** (portadas pro
-  produto real, `/como-produzimos` e `/quem-somos`, com o conteúdo do
-  mockup adaptado ao design system do site — não copiado 1:1; sem vidro
-  fosco/glassmorphism, que não é a estética do restyle da seção 6.8).
-  Isso corrigiu o `docs/CHECKLIST.md` (o item "Endereço de contato real"
-  volta a `[x]`, e as 2 páginas saem de pendente).
-  **Ainda faltam** (não bloqueiam nada, só não foram pedidas ainda): tiles
-  de métrica com "?" expansível, faixa de anos 2018–2024, gráfico de
-  barras comparando método próprio × satélite × MapBiomas, busca com
-  autocomplete, barra de cobertura segmentada, grid de "municípios em
-  destaque" com thumbnail, orbs animados no hero, toggle de tema
-  claro/escuro visível.
-  **Status:** 3 dos 4 gaps originais resolvidos; o resto é backlog de
-  design, não pendência travando nada. Path do artefato original:
-  `https://claude.ai/artifact/XUKMwTerRzGjnXJkRhVvrJ`.
+- ~~Interface do `/webapp` real ficou mais simples do que o mockup
+  visual~~ — **resolvido (26/09/2026, seção 6.38):** cor de ação, mapa
+  dNBR, as 2 páginas institucionais, e depois o restyle completo em
+  "vidro" (header fixo, hero com orbs, tema claro/escuro manual, barra de
+  comparação, tiles expansíveis) — todos portados pro produto real.
+  **Ainda faltam, deliberadamente não portados** (motivo detalhado na
+  seção 6.38): grid de "municípios em destaque" com thumbnail (depende da
+  pendência de imagem em escala, ver abaixo), barra de cobertura em 4
+  estados (o banco não distingue essas categorias hoje) e busca com
+  dropdown ao vivo (muda o modelo de interação, não só o visual). Path do
+  artefato original: `https://claude.ai/artifact/XUKMwTerRzGjnXJkRhVvrJ`.
 - ~~Fonte AvantGarde Std Bold não carrega~~ — **resolvido (26/09/2026,
   ver seção 6.36):** Pedro escolheu a opção (b) das 3 propostas na seção
   6.34 — trocar por fonte livre de estilo parecido. Jost (Google Fonts,
   geométrica) está no ar nos títulos, peso 700, funcionando sem erro.
+- **Mapa dNBR real pros 645 municípios (pedido 26/09/2026, "URGENTE"):**
+  hoje só existe 1 imagem real (Pitangueiras, seção 6.38, recortada de um
+  gráfico científico já existente) — não é algo que dá pra "aplicar em
+  escala" porque **a imagem nunca foi gerada pros outros municípios**; o
+  pipeline (`run_dnbr.py`) só calcula `area_dnbr_km2` num número
+  (`reduceRegion`), nunca exportou raster nem gerou visualização. Isso é
+  uma feature nova, não um ajuste — precisa de: (1) decidir o mecanismo
+  de geração (recomendo miniatura via `ee.Image.getThumbURL` com paleta
+  de cor estilizada — gera um PNG leve, sem precisar exportar/guardar
+  GeoTIFF completo, muito mais barato em quota do GEE e em armazenamento
+  do que a rota "exportar raster" que o `docs/CHECKLIST.md` já descreve
+  como bloqueada); (2) decidir onde guardar os PNGs (Cloudflare R2 já
+  cogitado no checklist pra isso, ou Vercel Blob); (3) rodar isso pros
+  645 municípios × anos existentes, que é trabalho de GEE de verdade
+  (não dá pra fazer nesta sessão de chat — precisa rodar via GitHub
+  Actions, como os outros workflows). **Nada disso foi implementado
+  ainda** — fica como próximo passo de pipeline, não de interface.
+- **Rodar ST-DBSCAN + dNBR + IoU pra todos os outros anos (pedido
+  26/09/2026):** esbarra em 2 limites de dado externo já documentados
+  nesta sessão, não é coisa de código:
+  - **2018–2023:** o dataserver do INPE não tinha esses anos disponíveis
+    "ainda" na rodada mais recente (seção 6.35, avisos `[AVISO]` reais do
+    log de produção) — não é intermitência, é o próprio servidor do INPE
+    sem o dado publicado pra esses anos nesse endpoint. Rodar de novo não
+    resolve; precisa esperar o INPE publicar (ou achar uma fonte
+    alternativa pros anos antigos, o que seria outra decisão de
+    arquitetura).
+  - **2025–2026:** o MapBiomas Fogo Coleção 4 (fonte de comparação/IoU)
+    só cobre **até 2024** (seção 6.22, confirmado por execução real) —
+    comparar contra MapBiomas pra 2025/2026 é impossível até uma coleção
+    nova ser publicada (sem previsão). ST-DBSCAN + dNBR sozinhos (sem a
+    comparação IoU) já rodam pra 2025/2026 desde que haja foco de calor
+    do INPE — mas o resultado ficaria sem confiabilidade calculada
+    (fica "Insuficiente" ou sem `validacao_mapbiomas`, não por bug, por
+    não ter com o que comparar ainda).
+  **Status:** nenhuma decisão tomada — fica pro Pedro dizer se quer (a)
+  esperar os dados externos, (b) rodar só o que já é possível agora
+  (INPE+dNBR sem IoU pra 2025/2026), ou (c) investigar fonte alternativa
+  pro histórico pré-2018.
+- **"Mudanças de segurança" (pedido 26/09/2026, sem detalhar quais):**
+  conferido nesta sessão que a proteção contra SQL injection **já
+  existe** — `webapp/src/lib/queries.ts` usa só template tagged do
+  `postgres.js` (`sql\`... ${valor}\``), que parametriza automaticamente;
+  não tem concatenação de string em nenhuma query, incluindo o fragmento
+  dinâmico da busca (linha 36). As pendências reais de segurança que
+  seguem em aberto no `docs/CHECKLIST.md` são rate limiting na API,
+  política de retenção de dados, e ambiente de staging — nenhuma foi
+  especificada como a prioridade pelo Pedro ainda.

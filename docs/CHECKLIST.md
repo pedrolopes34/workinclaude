@@ -72,15 +72,24 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
       negrito + texto grande (`text-[19px] font-bold`, brecha do próprio
       WCAG pra "texto grande" — os hex não mudaram, decisão do Pedro, ver
       `docs/DECISIONS.md` seção 6.32). **0 violações de `color-contrast`**
-      confirmadas por reexecução real do axe-core.
+      confirmadas por reexecução real do axe-core. Ampliado 26/09/2026
+      (seção 6.39): auditoria passou a cobrir **claro e escuro** nas 6
+      páginas reais (antes só testava claro) — achou 3 problemas reais do
+      modo escuro nunca antes detectados (2 pré-existentes desde o
+      restyle de 25/09, 1 introduzido pelo restyle "vidro" da seção
+      6.38), todos corrigidos com tokens novos (`--muted`, `--faint`,
+      `--color-acento-botao`, `--color-acento-texto`). **0 violações nas
+      12 combinações página×tema.**
 
 ## Segurança
 
 - [x] HTTPS/TLS — automático pela Vercel desde o 1º deploy em produção
       (26/09/2026, `docs/DECISIONS.md` seção 6.37)
 - [ ] Rate limiting na API
-- [ ] Proteção contra injeção (especialmente em endpoints com parâmetros de
-      busca)
+- [x] Proteção contra injeção — conferido 26/09/2026: `webapp/src/lib/queries.ts`
+      usa só template tagged do `postgres.js` (`sql\`... ${valor}\``, parametriza
+      sozinho), inclusive no fragmento dinâmico da busca por nome — sem
+      concatenação de string em nenhuma query (`docs/DECISIONS.md` seção 7)
 - [x] Scan de vulnerabilidade de dependências — `.github/dependabot.yml`
       criado (pip/`pipeline`, npm/`webapp`, github-actions, semanal) e
       "Dependabot alerts" confirmado ativo pelo Pedro em Settings → Code
@@ -137,8 +146,13 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 
 ---
 
-**Contagem atual:** 14 itens feitos, 10 parciais, 11 pendentes —
-atualizado em 26/09/2026: as páginas "Quem somos" e "Como produzimos"
+**Contagem atual:** 16 itens feitos, 10 parciais, 9 pendentes —
+atualizado em 26/09/2026: site publicado em produção
+(`workinclaude.vercel.app`, seção 6.37 — HTTPS fecha sozinho), proteção
+contra SQL injection confirmada já existente, restyle "vidro" completo
+com auditoria WCAG agora cobrindo os dois temas (seção 6.39). As páginas
+"Quem somos" e "Como produzimos" foram portadas pro produto real
+(`/quem-somos`, `/como-produzimos`),
 foram portadas pro produto real (`/quem-somos`, `/como-produzimos`),
 fechando também o item "Endereço de contato real" que tinha virado `[~]`
 na revisão anterior. Cor de ação revertida pra azul por decisão do Pedro

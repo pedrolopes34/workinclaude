@@ -22,6 +22,40 @@
      não confundir "ação" com "confiabilidade baixa". */
   --color-acento: #3c7da6;
   --color-acento-hover: #316788;
+  /* Fixo nos dois temas (não usa o valor mais claro do modo escuro,
+     seção 6.39) — só pra fundo de botão/círculo com texto BRANCO em
+     cima. O --color-acento normal, mais claro no escuro pra funcionar
+     como TEXTO sobre fundo escuro, dava só 2,6:1 de contraste com texto
+     branco por cima quando usado como fundo de botão — falha real
+     achada nesta sessão em `/404` e nos outros CTAs. */
+  --color-acento-botao: #3c7da6;
+  --color-acento-botao-hover: #316788;
+  /* Só pra texto pequeno/peso normal (links em listas, "eyebrow" do Hero)
+     sobre fundo branco — mesmo azul, levemente mais escuro pra fechar o
+     4.5:1 de texto normal (o --color-acento comum já passa em botão/selo
+     grandes, que só precisam 3:1, mas fica em 4.49:1 sobre branco puro em
+     texto pequeno — docs/DECISIONS.md seção 6.39). No escuro reaproveita
+     --color-acento normal, que já é claro o suficiente sobre fundo escuro. */
+  --color-acento-texto: #38759c;
+
+  /* "Secundário"/"terciário" de texto — versão dark-safe do que antes era
+     text-stone-600/500/400 direto (docs/DECISIONS.md seção 6.39): esses
+     tons do Tailwind foram calibrados pra fundo claro, e ficavam
+     ilegíveis (contraste ~2:1) quando só o fundo virava escuro sem um
+     token equivalente. --muted = rótulo/legenda padrão; --faint = texto
+     mais discreto ainda (notas de rascunho, "sem dado"). */
+  --muted: #57534e;
+  --faint: #736d67;
+
+  /* Linguagem visual "vidro" do mockup (docs/DECISIONS.md seção 6.38) —
+     header fixo, hero e painel de destaque usam esses tokens com
+     backdrop-blur. Só decoração (orbs do hero, brilho do vidro); nunca
+     usados nos selos de confiabilidade. */
+  --glass: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(38, 34, 29, 0.14);
+  --glass-hi: rgba(255, 255, 255, 0.85);
+  --orb-a: #7cc26a;
+  --orb-b: #5aa0d0;
 }
 
 @theme inline {
@@ -34,6 +68,14 @@
   --color-terracota: var(--color-terracota);
   --color-acento: var(--color-acento);
   --color-acento-hover: var(--color-acento-hover);
+  --color-acento-botao: var(--color-acento-botao);
+  --color-acento-botao-hover: var(--color-acento-botao-hover);
+  --color-acento-texto: var(--color-acento-texto);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-glass: var(--glass);
+  --color-glass-border: var(--glass-border);
+  --color-glass-hi: var(--glass-hi);
   --font-sans: var(--font-public-sans);
   --font-mono: var(--font-ibm-plex-mono);
   /* Usada só em títulos de página (h1). AvantGarde Std Bold que o Pedro
@@ -45,19 +87,94 @@
   --font-display: var(--font-jost), var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Escuro automático (preferência do sistema) — só quando não houver
+   escolha manual salva (data-theme cuida disso, ver ThemeToggle.tsx). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --background: #211d19;
     --foreground: #ede6db;
     --surface: #2b2622;
     --border: #3d362e;
     --color-acento: #5fa8d9;
     --color-acento-hover: #77b5df;
+    --color-acento-texto: #5fa8d9;
+    --muted: #b8b2ac;
+    --faint: #97918a;
+    --glass: rgba(38, 34, 29, 0.55);
+    --glass-border: rgba(255, 255, 255, 0.14);
+    --glass-hi: rgba(255, 255, 255, 0.14);
+    --orb-a: #2e5c3f;
+    --orb-b: #234a63;
   }
+}
+
+/* Escuro manual (botão no header, docs/DECISIONS.md seção 6.38) —
+   mesmos valores de acima, mas força independente da preferência do
+   sistema. */
+:root[data-theme="dark"] {
+  --background: #211d19;
+  --foreground: #ede6db;
+  --surface: #2b2622;
+  --border: #3d362e;
+  --color-acento: #5fa8d9;
+  --color-acento-hover: #77b5df;
+  --color-acento-texto: #5fa8d9;
+  --muted: #b8b2ac;
+  --faint: #97918a;
+  --glass: rgba(38, 34, 29, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.14);
+  --glass-hi: rgba(255, 255, 255, 0.14);
+  --orb-a: #2e5c3f;
+  --orb-b: #234a63;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Orbs decorativos do hero — só CSS, sem imagem. Paradas se o visitante
+   preferir menos movimento (prefers-reduced-motion). */
+@keyframes orb-drift {
+  from {
+    transform: translateY(0) scale(1);
+  }
+  to {
+    transform: translateY(16px) scale(1.06);
+  }
+}
+
+.orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(38px);
+  opacity: 0.6;
+  z-index: -1;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .orb {
+    animation: orb-drift 14s ease-in-out infinite alternate;
+  }
+}
+
+/* Ícone do ThemeToggle.tsx — decidido só por CSS (ver comentário lá). */
+.icon-lua {
+  display: none;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .icon-sol {
+    display: none;
+  }
+  :root:not([data-theme="light"]) .icon-lua {
+    display: block;
+  }
+}
+:root[data-theme="dark"] .icon-sol {
+  display: none;
+}
+:root[data-theme="dark"] .icon-lua {
+  display: block;
 }

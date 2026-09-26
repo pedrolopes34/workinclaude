@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { listMunicipios, contarMunicipios } from "@/lib/queries";
 import { CONFIABILIDADE_STYLE } from "@/lib/format";
+import { Hero } from "@/components/Hero";
 
 // Suspense fica só em torno desta lista, nao na rota inteira — assim
 // /municipio/[codigoIbge] (que precisa de notFound() virar 404 de
@@ -14,19 +15,23 @@ async function ListaMunicipios({ termo }: { termo?: string }) {
 
   return (
     <>
-      <p className="text-sm text-stone-600">
-        {contagem.naAmostra} de {contagem.total} municípios já validados
-        pela pesquisa
+      <p className="flex flex-wrap items-baseline gap-2">
+        <span className="font-mono text-4xl font-bold tracking-tight text-acento">
+          {contagem.naAmostra}
+        </span>
+        <span className="text-sm text-muted">
+          de {contagem.total} municípios paulistas já validados pela pesquisa
+        </span>
       </p>
 
       <section className="space-y-3">
         {!termo && (
-          <h2 className="text-sm font-medium text-stone-600">
+          <h2 className="text-sm font-medium text-muted">
             Municípios da amostra validada
           </h2>
         )}
         {municipios.length === 0 ? (
-          <p className="text-sm text-stone-600">
+          <p className="text-sm text-muted">
             Nenhum município encontrado para &ldquo;{termo}&rdquo;.
           </p>
         ) : (
@@ -40,7 +45,7 @@ async function ListaMunicipios({ termo }: { termo?: string }) {
                   <div>
                     <p className="font-medium text-foreground">{m.nome}</p>
                     {m.mesorregiao && (
-                      <p className="text-xs text-stone-600">{m.mesorregiao}</p>
+                      <p className="text-xs text-muted">{m.mesorregiao}</p>
                     )}
                   </div>
                   {m.confiabilidade ? (
@@ -50,7 +55,7 @@ async function ListaMunicipios({ termo }: { termo?: string }) {
                       {CONFIABILIDADE_STYLE[m.confiabilidade].label}
                     </span>
                   ) : (
-                    <span className="rounded-full border border-border px-3 py-1 text-xs text-stone-600">
+                    <span className="rounded-full border border-border px-3 py-1 text-xs text-muted">
                       não comparado/validado
                     </span>
                   )}
@@ -86,29 +91,40 @@ export default async function Home({
 
   return (
     <div className="space-y-8">
-      <section className="space-y-3">
-        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          Monitoramento de queimadas em São Paulo
-        </h1>
-        <p className="max-w-xl text-stone-600 dark:text-stone-400">
-          Cruzamos duas fontes independentes de satélite — agrupamento de
-          focos de calor e leitura de satélite (severidade de queima) — e
-          comparamos o resultado ao MapBiomas Fogo para mostrar, em
-          linguagem simples, o quanto dá para confiar em cada município.
-        </p>
-      </section>
+      <Hero
+        eyebrow="Monitoramento de queimadas · São Paulo"
+        titulo="Onde o fogo passou e o quanto dá pra confiar nesse número."
+        descricao="Cruzamos duas fontes independentes de satélite — agrupamento de focos de calor e leitura de satélite (severidade de queima) — e comparamos o resultado ao MapBiomas Fogo para mostrar, em linguagem simples, o quanto dá para confiar em cada município."
+      />
 
-      <form method="get" className="flex gap-2 rounded-2xl border border-border bg-surface p-2 shadow-sm">
+      <form
+        method="get"
+        className="flex items-center gap-2 rounded-full border border-glass-border bg-glass p-2 pl-4 shadow-[inset_0_1px_0_var(--color-glass-hi)] backdrop-blur-xl"
+      >
+        <svg
+          width="17"
+          height="17"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          className="shrink-0 text-faint"
+          aria-hidden="true"
+        >
+          <circle cx="11" cy="11" r="7" />
+          <path d="m21 21-4.3-4.3" />
+        </svg>
         <input
           type="search"
           name="q"
           defaultValue={q}
           placeholder="Buscar município (ex.: Pitangueiras)"
-          className="w-full rounded-xl bg-transparent px-3 py-2 text-sm outline-none placeholder:text-stone-400"
+          className="w-full bg-transparent px-1 py-2 text-sm outline-none placeholder:text-faint"
         />
         <button
           type="submit"
-          className="shrink-0 rounded-xl bg-acento px-4 py-2 text-[19px] font-bold text-white transition-colors hover:bg-acento-hover"
+          className="shrink-0 rounded-full bg-acento-botao px-4 py-2 text-[19px] font-bold text-white transition-colors hover:bg-acento-botao-hover"
         >
           Buscar
         </button>
