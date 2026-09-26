@@ -2005,6 +2005,50 @@ nova). Passo a passo fica pro chat, não pra este documento.
 **Status:** Arquitetura e código fechados; ativação em produção
 bloqueada só pelo setup externo do Pedro.
 
+### 6.41 R2 ativado pelo Pedro — 1ª tentativa real achou e corrigiu 2 bugs de verdade (26/09/2026)
+
+**Contexto:** Pedro criou a conta/bucket R2 (`queimadas-sp-dnbr`) e os 5
+secrets no mesmo dia da seção 6.40. Antes de confiar direto numa rodada
+de ~2h nos 645 municípios, adicionei `--municipio` em `run_dnbr.py`
+(mesmo padrão de `run_validacao_mapbiomas.py` seção 6.30) — decisão que
+se pagou na primeira tentativa.
+
+**1ª rodada real** (`--municipio 3539509`, run `36272777892`, disparada
+antes mesmo do Pedro terminar de configurar o R2): confirmou que a
+migração `_garantir_coluna_imagem` rodou certo em produção (armadilha
+evitada: o código do `webapp` já esperava a coluna nova assim que foi
+pro `main`, antes do pipeline rodar de novo pra criá-la — corrigido na
+hora disparando esse mesmo workflow como hotfix).
+
+**2ª rodada real** (`--municipio 3539509` de novo, run `36274763695`,
+já com os 5 secrets do Pedro configurados) — **achou um bug de verdade**:
+`ValueError: Invalid endpoint: https://***.r2.cloudflarestorage.com`. O
+resto funcionou perfeito (dNBR calculado, `area_dnbr_km2=115,82`,
+`getThumbURL` funcionou, PNG de 179KB baixado) — só a subida pro R2
+falhou. Causa mais provável: `R2_ACCOUNT_ID` colado com a URL do
+endpoint inteira (que a própria Cloudflare mostra em outras telas do
+painel), não só o ID puro — meu código fazia
+`f"https://{account_id}.r2.cloudflarestorage.com"` sem normalizar,
+então um valor colado errado vira um endpoint duplicado/malformado.
+
+**Fix:** `_endpoint_r2()` normaliza o `R2_ACCOUNT_ID` (tira
+`https://`/`http://` e `.r2.cloudflarestorage.com` se já vierem
+inclusos) antes de montar a URL do endpoint; `_env_r2()` tira
+espaço/quebra de linha de todos os secrets R2 (armadilha comum de
+copiar-colar de UI web). 4 testes novos (`test_endpoint_r2_normaliza_account_id`,
+parametrizado com o caso exato do bug) — 95 testes no pipeline agora.
+
+**Por que valeu a pena o `--municipio`:** cada uma dessas 2 rodadas de
+descoberta levou ~15 segundos. Sem o modo debug, o mesmo bug só
+apareceria depois de esperar a rodada completa (~2h) tentar (e falhar)
+pros 645 municípios — 1 vez pra achar o erro, outra pra confirmar o
+fix, e ainda uma 3ª pra validar de vez. A mesma lição da seção 6.30
+(MapBiomas) se repetiu aqui.
+
+**Status:** Diagnóstico e fix commitados; falta confirmar com uma 3ª
+rodada `--municipio` que o R2 funciona de ponta a ponta agora, antes de
+liberar a rodada completa dos 645.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)

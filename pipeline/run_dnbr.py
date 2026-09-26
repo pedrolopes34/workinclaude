@@ -65,6 +65,25 @@ def _r2_configurado() -> bool:
     return bool(os.environ.get("R2_ACCESS_KEY_ID"))
 
 
+def _env_r2(nome: str) -> str:
+    """Le um secret R2_* e tira espaco/quebra de linha acidental (armadilha
+    comum de copiar-colar de uma UI web — docs/DECISIONS.md secao 6.41)."""
+    return os.environ[nome].strip()
+
+
+def _endpoint_r2(account_id: str) -> str:
+    """Normaliza R2_ACCOUNT_ID pra so' o ID puro, mesmo se alguem colar sem
+    querer a URL do endpoint inteira (que a propria Cloudflare mostra em
+    outras telas) em vez de so' o account id — achado real na primeira
+    tentativa desta sessao (docs/DECISIONS.md secao 6.41): boto3 rejeitava
+    com "Invalid endpoint" porque o valor colado ja' vinha com
+    "https://...r2.cloudflarestorage.com" dentro, virando um endpoint
+    duplicado/malformado."""
+    account_id = account_id.removeprefix("https://").removeprefix("http://")
+    account_id = account_id.removesuffix("/").removesuffix(".r2.cloudflarestorage.com")
+    return f"https://{account_id}.r2.cloudflarestorage.com"
+
+
 def _subir_miniatura_r2(png_bytes: bytes, codigo_ibge: str, ano: int, mes: int) -> str | None:
     """Sobe o PNG pro Cloudflare R2 (API compativel com S3, boto3) e devolve
     a URL publica — None se os secrets R2_* nao estiverem configurados
@@ -78,18 +97,18 @@ def _subir_miniatura_r2(png_bytes: bytes, codigo_ibge: str, ano: int, mes: int) 
     caminho = f"dnbr/{codigo_ibge}-{ano}-{mes:02d}.png"
     cliente = boto3.client(
         "s3",
-        endpoint_url=f"https://{os.environ['R2_ACCOUNT_ID']}.r2.cloudflarestorage.com",
-        aws_access_key_id=os.environ["R2_ACCESS_KEY_ID"],
-        aws_secret_access_key=os.environ["R2_SECRET_ACCESS_KEY"],
+        endpoint_url=_endpoint_r2(_env_r2("R2_ACCOUNT_ID")),
+        aws_access_key_id=_env_r2("R2_ACCESS_KEY_ID"),
+        aws_secret_access_key=_env_r2("R2_SECRET_ACCESS_KEY"),
         region_name="auto",
     )
     cliente.upload_fileobj(
         BytesIO(png_bytes),
-        os.environ["R2_BUCKET_NAME"],
+        _env_r2("R2_BUCKET_NAME"),
         caminho,
         ExtraArgs={"ContentType": "image/png"},
     )
-    return f"{os.environ['R2_PUBLIC_URL_BASE'].rstrip('/')}/{caminho}"
+    return f"{_env_r2('R2_PUBLIC_URL_BASE').rstrip('/')}/{caminho}"
 
 
 def inicializar_gee() -> None:

@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from pipeline.run_dnbr import _r2_configurado, janela_mes_anterior
+from pipeline.run_dnbr import _endpoint_r2, _r2_configurado, janela_mes_anterior
 
 
 @pytest.mark.parametrize(
@@ -34,3 +34,18 @@ def test_r2_configurado_falso_com_secret_vazio(monkeypatch):
 def test_r2_configurado_verdadeiro_com_valor(monkeypatch):
     monkeypatch.setenv("R2_ACCESS_KEY_ID", "chave-de-teste")
     assert _r2_configurado() is True
+
+
+@pytest.mark.parametrize(
+    "valor_colado,esperado",
+    [
+        ("abc123def456", "https://abc123def456.r2.cloudflarestorage.com"),
+        # Erro real da 1a tentativa em produção (docs/DECISIONS.md secao
+        # 6.41): colar a URL do endpoint inteira em vez de so' o ID.
+        ("https://abc123def456.r2.cloudflarestorage.com", "https://abc123def456.r2.cloudflarestorage.com"),
+        ("https://abc123def456.r2.cloudflarestorage.com/", "https://abc123def456.r2.cloudflarestorage.com"),
+        ("http://abc123def456.r2.cloudflarestorage.com", "https://abc123def456.r2.cloudflarestorage.com"),
+    ],
+)
+def test_endpoint_r2_normaliza_account_id(valor_colado, esperado):
+    assert _endpoint_r2(valor_colado) == esperado
