@@ -84,7 +84,19 @@ def _endpoint_r2(account_id: str) -> str:
     return f"https://{account_id}.r2.cloudflarestorage.com"
 
 
-def _subir_miniatura_r2(png_bytes: bytes, codigo_ibge: str, ano: int, mes: int) -> str | None:
+def _diagnostico_seguro(nome: str, valor: str) -> str:
+    """Descreve um secret sem nunca imprimir o valor em si (nem parcial) —
+    so' metadados: tamanho, se tem espaco/quebra de linha interna (que
+    .strip() nao pega), primeiro/ultimo caractere em hex. Usado so' quando
+    a subida pro R2 falha, pra diagnosticar sem vazar credencial em log
+    (docs/DECISIONS.md secao 6.41)."""
+    tem_espaco_interno = any(c.isspace() for c in valor)
+    primeiro = f"{ord(valor[0]):#04x}" if valor else "(vazio)"
+    ultimo = f"{ord(valor[-1]):#04x}" if valor else "(vazio)"
+    return f"{nome}: tamanho={len(valor)} espaco_interno={tem_espaco_interno} primeiro_char={primeiro} ultimo_char={ultimo}"
+
+
+def _subir_miniatura_r2(png_bytes: bytes, codigo_ibge: str, ano: int, mes: int, *, debug: bool = False) -> str | None:
     """Sobe o PNG pro Cloudflare R2 (API compativel com S3, boto3) e devolve
     a URL publica — None se os secrets R2_* nao estiverem configurados
     (docs/DECISIONS.md secao 6.40), pra nunca quebrar a rodada por causa da
@@ -94,10 +106,17 @@ def _subir_miniatura_r2(png_bytes: bytes, codigo_ibge: str, ano: int, mes: int) 
 
     import boto3
 
+    conta = _env_r2("R2_ACCOUNT_ID")
+    endpoint = _endpoint_r2(conta)
+    if debug:
+        print(f"[DEBUG] {_diagnostico_seguro('R2_ACCOUNT_ID (bruto)', os.environ['R2_ACCOUNT_ID'])}")
+        print(f"[DEBUG] {_diagnostico_seguro('R2_ACCOUNT_ID (limpo)', conta)}")
+        print(f"[DEBUG] endpoint calculado: tamanho={len(endpoint)} {_diagnostico_seguro('endpoint', endpoint)}")
+
     caminho = f"dnbr/{codigo_ibge}-{ano}-{mes:02d}.png"
     cliente = boto3.client(
         "s3",
-        endpoint_url=_endpoint_r2(_env_r2("R2_ACCOUNT_ID")),
+        endpoint_url=endpoint,
         aws_access_key_id=_env_r2("R2_ACCESS_KEY_ID"),
         aws_secret_access_key=_env_r2("R2_SECRET_ACCESS_KEY"),
         region_name="auto",
@@ -193,7 +212,7 @@ def processar_municipio(
             resposta.raise_for_status()
             if debug:
                 print(f"[DEBUG] {codigo_ibge}: PNG baixado, {len(resposta.content)} bytes — subindo pro R2...")
-            imagem_url = _subir_miniatura_r2(resposta.content, codigo_ibge, ano, mes)
+            imagem_url = _subir_miniatura_r2(resposta.content, codigo_ibge, ano, mes, debug=debug)
             if debug:
                 print(f"[DEBUG] {codigo_ibge}: subiu pro R2 -> {imagem_url}")
         except Exception as e:
