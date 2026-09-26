@@ -125,8 +125,9 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 **Contagem atual:** 10 itens feitos, 12 parciais, 11 pendentes — atualizado
 em 26/09/2026: pipeline de produção rodando de verdade pela 1ª vez
 (`ingest-inpe.yml`, `process-sentinel-dnbr.yml`, `audit-anual.yml`
-confirmados por log real; `check-mapbiomas.yml` em teste — ver
-`docs/DECISIONS.md` seções 6.17 a 6.27), auditoria WCAG AA rodada de
+confirmados por log real; `check-mapbiomas.yml` **ainda quebrado** — o fix
+de geometria da seção 6.25 foi testado de verdade e refutado, ver
+`docs/DECISIONS.md` seções 6.17 a 6.28), auditoria WCAG AA rodada de
 verdade no webapp (3 de 4 violações corrigidas), Dependabot configurado.
 Este checklist é sobre prontidão de produção (SEO, segurança, testes) —
 para o que foi implementado nesta sessão, ver `docs/DECISIONS.md` seção 6.

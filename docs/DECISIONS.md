@@ -1286,6 +1286,55 @@ funcionalidade de exportação de raster primeiro.
 3 diagnosticado e re-escopado corretamente (não é mais uma pendência
 "pequena" mal-classificada).
 
+### 6.28 Fix da seção 6.25 NÃO resolveu o bug do MapBiomas — hipótese refutada por execução real (26/09/2026)
+
+**Contexto:** a rodada decisiva do `check-mapbiomas.yml` (run `36244063350`,
+commit `c45b802`, o fix de simplificação de geometria da seção 6.25)
+terminou o job do grupo 1/2 (323 municípios) depois de ~1h58min.
+
+**Resultado:** os 293 municípios que geraram resultado (sem nenhum
+`[ERRO]` de exceção — o restante provavelmente ficou sem agrupamento no
+ano, `Insuficiente`, que nem chega a imprimir linha) saíram **100%
+idênticos**: `Baixa (IoU=0.0%, p=1.0)` — incluindo Ibitinga (3519600), o
+caso de referência que devia sair "Alta". Zero variação, zero exceção.
+
+**Conclusão:** a hipótese da seção 6.25 ("volume/formato de vértices do
+GeoJSON `qualidade=maxima` quebra o `reduceToVectors`, `simplify(0.0001)`
+resolve") está **refutada** — pelo menos como formulada. Simplificar a
+geometria não fez `buscar_area_queimada` parar de devolver polígono
+vazio. Como `run_dnbr.py` usa a mesma geometria (sem simplificar) com
+`reduceRegion` e funciona (seção 6.23), e o teste ao vivo no Code Editor
+confirmou que `reduceToVectors` funciona com um círculo simples E com o
+limite FAO/GAUL de Ibitinga nos mesmos parâmetros (seção 6.25), a causa
+provável não é "vértices demais" — é algo mais específico da estrutura da
+geometria do IBGE (ex.: geometria tecnicamente inválida — auto-interseção,
+anel com orientação errada — que `simplify(preserve_topology=True)` não
+conserta, porque só preserva a validade que já existia, não repara uma
+entrada já inválida).
+
+**Decisão — próximo passo, mais barato que outra rodada cega de 2h:**
+1. `processar_municipio` ganha reparo defensivo (`.buffer(0)` quando
+   `geom_simplificada.is_valid` for `False` depois do simplify — idioma
+   padrão do shapely pra forçar reconstrução de geometria válida) e
+   diagnóstico impresso por município (tipo, nº de partes, contagem de
+   vértices antes/depois, validade antes/depois, bounding box) — tudo
+   local/shapely, sem custo de rede ou GEE.
+2. `buscar_area_queimada` passa a imprimir quantas feições o
+   `reduceToVectors` devolveu por chamada.
+3. Novo argumento `--municipio <codigo_ibge>` em
+   `run_validacao_mapbiomas.py`, com input opcional equivalente em
+   `check-mapbiomas.yml` (via `env:`, mesmo padrão anti shell-injection do
+   `audit-anual.yml` — aproveitado pra corrigir também o input `ano` já
+   existente, que hoje interpola direto no `run:`) — permite testar 1
+   município só, em minutos, em vez de rodar os 645 (~2h) a cada iteração
+   de diagnóstico.
+
+**Testado nesta sessão:** ainda não implementado — é o próximo passo.
+
+**Status:** Aberto — hipótese da seção 6.25 refutada por execução real;
+causa raiz ainda não identificada; ciclo de diagnóstico mais barato
+planejado, não implementado ainda.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)
@@ -1319,3 +1368,29 @@ funcionalidade de exportação de raster primeiro.
   **não muda** — só a estética geral da interface.
   **Status:** implementado nesta sessão (ver seção 6.8), aguardando Pedro
   ver o resultado e aprovar ou pedir ajuste.
+- **Geolocalização como atalho de navegação — ideia levantada pelo Pedro
+  (26/09/2026):** pergunta original: pedir a localização da pessoa e já
+  cair direto no método/resultado dela, sem precisar navegar entre os 645
+  municípios; cogitou também virar PWA. Avaliação: são duas ideias com
+  viabilidade bem diferentes.
+  - **Geolocalização só como atalho de navegação** (pedir
+    `navigator.geolocation`, converter lat/lon pro `codigo_ibge` mais
+    próximo — reverse geocoding simples — e redirecionar direto pra
+    `/municipio/[codigoIbge]`) — barato, compatível com a arquitetura
+    atual (o webapp já lê direto do banco, seção 4; isso só muda a
+    navegação inicial, não o cálculo). Não deixa de precisar dos 645
+    municípios no banco — só evita a pessoa procurar manualmente o dela.
+  - **Computar o método sob demanda por visitante** (a leitura "não
+    precisar ter todos os 645 disponíveis") — **incompatível** com a
+    arquitetura atual: o pipeline depende de jobs em lote no GEE que
+    levam horas (dNBR: ~2h30, MapBiomas: ~2h por metade), com cadência
+    mensal/anual (seção 1.1) — não dá pra rodar isso de forma síncrona a
+    cada carregamento de página. Hoje uma página carrega com uma única
+    leitura do Postgres, sem cálculo nenhum ao vivo; computar sob demanda
+    tornaria o site **mais lento**, não mais leve.
+  - **PWA:** ortogonal às duas ideias acima — dá pra adicionar (manifest +
+    service worker pra cache/instalável) independente de qual das duas
+    formas de geolocalização for adotada, se for adotada.
+  **Status:** ideia registrada, nenhuma decisão tomada — nem a
+  geolocalização-como-atalho (que é viável) foi pedida como
+  implementação ainda.
