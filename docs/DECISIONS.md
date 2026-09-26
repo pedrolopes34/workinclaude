@@ -1022,6 +1022,59 @@ estejam sutilmente errados. Se `check-mapbiomas.yml` falhar num erro de
 
 **Status:** Aberto — aguardando confirmação por execução real.
 
+### 6.22 Coleção 4 do MapBiomas só vai até 2024 — confirmado por execução real (26/09/2026)
+
+**Contexto:** `check-mapbiomas.yml` (disparado antes da seção 6.21, ainda
+com o asset "mensal" original) completou os 2 jobs sem erro fatal — mas
+"sem erro fatal" só quer dizer que o script não quebrou no topo; o
+try/except por município engoliu o erro real. Log real: **todos** os ~322
+municípios de cada grupo falharam com o mesmo erro:
+
+    EEException: Image.select: Invalid band number (40) specified to
+    select. Input only contains 40 bands.
+
+**Diagnóstico:** isso não é sobre qual asset usar (mensal vs. anual) — é
+mais simples e mais concreto: o asset da Coleção 4 tem exatamente 40
+bandas, ou seja, cobre 1985–2024 (`40 - 1 = 39`, índice 0 a 39). O `--ano`
+padrão do script é `date.today().year - 1` = 2025 (hoje é 26/09/2026) —
+**um ano além do que a Coleção 4 cobre.** Isso confirma, por execução real
+e não por suposição, que a Coleção 4 realmente para em 2024 (bate com a
+descrição "1985-2024" já usada nos comentários do código, que aparentemente
+ninguém tinha conferido contra o comportamento real até agora).
+
+**Decisão:** `ULTIMO_ANO_MAPBIOMAS_COLECAO4 = 2024` como nova constante em
+`run_validacao_mapbiomas.py`, usada como valor padrão de `--ano` (no lugar
+de `date.today().year - 1`, que pressupõe uma defasagem de 1 ano que não é
+real pra essa coleção específica).
+
+**Efeito colateral útil:** como essa falha aconteceu com o asset "mensal"
+antigo (pré-seção 6.21), ela é uma evidência A MAIS de que aquele asset
+tem 40 bandas numeradas — ou seja, provavelmente É uma `ee.Image`
+multi-banda como o código sempre assumiu, não uma `ee.ImageCollection`
+como uma busca sugeriu na seção 6.21. Isso não invalida a troca pro asset
+anual (a pergunta ainda é uma agregação anual, então o anual continua
+sendo o certo), mas reduz a certeza de que o "mensal" estivesse
+estruturalmente errado — pode ter sido só o índice de ano, não o asset,
+o problema original. Value de aprender rodando: mesmo uma execução que
+"falha" prova coisas.
+
+**Ruído secundário observado (não corrigido, baixa prioridade):** alguns
+municípios (poucos, espalhados) deram `ConnectTimeout` na API de malhas do
+IBGE (`servicodados.ibge.gov.br`) em vez do erro do GEE — parece
+flakiness/rate-limit da API do IBGE sob muitas chamadas sequenciais, não
+um bug do pipeline. Como o try/except por município já loga e segue, isso
+não trava nada — só significa que alguns municípios ficam sem linha em
+`validacao_mapbiomas` numa dada rodada, resolvido sozinho na próxima
+(idempotente via UPSERT).
+
+**Testado nesta sessão:** só a mudança de valor padrão, sem teste novo
+dedicado (não há teste de CLI/argparse pra esse módulo). 77 testes
+seguem passando.
+
+**Status:** Aberto — corrigido, ainda não confirmado por nova execução
+real (próxima rodada de `check-mapbiomas.yml` testa este fix junto com o
+da seção 6.21).
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)

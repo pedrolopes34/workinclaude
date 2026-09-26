@@ -39,6 +39,10 @@ from pipeline.validacao.mapbiomas import calcular_iou_recall, classificar_confia
 
 ANOS_HISTORICO = 6
 MAPBIOMAS_COLECAO = "Coleção 4"
+# Confirmado por execução real (docs/DECISIONS.md seção 6.22): o asset da
+# Coleção 4 tem exatamente 40 bandas = 1985-2024. Pedir um ano além disso
+# derruba TODOS os municípios com "Invalid band number" — não é suposição.
+ULTIMO_ANO_MAPBIOMAS_COLECAO4 = 2024
 
 
 def inicializar_gee() -> None:
@@ -148,7 +152,12 @@ def _gravar_validacao(conn, codigo_ibge: str, ano: int, resultado: dict) -> None
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--ano", type=int, default=date.today().year - 1, help="Ano da coleção MapBiomas sendo processada.")
+    parser.add_argument(
+        "--ano",
+        type=int,
+        default=ULTIMO_ANO_MAPBIOMAS_COLECAO4,
+        help="Ano da coleção MapBiomas sendo processada (padrão: último ano coberto pela Coleção 4).",
+    )
     parser.add_argument("--pasta-focos", type=Path, required=True)
     parser.add_argument("--grupo", type=int, default=1, help="1-indexado (ex.: 1 ou 2 pra 2 jobs)")
     parser.add_argument("--de-grupos", type=int, default=1)
