@@ -1750,6 +1750,39 @@ produz uma distribuição plausível, não um valor fixo suspeito.
 **Status:** Fechado — validação em escala confirma o fix da seção 6.31 de
 ponta a ponta. Dados já gravados em produção (Neon).
 
+### 6.36 Fonte de título resolvida — Jost substitui AvantGarde (26/09/2026)
+
+**Contexto:** seção 6.34 deixou 3 opções pro Pedro depois do arquivo do
+AvantGarde Std Bold se confirmar corrompido sem conserto. Pedro escolheu a
+opção (b): trocar por uma fonte livre de estilo parecido.
+
+**Decisão:** **Jost**, via `next/font/google`, peso 700 (Bold) só —
+mesma regra de antes, usada só em `<h1>` (e no `<h3>` de destaque da
+página "Quem somos"), nunca em texto corrido. Jost foi preferida à outra
+opção cogitada (Poppins) por ser mais diretamente geométrica/da mesma
+linhagem de Futura e Avant Garde (inspirada na Kabel, tipeface alemã de
+1927) — Poppins também é geométrica, mas com um ar mais "arredondado/UI
+genérico" e muito mais onipresente em produtos de tech, menos parecida
+com a identidade que o Pedro pediu originalmente.
+
+**Implementação:** `layout.tsx` carrega `Jost({variable: "--font-jost",
+weight: "700"})`; `--font-display` (`globals.css`) aponta primeiro pra
+`var(--font-jost)`, com Public Sans como fallback (mesmo padrão de antes,
+sem risco de flash com serif). Os `<h1>`/`<h3>` que usam `font-display`
+trocaram de `font-semibold` (600, herança de quando o fallback era o
+único peso disponível) pra `font-bold` (700, o peso exato carregado do
+Jost) — combinação exata, sem depender de aproximação do navegador.
+
+**Testado:** `document.fonts` confirma `Jost 700 loaded` (sem erro) nas 4
+páginas com `<h1>` (home, município, Quem somos, Como produzimos);
+`font-family`/`font-weight` computados batem (`Jost, ...`, `700`);
+conferido visualmente por screenshot — geométrica, círculos bem marcados
+no "o", nada parecido com o problema do AvantGarde. `npm run lint`: 0
+erros (2 warnings de sempre). `npm run build`: build de produção limpo,
+8 rotas geradas sem erro.
+
+**Status:** Fechado — pendência da seção 6.34/7 resolvida.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)
@@ -1833,14 +1866,7 @@ ponta a ponta. Dados já gravados em produção (Neon).
   **Status:** 3 dos 4 gaps originais resolvidos; o resto é backlog de
   design, não pendência travando nada. Path do artefato original:
   `https://claude.ai/artifact/XUKMwTerRzGjnXJkRhVvrJ`.
-- **Fonte AvantGarde Std Bold não carrega — arquivo do Pedro está
-  corrompido (26/09/2026, ver seção 6.34):** diagnóstico técnico completo
-  e fechado (não é bug do código, é o arquivo `.ttf` mesmo, corrompido em
-  várias tabelas incluindo os glifos). Decisão de como seguir é só do
-  Pedro: (a) conseguir uma cópia legítima do arquivo (compra avulsa,
-  Adobe Fonts/MyFonts, ou alguma biblioteca de fontes institucional da
-  UNESP, se existir); (b) trocar por uma fonte gratuita de estilo
-  parecido — geométrica tipo Futura/Avant Garde — ex. "Jost" ou "Poppins"
-  no Google Fonts (licença livre, OFL); (c) manter Public Sans nos
-  títulos também por ora (é o que está no ar agora) e revisitar depois.
-  **Status:** nenhuma das 3 opções decidida ainda.
+- ~~Fonte AvantGarde Std Bold não carrega~~ — **resolvido (26/09/2026,
+  ver seção 6.36):** Pedro escolheu a opção (b) das 3 propostas na seção
+  6.34 — trocar por fonte livre de estilo parecido. Jost (Google Fonts,
+  geométrica) está no ar nos títulos, peso 700, funcionando sem erro.

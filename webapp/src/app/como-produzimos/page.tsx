@@ -58,7 +58,7 @@ export default function ComoProduzimosPage() {
   return (
     <div className="space-y-10">
       <section className="space-y-3">
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
           De onde vêm esses números
         </h1>
         <p className="max-w-xl text-stone-600 dark:text-stone-400">

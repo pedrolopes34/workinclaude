@@ -142,9 +142,10 @@ foram portadas pro produto real (`/quem-somos`, `/como-produzimos`),
 fechando também o item "Endereço de contato real" que tinha virado `[~]`
 na revisão anterior. Cor de ação revertida pra azul por decisão do Pedro
 e mapa dNBR real adicionado na página de Pitangueiras (`docs/DECISIONS.md`
-seção 6.33/7). Identidade tipográfica dos títulos (fonte AvantGarde que o
-Pedro pediu) fica pendente — arquivo fornecido está corrompido sem
-conserto viável, decisão de como seguir é dele (seção 6.34/7).
+seção 6.33/7). Identidade tipográfica dos títulos **fechada**: o arquivo
+AvantGarde que o Pedro forneceu estava corrompido sem conserto viável
+(seção 6.34); ele escolheu trocar por fonte livre parecida, Jost entrou
+no lugar, peso 700, funcionando sem erro (seção 6.36).
 
 **✅ `check-mapbiomas.yml` corrigido E confirmado em escala real
 (`docs/DECISIONS.md` seções 6.31 e 6.35):** a causa raiz era projeção —

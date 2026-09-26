@@ -25,7 +25,7 @@ export default function QuemSomosPage() {
   return (
     <div className="space-y-10">
       <section className="space-y-3">
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
           Uma pesquisa de graduação, agora aberta ao público
         </h1>
         <p className="max-w-xl text-stone-600 dark:text-stone-400">
@@ -37,7 +37,7 @@ export default function QuemSomosPage() {
       <section className="space-y-4">
         <h2 className="text-sm font-medium text-stone-600">Responsável pelo projeto</h2>
         <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
-          <h3 className="font-display text-xl font-semibold text-foreground">Pedro Lopes de Oliveira</h3>
+          <h3 className="font-display text-xl font-bold text-foreground">Pedro Lopes de Oliveira</h3>
           <p className="mt-1 text-sm text-stone-600">
             Graduando em Engenharia de Biossistemas · UNESP — Faculdade de Ciências e Engenharia
             (Tupã-SP)

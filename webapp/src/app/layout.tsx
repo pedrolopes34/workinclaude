@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Public_Sans } from "next/font/google";
+import { IBM_Plex_Mono, Jost, Public_Sans } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import Link from "next/link";
 import "./globals.css";
@@ -15,6 +15,18 @@ const ibmPlexMono = IBM_Plex_Mono({
   weight: ["400", "500", "600"],
 });
 
+// Fonte de título (h1) — substituta livre (Google Fonts, OFL) pro
+// AvantGarde Std Bold que o Pedro queria: arquivo corrompido, sem
+// conserto viável (docs/DECISIONS.md seção 6.34/6.36). Jost é geométrica,
+// mesma linhagem estética de Futura/Avant Garde (inspirada na Kabel,
+// década de 1920) — mais próxima disso do que Poppins, a outra opção
+// cogitada. Só peso Bold, mesma regra de antes: nunca em texto corrido.
+const jost = Jost({
+  variable: "--font-jost",
+  subsets: ["latin"],
+  weight: "700",
+});
+
 export const metadata: Metadata = {
   title: "Painel de Queimadas SP",
   description:
@@ -28,7 +40,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body className={`${publicSans.variable} ${ibmPlexMono.variable} antialiased flex min-h-screen flex-col`}>
+      <body className={`${publicSans.variable} ${ibmPlexMono.variable} ${jost.variable} antialiased flex min-h-screen flex-col`}>
         <header>
           <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-5">
             <Link href="/" className="flex items-center gap-2.5">

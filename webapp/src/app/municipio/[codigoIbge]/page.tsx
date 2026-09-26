@@ -53,7 +53,7 @@ export default async function MunicipioPage({
       </div>
 
       <header className="space-y-2">
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
           {municipio.nome}
         </h1>
         <dl className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-stone-600">
