@@ -51,15 +51,17 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 - [~] Estados de erro — `src/app/error.tsx` cobre falha genérica de
       renderização/dados; ainda não se aplica a formulários (não existe
       formulário no produto ainda)
-- [~] Auditoria de acessibilidade nível WCAG AA — rodada com axe-core
+- [x] Auditoria de acessibilidade nível WCAG AA — rodada com axe-core
       (Playwright) nas 3 páginas reais (home, detalhe de município, 404);
-      achou 4 violações de contraste, 3 corrigidas direto (`text-stone-500`
-      → `text-stone-600`, cinza secundário genérico, sem cor protegida
-      envolvida). As 3 que sobraram esbarram nas cores fixas do `CLAUDE.md`
-      (`--color-acento` #C17A4E como texto e como fundo com texto branco;
-      selo verde `#5B9E4D` de confiabilidade Alta com texto branco) — não
-      corrigidas de propósito, dependem de decisão do Pedro (ver
-      `docs/DECISIONS.md` seção 6.27)
+      achou 5 violações de contraste no total. 2 corrigidas direto
+      (`text-stone-500` → `text-stone-600`, cinza genérico sem cor
+      protegida). As 3 que esbarravam nas cores fixas do `CLAUDE.md`
+      (`--color-acento` como texto e como fundo com texto branco; selo
+      verde de confiabilidade Alta com texto branco) resolvidas com
+      negrito + texto grande (`text-[19px] font-bold`, brecha do próprio
+      WCAG pra "texto grande" — os hex não mudaram, decisão do Pedro, ver
+      `docs/DECISIONS.md` seção 6.32). **0 violações de `color-contrast`**
+      confirmadas por reexecução real do axe-core.
 
 ## Segurança
 
@@ -123,11 +125,12 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 
 ---
 
-**Contagem atual:** 10 itens feitos, 12 parciais, 11 pendentes — atualizado
+**Contagem atual:** 11 itens feitos, 11 parciais, 11 pendentes — atualizado
 em 26/09/2026: pipeline de produção rodando de verdade pela 1ª vez
 (`ingest-inpe.yml`, `process-sentinel-dnbr.yml`, `audit-anual.yml`
-confirmados por log real), auditoria WCAG AA rodada de verdade no webapp
-(3 de 4 violações corrigidas), Dependabot configurado.
+confirmados por log real), auditoria WCAG AA **fechada** (5 de 5
+violações de contraste corrigidas, seção 6.32), Dependabot configurado
+(falta só o Pedro clicar "Dependabot alerts" em Settings — ver abaixo).
 
 **✅ `check-mapbiomas.yml` corrigido e confirmado por execução real
 (`docs/DECISIONS.md` seção 6.31):** a causa raiz de verdade era projeção

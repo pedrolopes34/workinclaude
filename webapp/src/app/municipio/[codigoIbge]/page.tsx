@@ -40,7 +40,7 @@ export default async function MunicipioPage({
   return (
     <div className="space-y-8">
       <div>
-        <Link href="/" className="text-sm text-acento hover:underline">
+        <Link href="/" className="text-[19px] font-bold text-acento hover:underline">
           ← voltar para a busca
         </Link>
       </div>
@@ -99,7 +99,7 @@ export default async function MunicipioPage({
                   <div className="mb-4 flex items-center justify-between">
                     <span className="text-sm text-stone-600">{v.ano}</span>
                     <span
-                      className={`rounded-full px-3 py-1 text-xs font-medium ${CONFIABILIDADE_STYLE[v.confiabilidade].bg} ${CONFIABILIDADE_STYLE[v.confiabilidade].text}`}
+                      className={`rounded-full px-3 py-1 text-[19px] font-bold ${CONFIABILIDADE_STYLE[v.confiabilidade].bg} ${CONFIABILIDADE_STYLE[v.confiabilidade].text}`}
                     >
                       {CONFIABILIDADE_STYLE[v.confiabilidade].label}
                     </span>

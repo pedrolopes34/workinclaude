@@ -1581,6 +1581,51 @@ de alternativa melhor. Próximo passo: rodar os 645 municípios de verdade
 (`check-mapbiomas.yml` sem `municipio`) e confirmar que a confiabilidade
 varia de forma plausível entre eles.
 
+### 6.32 As 3 combinações de cor do WCAG resolvidas — negrito + texto grande, hex intactos (26/09/2026)
+
+Pedro escolheu a opção "negrito" das 3 propostas na seção 6.27 pras 3
+combinações que sobraram (`--color-acento` como texto e como fundo com
+texto branco; selo verde `#5B9E4D` "Alta" com texto branco).
+
+**Mecânica exata (importante não simplificar demais):** WCAG AA permite
+3:1 de contraste (em vez de 4.5:1) pra "texto grande" — definido como
+≥18pt regular OU **≥14pt negrito** (14pt ≈ 18,67px, não 18px — `text-lg`
+do Tailwind, 18px, fica *abaixo* do limiar; usei `text-[19px]` pra ficar
+inequivocamente acima). As 3 combinações já tinham contraste entre 3,08 e
+3,4 — todas **acima** do mínimo de 3:1, só abaixo do 4,5:1 de texto
+normal. Ou seja: só precisava virar "grande", não precisava mudar
+nenhuma cor. Trocado `text-sm font-medium`/`text-xs font-medium` (14px/500,
+12px/500) por `text-[19px] font-bold` (19px/700) em:
+- 3 botões de fundo `bg-acento` + texto branco (`page.tsx` "Buscar",
+  `not-found.tsx` "Voltar para a busca", `error.tsx` "Tentar de novo").
+- Link "← voltar para a busca" (`municipio/[codigoIbge]/page.tsx`), cor
+  `text-acento` sobre o fundo creme.
+- Selo de confiabilidade (`CONFIABILIDADE_STYLE`, usado em `page.tsx` e
+  `municipio/[codigoIbge]/page.tsx`) — aplicado às **4 variantes**
+  (Alta/Média/Baixa/Insuficiente), não só "Alta": o `className` do selo é
+  compartilhado entre as 4, deixar só "Alta" maior criaria selos de
+  tamanho inconsistente lado a lado na mesma lista, um problema pior que
+  o que estava resolvendo.
+
+**Deliberadamente não tocado:** o "Q" do logo (`layout.tsx`, mesmo par de
+cor `bg-acento`/branco) — texto de logo/marca tem isenção explícita na
+própria especificação do WCAG (Understanding SC 1.4.3: "text that is part
+of a logo or brand name has no minimum contrast requirement"), e
+aumentá-lo pra 19px negrito bagunçaria o círculo de 28px do avatar sem
+necessidade real.
+
+**Testado:** rodei o Playwright + `@axe-core/playwright` de novo (mesmo
+setup da seção 6.27) contra as 3 páginas reais (home, Amparo como
+exemplo de "Alta", 404) — **0 violações de `color-contrast`** (eram 3
+grupos restantes). Confirmado visualmente por screenshot: selos e botões
+ficaram maiores/mais firmes, mas continuam com a mesma paleta de cor
+exata, nada quebrado no layout. `npm run lint`: mesmos 2 warnings
+pré-existentes de sempre, 0 erros novos.
+
+**Status:** Fechado — as 5 violações de contraste do WCAG AA achadas na
+seção 6.27 estão todas resolvidas agora (2 pela troca de cinza da seção
+6.27, 3 por esta seção). Nenhum hex mudou.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)

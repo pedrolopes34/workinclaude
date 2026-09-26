@@ -45,7 +45,7 @@ async function ListaMunicipios({ termo }: { termo?: string }) {
                   </div>
                   {m.confiabilidade ? (
                     <span
-                      className={`rounded-full px-3 py-1 text-xs font-medium ${CONFIABILIDADE_STYLE[m.confiabilidade].bg} ${CONFIABILIDADE_STYLE[m.confiabilidade].text}`}
+                      className={`rounded-full px-3 py-1 text-[19px] font-bold ${CONFIABILIDADE_STYLE[m.confiabilidade].bg} ${CONFIABILIDADE_STYLE[m.confiabilidade].text}`}
                     >
                       {CONFIABILIDADE_STYLE[m.confiabilidade].label}
                     </span>
@@ -108,7 +108,7 @@ export default async function Home({
         />
         <button
           type="submit"
-          className="shrink-0 rounded-xl bg-acento px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-acento-hover"
+          className="shrink-0 rounded-xl bg-acento px-4 py-2 text-[19px] font-bold text-white transition-colors hover:bg-acento-hover"
         >
           Buscar
         </button>

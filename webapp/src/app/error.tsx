@@ -19,7 +19,7 @@ export default function Error({
       </p>
       <button
         onClick={() => reset()}
-        className="mt-2 rounded-xl bg-acento px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-acento-hover"
+        className="mt-2 rounded-xl bg-acento px-4 py-2 text-[19px] font-bold text-white transition-colors hover:bg-acento-hover"
       >
         Tentar de novo
       </button>
