@@ -8,8 +8,10 @@ from pipeline.diagnosticar_focos_inpe import (
     _escapar,
     amostra_da_pesquisa,
     areas_dos_agrupamentos,
+    entradas_do_indice,
     focos_do_recorte_com_satelite,
     numeros_da_pesquisa,
+    resumir_pasta,
     resumo_satelite_por_mes,
 )
 from pipeline.ingest.inpe import carregar_focos_sp
@@ -84,3 +86,20 @@ def test_resumo_satelite_por_mes_conta_referencia_sobre_total():
 def test_escapar_segue_o_formato_de_comando_do_actions():
     assert _escapar("Amostra: agr, área", True) == "Amostra%3A agr%2C área"
     assert _escapar("até 10% | a: b", False) == "até 10%25 | a: b"
+
+
+def test_entradas_do_indice_ignora_ordenacao_pai_e_links_absolutos():
+    html = (
+        '<a href="?C=N;O=D">Name</a><a href="/queimadas/queimadas/focos/">Parent Directory</a>'
+        '<a href="anual/">anual/</a><a href="mensal/">mensal/</a>'
+        '<a href="focos_br_sp_ref_2024.zip">focos_br_sp_ref_2024.zip</a>'
+        '<a href="https://inpe.br">INPE</a><a href="anual/">anual/</a>'
+    )
+    assert entradas_do_indice(html) == ["anual/", "mensal/", "focos_br_sp_ref_2024.zip"]
+
+
+def test_resumir_pasta_mostra_pastas_e_ponta_dos_arquivos():
+    arquivos = [f"focos_br_sp_ref_{ano}.zip" for ano in range(2003, 2011)]
+    texto = resumir_pasta("anual/EstadosBr_sat_ref/SP/", ["sub/"] + arquivos)
+    assert texto.startswith("anual/EstadosBr_sat_ref/SP/ | 1 pastas: sub | 8 arquivos: ")
+    assert "focos_br_sp_ref_2003.zip" in texto and "..." in texto and "focos_br_sp_ref_2010.zip" in texto

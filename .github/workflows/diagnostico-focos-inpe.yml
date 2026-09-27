@@ -7,7 +7,8 @@ name: Diagnóstico dos focos do INPE (por satélite)
 # O sandbox do Claude Code não alcança o INPE; este runner alcança.
 #
 # Dispara em push na branch de desenvolvimento (só quando este arquivo ou o
-# script mudam) e aceita disparo manual depois de mesclado.
+# script mudam) e aceita disparo manual depois de mesclado. Em push, lista
+# as pastas do dataserver do INPE (seção 6.55) — é o diagnóstico em aberto.
 
 on:
   push:
@@ -28,6 +29,9 @@ on:
         required: false
       amostra:
         description: "true = compara os 63 da pesquisa (ago/2024, só satélite de referência) e conta o satélite de referência em 2025-2026 — ignora os campos acima"
+        required: false
+      listar_inpe:
+        description: "true = lista as pastas do dataserver do INPE (onde ficam os arquivos anuais) — ignora os campos acima"
         required: false
 
 jobs:
@@ -53,8 +57,12 @@ jobs:
           ANO_INPUT: ${{ github.event.inputs.ano }}
           MES_INPUT: ${{ github.event.inputs.mes }}
           AMOSTRA_INPUT: ${{ github.event.inputs.amostra }}
+          LISTAR_INPUT: ${{ github.event.inputs.listar_inpe }}
+          EVENTO: ${{ github.event_name }}
         run: |
-          if [ "$AMOSTRA_INPUT" = "true" ]; then
+          if [ "$LISTAR_INPUT" = "true" ] || [ "$EVENTO" = "push" ]; then
+            python -m pipeline.diagnosticar_focos_inpe --listar-inpe
+          elif [ "$AMOSTRA_INPUT" = "true" ]; then
             python -m pipeline.diagnosticar_focos_inpe --amostra
           else
             python -m pipeline.diagnosticar_focos_inpe \

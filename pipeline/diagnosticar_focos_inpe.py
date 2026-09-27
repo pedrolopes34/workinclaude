@@ -2,6 +2,14 @@
 
     python -m pipeline.diagnosticar_focos_inpe --municipio 3539509 --ano 2024 --mes 8
     python -m pipeline.diagnosticar_focos_inpe --amostra
+    python -m pipeline.diagnosticar_focos_inpe --listar-inpe
+
+`--listar-inpe` (docs/DECISIONS.md seção 6.55): percorre os índices de
+pasta do dataserver do INPE a partir de `focos/csv/` e resume o que existe
+em cada pasta. O download mensal não alcança 2018-2023 (todos os meses dão
+404), o que zera o teto histórico do ST-DBSCAN e impede validar esses anos;
+a pesquisa usou `focos_br_sp_ref_AAAA.csv`, um produto anual — a listagem
+mostra onde ele fica, sem adivinhar URL.
 
 `--amostra` (docs/DECISIONS.md seção 6.53): pros 63 municípios da pesquisa,
 recalcula ago/2024 só com o satélite de referência e compara focos,
@@ -212,6 +220,67 @@ def rodar_amostra(pasta_focos: Path) -> None:
         anotar(f"SP {ano}: {SATELITE_REFERENCIA} por mes", resumo_satelite_por_mes(focos_ano))
 
 
+RAIZ_INPE = "https://dataserver-coids.inpe.br/queimadas/queimadas/focos/csv/"
+
+
+def entradas_do_indice(html: str) -> list[str]:
+    """Nomes listados num índice de pasta (autoindex do Apache/nginx), sem
+    os links de ordenação (`?C=N;O=D`), o da pasta pai e links absolutos."""
+    nomes = []
+    for href in re.findall(r'href="([^"]+)"', html):
+        if href.startswith(("?", "/", "#", "..", "http:", "https:", "mailto:")):
+            continue
+        nomes.append(href)
+    return list(dict.fromkeys(nomes))
+
+
+def resumir_pasta(caminho: str, entradas: list[str]) -> str:
+    pastas = [e.rstrip("/") for e in entradas if e.endswith("/")]
+    arquivos = [e for e in entradas if not e.endswith("/")]
+    partes = [f"{caminho or 'csv/'}"]
+    if pastas:
+        partes.append(f"{len(pastas)} pastas: {', '.join(pastas[:30])}{' ...' if len(pastas) > 30 else ''}")
+    if arquivos:
+        amostra = arquivos if len(arquivos) <= 6 else arquivos[:3] + ["..."] + arquivos[-3:]
+        partes.append(f"{len(arquivos)} arquivos: {', '.join(amostra)}")
+    return " | ".join(partes)
+
+
+def listar_inpe(max_nivel: int = 3, max_pastas: int = 60) -> list[str]:
+    """Resumo de cada pasta sob RAIZ_INPE até `max_nivel` de profundidade.
+    Pastas de estado (27 por produto) só entram quando o nome é SP, pra não
+    gastar requisição à toa."""
+    import requests
+
+    resumo = []
+    fila = [(RAIZ_INPE, 0)]
+    visitadas = 0
+    while fila and visitadas < max_pastas:
+        url, nivel = fila.pop(0)
+        visitadas += 1
+        caminho = url.removeprefix(RAIZ_INPE)
+        try:
+            resposta = requests.get(url, timeout=60)
+        except requests.RequestException as e:
+            resumo.append(f"{caminho or 'csv/'} -> {type(e).__name__}")
+            continue
+        if resposta.status_code != 200:
+            resumo.append(f"{caminho or 'csv/'} -> HTTP {resposta.status_code}")
+            continue
+        entradas = entradas_do_indice(resposta.text)
+        resumo.append(resumir_pasta(caminho, entradas))
+        if nivel >= max_nivel:
+            continue
+        for entrada in entradas:
+            if not entrada.endswith("/"):
+                continue
+            nome = entrada.rstrip("/")
+            if len(nome) == 2 and nome.isalpha() and nome.upper() != "SP":
+                continue
+            fila.append((url + entrada, nivel + 1))
+    return resumo
+
+
 def _escapar(texto: str, propriedade: bool) -> str:
     """Escape do formato de comando do Actions (`::notice title=...::msg`)."""
     texto = texto.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
@@ -226,6 +295,7 @@ def anotar(titulo: str, texto: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--amostra", action="store_true", help="Compara os 63 da pesquisa (seção 6.53)")
+    parser.add_argument("--listar-inpe", action="store_true", help="Lista as pastas do dataserver do INPE (seção 6.55)")
     parser.add_argument("--municipio", help="Código IBGE (7 dígitos)")
     parser.add_argument("--ano", type=int)
     parser.add_argument("--mes", type=int)
@@ -234,6 +304,14 @@ def main() -> None:
 
     if args.amostra:
         rodar_amostra(args.pasta_focos)
+        return
+    if args.listar_inpe:
+        resumo = listar_inpe()
+        for linha in resumo:
+            print(linha)
+        # O Actions guarda poucas anotações por passo: junta em blocos.
+        for i in range(0, len(resumo), 8):
+            anotar(f"INPE pastas {i // 8 + 1}", " || ".join(resumo[i : i + 8]))
         return
     if not (args.municipio and args.ano and args.mes):
         parser.error("informe --municipio, --ano e --mes (ou --amostra)")
