@@ -2270,6 +2270,64 @@ não só por amostra/debug. `CHECKLIST.md` atualizado (item "Imagens/
 rasters comprimidos em produção" não depende mais de "conforme o
 pipeline processa cada um" — já processou todos).
 
+### 6.45 Bug real reportado pelo Pedro: mapa dNBR nunca aparecia em nenhum município — corrigido (27/09/2026)
+
+**Contexto:** Pedro testou o site publicado (Olímpia e Pitangueiras) e
+reportou dois problemas: (1) o mapa dNBR nunca aparece, em nenhum
+município; (2) a "Consultar outro período" (seção 6.43) sempre falha com
+"Não foi possível iniciar o cálculo".
+
+**Item 2 não é bug — é a pendência já avisada duas vezes** (seções 6.42/
+6.43): sem o `GITHUB_DISPATCH_TOKEN`, o disparo falha graciosamente por
+design. Passo a passo de configuração passado pro Pedro no chat.
+
+**Item 1 era um bug real, causado por esta própria sessão.** A página de
+município (`municipio/[codigoIbge]/page.tsx`) só procurava
+`dnbr_imagem_url` no `metricas_anuais` do **mesmo ano de uma validação
+MapBiomas** (`metricas.find(m => m.ano === v.ano)`), e `validacao_mapbiomas`
+só cobre até 2024 (Coleção 4, seção 6.22). Mas a partir da seção 6.42/6.44
+desta mesma sessão, `process-sentinel-dnbr.yml` passou a gravar
+`dnbr_imagem_url` sempre no **ano corrente** (2026) — que nunca tem
+validação MapBiomas. Resultado: a busca por ano nunca batia, pra
+**nenhum** dos 645 municípios, incluindo Pitangueiras (cujo fallback
+estático antigo também está dentro do mesmo bloco morto). Eu já tinha
+essa informação toda (sabia que o dNBR grava em 2026, sabia que a
+validação para em 2024) mas não conectei os dois fatos antes de dizer pro
+Pedro "o site já deve estar mostrando mapa real" — deveria ter conferido
+a página renderizada antes de afirmar isso.
+
+**Diagnóstico, não só leitura de código:** reproduzido localmente antes
+de mexer em qualquer linha — subi o Postgres local de novo, apliquei os
+seeds de 2024, inseri manualmente uma linha `metricas_anuais` pra Olímpia
+com `ano=2026` e uma URL de imagem fake (mesma forma exata do dado real
+de produção), rodei o build+server local e confirmei via `curl` que a
+página realmente mostrava "Mapa dNBR ainda não disponível" mesmo com uma
+imagem real existindo no banco — bug confirmado antes do fix, não só
+suposto.
+
+**Fix:** nova função `MapaDnbrAtual`, independente do loop de validação —
+busca `metricas.find(m => m.dnbrImagemUrl)` (a `metricas` já vem ordenada
+`ORDER BY ano DESC`, então isso pega a miniatura mais recente disponível,
+de qualquer ano, sem exigir que bata com um ano de validação). Renderizada
+uma vez, logo abaixo da `ConsultaSobDemanda`, **fora** do bloco
+`!municipio.naAmostra` — agora aparece pros 645 municípios, não só os 63
+validados (mesmo princípio já aplicado à seção 6.43). O bloco de imagem
+antigo, por-ano, dentro de cada card de validação, foi removido (nunca
+mais teria dado real hoje em diante — era estrutural, não um detalhe).
+Fallback estático do Pitangueiras preservado, só realocado pra dentro da
+nova função, como rede de segurança.
+
+**Testado:** reproduzido o bug, aplicado o fix, reconfirmado com o mesmo
+dado sintético — Olímpia agora mostra a imagem real com legenda "Mapa
+dNBR mais recente (2026)"; um município sem nenhum dado (`Adolfo`, fora
+da amostra) mostra a mensagem honesta de indisponível, sem quebrar. A
+seção "Área comparada" (bar chart por ano) e a tabela "Focos de calor e
+agrupamentos" não foram tocadas e continuam corretas (conferido no mesmo
+teste). `npm run lint`/`build` limpos.
+
+**Status:** Fechado — corrigido e validado localmente. Depende do próximo
+deploy na Vercel pra valer em produção.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)

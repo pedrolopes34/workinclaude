@@ -5,6 +5,7 @@ import { getMunicipioDetalhe } from "@/lib/queries";
 import { CONFIABILIDADE_STYLE, formatKm2, formatPct, formatPValor } from "@/lib/format";
 import { InfoTile } from "@/components/InfoTile";
 import { ConsultaSobDemanda } from "@/components/ConsultaSobDemanda";
+import type { MetricasAnuais } from "@/lib/types";
 
 const PRIMEIRO_ANO_VALIDACAO = 2018; // período inicial de validação da pesquisa (docs/DECISIONS.md)
 
@@ -48,11 +49,69 @@ function BarraComparacao({
   );
 }
 
-// Único município com imagem real de mapa dNBR disponível hoje — o
-// pipeline (run_dnbr.py) calcula área direto no servidor do GEE, nunca
-// exportou raster/imagem em produção (docs/DECISIONS.md seção 7). Esta é
-// a imagem real da pesquisa original (ago/2024), não um mock.
+// Fallback: imagem real da pesquisa original (Pitangueiras, ago/2024) —
+// usada só se este município nunca tiver rodado no pipeline de dNBR
+// (docs/DECISIONS.md seção 7/6.40). Na prática já não deveria disparar
+// pra Pitangueiras (tem imagem real do pipeline desde a seção 6.44), mas
+// não custa manter como rede de segurança.
 const CODIGO_IBGE_COM_MAPA_REAL = "3539509"; // Pitangueiras
+
+// Mapa dNBR mais recente — camada operacional (docs/DECISIONS.md seção
+// 1.1/6.14): atualiza mensal/diariamente e sempre grava no ANO CORRENTE,
+// nunca no ano de uma validação MapBiomas (retrospectiva, capada em
+// 2024 — seção 6.22). Por isso busca a miniatura mais recente disponível
+// em qualquer ano de metricas_anuais, em vez de exigir que bata com o ano
+// de alguma validação — a busca antiga fazia isso e o mapa nunca aparecia
+// pra ninguém (bug real reportado pelo Pedro, seção 6.45).
+function MapaDnbrAtual({
+  nomeMunicipio,
+  codigoIbge,
+  metricas,
+}: {
+  nomeMunicipio: string;
+  codigoIbge: string;
+  metricas: MetricasAnuais[];
+}) {
+  const maisRecente = metricas.find((m) => m.dnbrImagemUrl);
+  const imagemUrl =
+    maisRecente?.dnbrImagemUrl ??
+    (codigoIbge === CODIGO_IBGE_COM_MAPA_REAL ? "/dnbr-pitangueiras.png" : null);
+  const rotuloAno = maisRecente ? String(maisRecente.ano) : "ago/2024";
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+      {imagemUrl ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element -- URL vem do R2 (domínio dinâmico), plain <img> evita depender de next.config.ts saber o domínio de antemão */}
+          <img
+            src={imagemUrl}
+            alt={`Mapa de severidade de queimada (dNBR) de ${nomeMunicipio}, ${rotuloAno}, estilo QGIS: verde é baixa severidade (perto de 0,10), do amarelo ao vermelho é severidade alta (até 0,75).`}
+            loading="lazy"
+            className="h-auto w-full"
+          />
+          <div className="flex items-center gap-2 px-3 py-2">
+            <span
+              className="h-2 flex-1 max-w-32 rounded-full"
+              style={{
+                background: "linear-gradient(to right, #1d5e38, #5b9e4d, #d9d94a, #d9a441, #c1442d)",
+              }}
+              aria-hidden="true"
+            />
+            <span className="text-[11px] text-faint">−0,25 a 0,75 (dNBR)</span>
+          </div>
+          <p className="border-t border-border px-3 py-2 text-xs text-muted">
+            Mapa dNBR mais recente ({rotuloAno}) · Sentinel-2/ESA, processado no Google Earth Engine
+          </p>
+        </>
+      ) : (
+        <div className="flex flex-col items-center gap-1 px-4 py-10 text-center text-xs text-muted">
+          <span>Mapa dNBR ainda não disponível para este município</span>
+          <span className="text-faint">aparece assim que o pipeline mensal processar este município</span>
+        </div>
+      )}
+    </section>
+  );
+}
 
 export async function generateMetadata({
   params,
@@ -127,6 +186,12 @@ export default async function MunicipioPage({
 
       <ConsultaSobDemanda codigoIbge={municipio.codigoIbge} />
 
+      <MapaDnbrAtual
+        nomeMunicipio={municipio.nome}
+        codigoIbge={municipio.codigoIbge}
+        metricas={metricas}
+      />
+
       {!municipio.naAmostra ? (
         <div className="rounded-2xl border border-border bg-surface px-4 py-6 text-sm text-muted shadow-sm">
           Este município ainda não está na amostra validada pela pesquisa —
@@ -168,15 +233,6 @@ export default async function MunicipioPage({
           ) : (
             <div className="space-y-4">
               {validacoes.map((v) => {
-                // Prioridade: imagem real gerada pelo pipeline (dnbr_imagem_url,
-                // via R2 — docs/DECISIONS.md seção 6.40) > o único fallback local
-                // legado (Pitangueiras, seção 7) > "ainda não disponível". O
-                // fallback local some sozinho assim que o pipeline gerar uma
-                // miniatura de verdade pra esse código/ano.
-                const imagemUrl =
-                  metricas.find((m) => m.ano === v.ano)?.dnbrImagemUrl ??
-                  (municipio.codigoIbge === CODIGO_IBGE_COM_MAPA_REAL ? "/dnbr-pitangueiras.png" : null);
-
                 return (
                 <div
                   key={v.ano}
@@ -189,41 +245,6 @@ export default async function MunicipioPage({
                     >
                       {CONFIABILIDADE_STYLE[v.confiabilidade].label}
                     </span>
-                  </div>
-
-                  <div className="mb-4 overflow-hidden rounded-xl border border-border bg-background">
-                    {imagemUrl ? (
-                      <>
-                        {/* eslint-disable-next-line @next/next/no-img-element -- URL vem do R2 (domínio só decidido quando o Pedro criar o bucket), plain <img> evita depender de next.config.ts saber o domínio de antemão */}
-                        <img
-                          src={imagemUrl}
-                          alt={`Mapa de severidade de queimada (dNBR) de ${municipio.nome} em ${v.ano}, estilo QGIS: verde é baixa severidade (perto de 0,10), do amarelo ao vermelho é severidade alta (até 0,75).`}
-                          loading="lazy"
-                          className="h-auto w-full"
-                        />
-                        <div className="flex items-center gap-2 px-3 py-2">
-                          <span
-                            className="h-2 flex-1 max-w-32 rounded-full"
-                            style={{
-                              background:
-                                "linear-gradient(to right, #1d5e38, #5b9e4d, #d9d94a, #d9a441, #c1442d)",
-                            }}
-                            aria-hidden="true"
-                          />
-                          <span className="text-[11px] text-faint">−0,25 a 0,75 (dNBR)</span>
-                        </div>
-                        <p className="border-t border-border px-3 py-2 text-xs text-muted">
-                          Mapa dNBR · Sentinel-2/ESA, processado no Google Earth Engine
-                        </p>
-                      </>
-                    ) : (
-                      <div className="flex flex-col items-center gap-1 px-4 py-10 text-center text-xs text-muted">
-                        <span>Mapa dNBR ainda não disponível para este município</span>
-                        <span className="text-faint">
-                          o pipeline hoje calcula a área direto no servidor, sem exportar imagem
-                        </span>
-                      </div>
-                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
