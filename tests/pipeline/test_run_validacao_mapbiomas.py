@@ -12,7 +12,7 @@ from pipeline.run_validacao_mapbiomas import (
     _descrever_validacao_temporal,
     _garantir_coluna_fonte,
     restaurar_amostra_validada,
-    _remover_validacao_automatica,
+    _gravar_insuficiente,
 )
 
 
@@ -98,10 +98,12 @@ def test_restaurar_amostra_validada_reaplica_seed_sem_comentarios():
     assert sql_executado.count("'manual')") == 63
 
 
-def test_remover_validacao_automatica_nunca_apaga_a_amostra_manual():
+def test_gravar_insuficiente_e_explicito_e_nunca_toca_a_amostra_manual():
     conn = MagicMock()
-    _remover_validacao_automatica(conn, "3500204", 2024)
+    _gravar_insuficiente(conn, "3500204", 2024)
     query, params = conn.cursor.return_value.__enter__.return_value.execute.call_args[0]
-    assert query.startswith("DELETE FROM validacao_mapbiomas")
-    assert "fonte = 'automatico'" in query
-    assert params == {"codigo_ibge": "3500204", "ano": 2024}
+    assert query.strip().startswith("INSERT INTO validacao_mapbiomas")
+    assert "'Insuficiente'" in query and "'automatico'" in query
+    assert "interseccao_pct = NULL" in query and "p_valor = NULL" in query
+    assert "WHERE validacao_mapbiomas.fonte != 'manual'" in query
+    assert params["codigo_ibge"] == "3500204" and params["ano"] == 2024

@@ -159,6 +159,11 @@ def rodar_amostra(pasta_focos: Path) -> None:
     agosto_ref = focos[(focos["data_hora"].dt.month == 8) & (focos["satelite"] == SATELITE_REFERENCIA)]
     comparar_amostra(agosto_ref, "Amostra")
 
+    todos_sp = pd.read_csv(SEEDS / "municipios_sp.csv", dtype={"codigo_ibge": str})
+    for ano in (2025, 2026):
+        focos_ano = focos_sp_com_satelite(baixar_focos_ano(ano, pasta_focos), todos_sp)
+        anotar(f"SP {ano}: {SATELITE_REFERENCIA} por mes", resumo_satelite_por_mes(focos_ano))
+
 
 
 def comparar_amostra(agosto_ref: pd.DataFrame, prefixo: str) -> None:
@@ -224,10 +229,6 @@ def comparar_amostra(agosto_ref: pd.DataFrame, prefixo: str) -> None:
         f"{int(((razao_rec - 1).abs() <= 0.05).sum())} a ate 5%",
     )
 
-    todos_sp = pd.read_csv(SEEDS / "municipios_sp.csv", dtype={"codigo_ibge": str})
-    for ano in (2025, 2026):
-        focos_ano = focos_sp_com_satelite(baixar_focos_ano(ano, pasta_focos), todos_sp)
-        anotar(f"SP {ano}: {SATELITE_REFERENCIA} por mes", resumo_satelite_por_mes(focos_ano))
 
 
 RAIZ_INPE = "https://dataserver-coids.inpe.br/queimadas/queimadas/focos/csv/"
@@ -344,7 +345,7 @@ def comparar_ref(pasta_focos: Path) -> None:
     bruto = _ler_csv_focos(caminho)
     anotar(
         "SP ref 2024: arquivo",
-        f"{len(resposta.content) // 1024} KB | {len(bruto)} linhas | colunas {list(bruto.columns)} | "
+        f"{len(resposta.content)} bytes | {len(bruto)} linhas | colunas {list(bruto.columns)} | "
         f"primeira linha {bruto.iloc[0].to_dict()}",
     )
     if "satelite" in bruto.columns:

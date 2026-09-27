@@ -90,3 +90,13 @@ def test_focos_por_municipio_inclui_municipio_sem_nenhum_foco():
     assert pares["3500105"].empty
     assert len(pares["3539509"]) == 2
     assert processar_municipio(pares["3500105"], 2025)["num_focos_calor"] == 0
+
+
+def test_ano_da_pesquisa_preserva_a_linha_dos_63_da_amostra():
+    from pipeline.run_ingest_stdbscan import municipios_a_processar
+
+    municipios = pd.DataFrame(
+        {"codigo_ibge": ["3539509", "3500105"], "nome": ["Pitangueiras", "Adamantina"], "na_amostra": [True, False]}
+    )
+    assert municipios_a_processar(municipios, 2024)["codigo_ibge"].tolist() == ["3500105"]
+    assert municipios_a_processar(municipios, 2025)["codigo_ibge"].tolist() == ["3539509", "3500105"]

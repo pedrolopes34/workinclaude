@@ -155,18 +155,39 @@ def _dominio_em_metros(geom_municipio, epsg_metrico: int):
     return gpd.GeoSeries([geom_municipio], crs="EPSG:4326").to_crs(epsg_metrico).iloc[0]
 
 
-def _remover_validacao_automatica(conn, codigo_ibge: str, ano: int) -> None:
-    """Município que o reprocessamento deixou sem agrupamento no ano: apaga a
-    validação AUTOMÁTICA antiga, que senão ficaria no banco com o resultado
-    de antes (ex.: calculado com todos os satélites, seção 6.53). Sem
-    agrupamento o resultado é "Insuficiente", que por desenho não tem linha
-    aqui (docs/DECISIONS.md seção 1.2). `fonte = 'automatico'` no WHERE: a
-    amostra manual nunca é apagada (seção 6.29)."""
+def _gravar_insuficiente(conn, codigo_ibge: str, ano: int) -> None:
+    """Município sem agrupamento no ano: grava "Insuficiente" explícito, com
+    as métricas NULL (como as 11 da pesquisa — schema.sql), em vez de não ter
+    linha. Assim "sem linha" passa a querer dizer só "ainda não calculado", e
+    a interface mostra a confiabilidade dos 645 (docs/DECISIONS.md seção
+    6.55). Substitui o resultado antigo do mesmo ano (antes era apagado,
+    seção 6.53). `WHERE fonte != 'manual'`: a amostra da pesquisa nunca é
+    tocada (seção 6.29)."""
     with conn.cursor() as cur:
         cur.execute(
-            "DELETE FROM validacao_mapbiomas "
-            "WHERE codigo_ibge = %(codigo_ibge)s AND ano = %(ano)s AND fonte = 'automatico'",
-            {"codigo_ibge": codigo_ibge, "ano": ano},
+            """
+            INSERT INTO validacao_mapbiomas
+                (codigo_ibge, ano, confiabilidade, mapbiomas_colecao, data_comparacao, fonte)
+            VALUES (%(codigo_ibge)s, %(ano)s, 'Insuficiente', %(mapbiomas_colecao)s, %(data_comparacao)s, 'automatico')
+            ON CONFLICT (codigo_ibge, ano) DO UPDATE SET
+                area_mapbiomas_km2 = NULL,
+                interseccao_pct = NULL,
+                p_valor = NULL,
+                recall_pct = NULL,
+                complemento_mb_km2 = NULL,
+                confiabilidade = 'Insuficiente',
+                validacao_temporal = NULL,
+                mapbiomas_colecao = EXCLUDED.mapbiomas_colecao,
+                data_comparacao = EXCLUDED.data_comparacao,
+                atualizado_em = now()
+            WHERE validacao_mapbiomas.fonte != 'manual'
+            """,
+            {
+                "codigo_ibge": codigo_ibge,
+                "ano": ano,
+                "mapbiomas_colecao": MAPBIOMAS_COLECAO,
+                "data_comparacao": date.today(),
+            },
         )
 
 
@@ -349,23 +370,32 @@ def main() -> None:
     else:
         print(f"Grupo {args.grupo}/{args.de_grupos}: {len(municipios)} municípios, ano {args.ano}")
 
+    contagem = {"Alta": 0, "Média": 0, "Baixa": 0, "Insuficiente": 0, "erro": 0}
     for codigo_ibge, nome in municipios.itertuples(index=False):
         focos_municipio = focos_todos_anos[focos_todos_anos["codigo_ibge"] == codigo_ibge]
         try:
             resultado = processar_municipio(codigo_ibge, nome, focos_municipio, args.ano, debug=bool(args.municipio))
         except Exception as e:
+            contagem["erro"] += 1
             print(f"[ERRO] {codigo_ibge} ({nome}): {type(e).__name__}: {e}")
             continue
 
         if resultado is None:
             with get_connection() as conn:
-                _remover_validacao_automatica(conn, codigo_ibge, args.ano)
-            print(f"{codigo_ibge} ({nome}): sem agrupamento no ano — Insuficiente, validação automática antiga removida")
+                _gravar_insuficiente(conn, codigo_ibge, args.ano)
+            contagem["Insuficiente"] += 1
+            print(f"{codigo_ibge} ({nome}): sem agrupamento no ano — Insuficiente")
             continue
 
         with get_connection() as conn:
             _gravar_validacao(conn, codigo_ibge, args.ano, resultado)
+        contagem[resultado["confiabilidade"]] += 1
         print(f"{codigo_ibge} ({nome}): {resultado['confiabilidade']} (IoU={resultado['interseccao_pct']}%, p={resultado['p_valor']})")
+
+    # Resumo legível pela API do Actions sem baixar o log (seção 6.55).
+    resumo = " | ".join(f"{nivel}={n}" for nivel, n in contagem.items())
+    anos_com_focos = sorted(int(a) for a in focos_todos_anos["ano"].unique())
+    print(f"::notice title=Validacao {args.ano} grupo {args.grupo} de {args.de_grupos}::{resumo} | anos de focos lidos: {anos_com_focos}")
 
 
 if __name__ == "__main__":

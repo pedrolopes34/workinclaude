@@ -38,6 +38,18 @@ from pipeline.ingest.inpe import baixar_anos_necessarios, carregar_focos_sp
 from pipeline.stdbscan.core import ParametrosStDbscan, calcular_min_samples, resumir_eventos, rodar_stdbscan
 
 ANOS_HISTORICO = 6  # 2018-2023 pra um alvo de 2024, por exemplo
+# As linhas de 2024 dos 63 da amostra são os números da pesquisa (ago/2024,
+# seed 002) — o reprocessamento dos anos fechados (seção 6.55) nunca as
+# sobrescreve com o ano inteiro automático.
+ANO_DA_PESQUISA = 2024
+
+
+def municipios_a_processar(municipios: pd.DataFrame, ano: int) -> pd.DataFrame:
+    """No ano da pesquisa, tira os municípios da amostra (linha da pesquisa
+    preservada); nos outros anos, todos."""
+    if ano != ANO_DA_PESQUISA:
+        return municipios
+    return municipios[~municipios["na_amostra"]]
 
 
 def calcular_teto_historico(focos_municipio_todos_anos: pd.DataFrame, ano_alvo: int) -> int:
@@ -52,9 +64,9 @@ def calcular_teto_historico(focos_municipio_todos_anos: pd.DataFrame, ano_alvo: 
 
 def _buscar_municipios(conn) -> pd.DataFrame:
     with conn.cursor() as cur:
-        cur.execute("SELECT codigo_ibge, nome FROM municipios ORDER BY codigo_ibge")
+        cur.execute("SELECT codigo_ibge, nome, na_amostra FROM municipios ORDER BY codigo_ibge")
         linhas = cur.fetchall()
-    return pd.DataFrame(linhas, columns=["codigo_ibge", "nome"])
+    return pd.DataFrame(linhas, columns=["codigo_ibge", "nome", "na_amostra"])
 
 
 def _gravar_metricas(conn, codigo_ibge: str, ano: int, resultado: dict) -> None:
@@ -138,7 +150,13 @@ def main() -> None:
             ignore_index=True,
         )
 
-        for codigo_ibge, focos_municipio in focos_por_municipio(municipios, focos_todos_anos):
+        anos_lidos = sorted(int(a) for a in focos_todos_anos["ano"].unique())
+        print(f"Anos de focos lidos (alvo + histórico): {anos_lidos}")
+        alvo = municipios_a_processar(municipios, args.ano)
+        if len(alvo) < len(municipios):
+            print(f"{len(municipios) - len(alvo)} municípios da amostra pulados: {args.ano} é o ano da pesquisa")
+
+        for codigo_ibge, focos_municipio in focos_por_municipio(alvo, focos_todos_anos):
             try:
                 resultado = processar_municipio(focos_municipio, args.ano)
                 _gravar_metricas(conn, codigo_ibge, args.ano, resultado)

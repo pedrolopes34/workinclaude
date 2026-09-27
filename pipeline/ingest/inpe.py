@@ -9,15 +9,20 @@ ATENCAO — premissas da ingestao (docs/DECISIONS.md secao 6.12/6.18):
    `carregar_focos_sp` filtra `SATELITE_REFERENCIA` por padrao — com o
    filtro, os agrupamentos batem com a pesquisa. Aprovado pelo Pedro em
    27/09/2026.
-2. **Nao existe produto anual pronto no dataserver do INPE** — a primeira
-   tentativa desta sessao usava uma URL "anual" que deu 404 real (rodando
-   ingest-inpe.yml de verdade). Busca subsequente achou evidencia real
-   (arquivos indexados publicamente, nao so suposicao) de que o dataserver
-   só vai ate "mensal" (`csv/mensal/Brasil/focos_mensal_br_AAAAMM.csv`,
-   9 arquivos de 2024/2025 confirmados existentes) — nunca "anual". Por
-   isso `baixar_focos_ano` baixa os 12 meses e concatena localmente (ver
-   docs/DECISIONS.md secao 6.18). Ainda nao executado de verdade contra o
-   servidor real nesta sessao — a proxima rodada do workflow confirma.
+2. Produto anual — RESOLVIDO (secao 6.55). A listagem real das pastas do
+   dataserver (diagnosticar_focos_inpe.py --listar-inpe) mostrou que EXISTE
+   produto anual do satelite de referencia: `anual/EstadosBr_sat_ref/SP/
+   focos_br_sp_ref_AAAA.zip` (2003-2024 — o mesmo arquivo da pesquisa; o
+   do Drive do Pedro tem o mesmo tamanho) e `anual/Brasil_sat_ref/
+   focos_br_ref_AAAA.zip` (ate 2025). A tentativa antiga (secao 6.18)
+   errou o caminho. Ja o mensal (`mensal/Brasil/`) so guarda de 2023 em
+   diante, com 2023 em .zip — por isso 2018-2022 davam 404 em todos os
+   meses e 2023 tambem (o pipeline so pedia .csv), o que zerava o teto
+   historico do ST-DBSCAN. `baixar_focos_ano` agora usa o anual de
+   referencia pros anos fechados e o mensal (.csv ou .zip) so no ano
+   corrente ou se o anual ainda nao saiu. Na amostra de ago/2024 o anual
+   da exatamente os mesmos focos que o mensal filtrado pelo satelite de
+   referencia (1.847 nos 63 municipios).
 3. **Nomes de coluna — confirmados por execucao real (26/09/2026, ver
    docs/DECISIONS.md secao 6.20).** A 1a suposicao (`data_pas`, copiada do
    codigo da pesquisa original, que partia de um arquivo ja pre-processado)
@@ -35,15 +40,25 @@ ATENCAO — premissas da ingestao (docs/DECISIONS.md secao 6.12/6.18):
 
 import unicodedata
 import zipfile
+from datetime import date
+from io import BytesIO
 from pathlib import Path
 
 import pandas as pd
 import requests
 
-URL_FOCOS_MENSAL_BR = (
-    "https://dataserver-coids.inpe.br/queimadas/queimadas/focos/csv/mensal/Brasil/"
-    "focos_mensal_br_{ano}{mes:02d}.csv"
+URL_BASE_FOCOS = "https://dataserver-coids.inpe.br/queimadas/queimadas/focos/csv/"
+URL_FOCOS_MENSAL_BR = URL_BASE_FOCOS + "mensal/Brasil/focos_mensal_br_{ano}{mes:02d}.{ext}"
+# Produto anual do satelite de referencia (secao 6.55), em ordem de
+# preferencia: o recorte de SP (o arquivo da pesquisa) e, se o ano ainda nao
+# estiver nele, o do Brasil inteiro (sai antes — tem 2025, o de SP nao).
+URLS_FOCOS_ANUAL_REF = (
+    URL_BASE_FOCOS + "anual/EstadosBr_sat_ref/SP/focos_br_sp_ref_{ano}.zip",
+    URL_BASE_FOCOS + "anual/Brasil_sat_ref/focos_br_ref_{ano}.zip",
 )
+# Colunas que o resto do pipeline le do cache (carregar_focos_sp e o
+# diagnostico) — o anual de referencia e gravado so com elas.
+COLUNAS_CACHE = ["lat", "lon", "data_hora_gmt", "satelite", "municipio", "estado"]
 
 MESES_PERIODO_SECO = {6, 7, 8, 9, 10}
 
@@ -76,33 +91,78 @@ def _concatenar_csvs_mensais(partes_brutas: list[bytes], destino: Path) -> None:
                 saida.write(b"\n")
 
 
-def baixar_focos_ano(ano: int, destino_dir: Path, forcar: bool = False, timeout_s: int = 120) -> Path:
-    """Baixa os 12 CSVs mensais do INPE pro ano e concatena num unico
-    arquivo de cache (mesmo nome de sempre, `focos_anual_br_{ano}.csv`) — o
-    dataserver do INPE nao publica um produto anual pronto, so ate "mensal"
-    (ver aviso no topo do modulo). Mes ainda nao publicado (404 — tipico do
-    mes corrente de um ano em andamento) e pulado, nao e erro; erro so se
+def _conteudo_do_zip(bruto: bytes) -> bytes:
+    with zipfile.ZipFile(BytesIO(bruto)) as z:
+        return z.read(z.namelist()[0])
+
+
+def no_esquema_do_cache(focos: pd.DataFrame) -> pd.DataFrame:
+    """Arquivo anual `_ref_` do INPE (lat, lon, data_pas, estado, municipio,
+    ...) no esquema que o pipeline le do cache (o do produto mensal).
+    `data_pas` e a passagem do satelite em GMT, como `data_hora_gmt` do
+    mensal. O anual so tem o satelite de referencia, entao `satelite` e
+    constante. O do Brasil inteiro fica so com SP, pra nao inchar o cache."""
+    focos = focos.rename(columns={"data_pas": "data_hora_gmt", "latitude": "lat", "longitude": "lon"})
+    if "satelite" not in focos.columns:
+        focos = focos.assign(satelite=SATELITE_REFERENCIA)
+    if "estado" in focos.columns:
+        focos = focos[focos["estado"].apply(padronizar_nome).isin({"SAO PAULO", "SP"})]
+    return focos[[c for c in COLUNAS_CACHE if c in focos.columns]]
+
+
+def _baixar_anual_ref(ano: int, timeout_s: int) -> pd.DataFrame | None:
+    """Focos do ano no produto anual de referencia, ou None se o INPE ainda
+    nao publicou esse ano em nenhum dos dois recortes."""
+    for url in URLS_FOCOS_ANUAL_REF:
+        resposta = requests.get(url.format(ano=ano), timeout=timeout_s)
+        if resposta.status_code == 404:
+            continue
+        resposta.raise_for_status()
+        return no_esquema_do_cache(pd.read_csv(BytesIO(_conteudo_do_zip(resposta.content))))
+    return None
+
+
+def _baixar_mes(ano: int, mes: int, timeout_s: int) -> bytes | None:
+    """CSV bruto de 1 mes do produto mensal — .csv nos meses recentes, .zip
+    nos antigos (2023 inteiro, na listagem de 27/09/2026). None = ainda nao
+    publicado (tipico do mes corrente)."""
+    for ext in ("csv", "zip"):
+        resposta = requests.get(URL_FOCOS_MENSAL_BR.format(ano=ano, mes=mes, ext=ext), timeout=timeout_s)
+        if resposta.status_code == 404:
+            continue
+        resposta.raise_for_status()
+        return resposta.content if ext == "csv" else _conteudo_do_zip(resposta.content)
+    return None
+
+
+def baixar_focos_ano(
+    ano: int, destino_dir: Path, forcar: bool = False, timeout_s: int = 120, hoje: date | None = None
+) -> Path:
+    """Baixa os focos do ano pro cache (`focos_anual_br_{ano}.csv`, nome de
+    sempre, que os scripts leem direto).
+
+    Ano fechado: produto anual do satelite de referencia (secao 6.55), o
+    mesmo arquivo da pesquisa. Ano corrente (ou anual ainda nao publicado):
+    os 12 meses do produto mensal (todos os satelites — carregar_focos_sp
+    filtra o de referencia), pulando mes ainda nao publicado; erro so se
     NENHUM mes do ano estiver disponivel.
 
-    `forcar=True` baixa tudo de novo mesmo se o arquivo ja existir —
-    necessario pro ano corrente (mes corrente ganha focos novos/e
-    republicado todo dia); anos passados sao imutaveis e usam o cache
-    (destino.exists()) sem problema, inclusive entre execucoes do GitHub
-    Actions (docs/DECISIONS.md secao 6.14 — cache de anos anteriores,
-    download fresco so do ano corrente)."""
+    `forcar=True` baixa de novo mesmo com cache — necessario pro ano
+    corrente (o mes corrente ganha focos todo dia); anos passados sao
+    imutaveis e usam o cache, inclusive entre execucoes do GitHub Actions
+    (docs/DECISIONS.md secao 6.14)."""
     destino_dir.mkdir(parents=True, exist_ok=True)
     destino = destino_dir / f"focos_anual_br_{ano}.csv"
     if destino.exists() and not forcar:
         return destino
 
-    partes_brutas = []
-    for mes in range(1, 13):
-        resposta = requests.get(URL_FOCOS_MENSAL_BR.format(ano=ano, mes=mes), timeout=timeout_s)
-        if resposta.status_code == 404:
-            continue  # mes ainda nao publicado (comum no mes corrente de um ano em andamento)
-        resposta.raise_for_status()
-        partes_brutas.append(resposta.content)
+    if ano < (hoje or date.today()).year:
+        anual = _baixar_anual_ref(ano, timeout_s)
+        if anual is not None:
+            anual.to_csv(destino, index=False)
+            return destino
 
+    partes_brutas = [bruto for mes in range(1, 13) if (bruto := _baixar_mes(ano, mes, timeout_s)) is not None]
     if not partes_brutas:
         raise RuntimeError(f"Nenhum mes de {ano} disponivel no INPE (dataserver-coids.inpe.br) ainda.")
 
