@@ -3,7 +3,7 @@ from datetime import datetime
 import pandas as pd
 import pytest
 
-from pipeline.run_ingest_stdbscan import calcular_teto_historico, processar_municipio
+from pipeline.run_ingest_stdbscan import calcular_teto_historico, focos_por_municipio, processar_municipio
 
 
 def _focos(ano: int, mes: int, n: int) -> pd.DataFrame:
@@ -70,3 +70,23 @@ def test_processar_municipio_sem_focos_no_ano_zera_metricas():
     assert resultado["num_focos_calor"] == 0
     assert resultado["num_agrupamentos"] == 0
     assert resultado["area_st_dbscan_km2"] == 0.0
+
+
+def test_focos_por_municipio_inclui_municipio_sem_nenhum_foco():
+    # Sem isso, município sem foco na janela nem ganhava linha e ficava com a
+    # linha antiga no banco (docs/DECISIONS.md seção 6.53).
+    municipios = pd.DataFrame({"codigo_ibge": ["3500105", "3539509"], "nome": ["Adamantina", "Pitangueiras"]})
+    focos = pd.DataFrame(
+        {
+            "codigo_ibge": ["3539509", "3539509"],
+            "latitude": [-21.0, -21.01],
+            "longitude": [-48.2, -48.21],
+            "data_hora": pd.to_datetime(["2025-08-05", "2025-08-05"]),
+            "ano": [2025, 2025],
+        }
+    )
+    pares = dict(focos_por_municipio(municipios, focos))
+    assert set(pares) == {"3500105", "3539509"}
+    assert pares["3500105"].empty
+    assert len(pares["3539509"]) == 2
+    assert processar_municipio(pares["3500105"], 2025)["num_focos_calor"] == 0

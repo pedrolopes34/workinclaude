@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 
 from pipeline.ingest.inpe import (
+    SATELITE_REFERENCIA,
     _concatenar_csvs_mensais,
     baixar_anos_necessarios,
     baixar_focos_ano,
@@ -124,10 +125,10 @@ def test_padronizar_nome_remove_acento_e_normaliza_caixa():
 def test_carregar_focos_sp_cruza_por_nome_e_filtra_estado(tmp_path: Path):
     csv_bruto = tmp_path / "focos_anual_br_2024.csv"
     csv_bruto.write_text(
-        "lat,lon,data_hora_gmt,municipio,estado\n"
-        "-21.00,-48.22,2024-08-05,Pitangueiras,São Paulo\n"
-        "-23.10,-46.60,2024-08-06,Santana de Parnaíba,São Paulo\n"
-        "-15.00,-47.00,2024-08-05,Pitangueiras,Distrito Federal\n"  # nome duplicado em outro estado
+        "lat,lon,data_hora_gmt,municipio,estado,satelite\n"
+        "-21.00,-48.22,2024-08-05,Pitangueiras,São Paulo,AQUA_M-T\n"
+        "-23.10,-46.60,2024-08-06,Santana de Parnaíba,São Paulo,AQUA_M-T\n"
+        "-15.00,-47.00,2024-08-05,Pitangueiras,Distrito Federal,AQUA_M-T\n"  # nome duplicado em outro estado
     )
     municipios_ibge = pd.DataFrame(
         {
@@ -142,3 +143,31 @@ def test_carregar_focos_sp_cruza_por_nome_e_filtra_estado(tmp_path: Path):
     assert set(focos["codigo_ibge"]) == {"3538709", "3547304"}
     assert focos["latitude"].tolist() == [-21.00, -23.10]
     assert focos["periodo_seco"].all()
+
+
+def _csv_com_satelites(tmp_path: Path) -> Path:
+    csv_bruto = tmp_path / "focos_anual_br_2024.csv"
+    csv_bruto.write_text(
+        "lat,lon,data_hora_gmt,municipio,estado,satelite\n"
+        "-21.00,-48.22,2024-08-05 16:00:00,Pitangueiras,São Paulo,AQUA_M-T\n"
+        "-21.01,-48.21,2024-08-05 16:10:00,Pitangueiras,São Paulo,GOES-16\n"
+        "-21.02,-48.20,2024-08-05 04:00:00,Pitangueiras,São Paulo,NOAA-20\n"
+    )
+    return csv_bruto
+
+
+def test_carregar_focos_sp_fica_so_com_o_satelite_de_referencia_por_padrao(tmp_path: Path):
+    # A pesquisa usou só o satélite de referência (arquivo _ref_); o produto
+    # mensal traz todos — docs/DECISIONS.md seção 6.51/6.53.
+    municipios_ibge = pd.DataFrame({"codigo_ibge": ["3539509"], "nome": ["Pitangueiras"]})
+    assert SATELITE_REFERENCIA == "AQUA_M-T"
+    assert len(carregar_focos_sp(_csv_com_satelites(tmp_path), municipios_ibge)) == 1
+    assert len(carregar_focos_sp(_csv_com_satelites(tmp_path), municipios_ibge, satelite=None)) == 3
+
+
+def test_carregar_focos_sp_sem_coluna_satelite_nao_segue_calado(tmp_path: Path):
+    csv_bruto = tmp_path / "focos_anual_br_2024.csv"
+    csv_bruto.write_text("lat,lon,data_hora_gmt,municipio,estado\n-21.00,-48.22,2024-08-05,Pitangueiras,São Paulo\n")
+    municipios_ibge = pd.DataFrame({"codigo_ibge": ["3539509"], "nome": ["Pitangueiras"]})
+    with pytest.raises(ValueError, match="satelite"):
+        carregar_focos_sp(csv_bruto, municipios_ibge)

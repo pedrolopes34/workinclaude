@@ -171,7 +171,11 @@ CREATE TABLE consultas_sob_demanda (
     -- nunca exibido na interface). NULL em consulta antiga/sem IP capturado.
     ip_solicitante      TEXT,
     criado_em           TIMESTAMPTZ NOT NULL DEFAULT now(),
-    concluido_em        TIMESTAMPTZ
+    concluido_em        TIMESTAMPTZ,
+    -- 1 = todos os satélites do INPE (até 27/09/2026); 2 = só o satélite de
+    -- referência, como a pesquisa (docs/DECISIONS.md seção 6.53). Só a
+    -- versão atual é reaproveitada pelo /webapp.
+    versao_metodo       SMALLINT NOT NULL DEFAULT 1
 );
 
 CREATE INDEX idx_consultas_sob_demanda_ip_criado ON consultas_sob_demanda (ip_solicitante, criado_em DESC);

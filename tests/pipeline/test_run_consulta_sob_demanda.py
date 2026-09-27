@@ -5,6 +5,7 @@ import pytest
 
 from pipeline.run_consulta_sob_demanda import (
     MIN_SAMPLES_CONSULTA,
+    VERSAO_METODO,
     _buscar_municipio,
     _garantir_tabela,
     _gravar_resultado,
@@ -90,4 +91,17 @@ def test_gravar_resultado_inclui_todos_os_campos():
     _gravar_resultado(conn, 42, resultado)
     query, params = _cursor_mock(conn).execute.call_args[0]
     assert "status = 'concluido'" in query
-    assert params == {"id": 42, **resultado}
+    assert params == {"id": 42, **resultado, "versao_metodo": VERSAO_METODO}
+
+
+def test_versao_do_metodo_e_a_do_satelite_de_referencia():
+    # 2 = só o satélite de referência (docs/DECISIONS.md seção 6.53); o
+    # /webapp só reaproveita resultado dessa versão.
+    assert VERSAO_METODO == 2
+
+
+def test_garantir_tabela_acrescenta_versao_em_tabela_antiga():
+    conn = MagicMock()
+    _garantir_tabela(conn)
+    chamadas = [c.args[0] for c in _cursor_mock(conn).execute.call_args_list]
+    assert any("ADD COLUMN IF NOT EXISTS versao_metodo" in c for c in chamadas)

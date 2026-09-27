@@ -31,12 +31,17 @@ from pathlib import Path
 import geopandas as gpd
 import pandas as pd
 
-from pipeline.ingest.inpe import _ler_csv_focos, baixar_focos_ano, carregar_focos_sp, padronizar_nome
+from pipeline.ingest.inpe import (
+    SATELITE_REFERENCIA,
+    _ler_csv_focos,
+    baixar_focos_ano,
+    carregar_focos_sp,
+    padronizar_nome,
+)
 from pipeline.common.geo import projetar_para_utm_km, unir_buffers
 from pipeline.stdbscan.core import ParametrosStDbscan, resumir_eventos, rodar_stdbscan
 
 SEEDS = Path(__file__).resolve().parent / "db" / "seeds" / "raw"
-SATELITE_REFERENCIA = "AQUA_M-T"
 
 
 def focos_sp_com_satelite(caminho_csv: Path, municipios_df: pd.DataFrame) -> pd.DataFrame:
@@ -232,8 +237,8 @@ def main() -> None:
 
     anotar(
         "Recorte",
-        f"{nome} ({args.municipio}) {args.mes:02d}/{args.ano}: {len(focos)} focos "
-        f"(carregar_focos_sp, igual à consulta sob demanda: {total_consulta})",
+        f"{nome} ({args.municipio}) {args.mes:02d}/{args.ano}: {len(focos)} focos de todos os satélites | "
+        f"{total_consulta} do satélite de referência (o que o pipeline e a consulta usam)",
     )
     por_satelite = focos["satelite"].value_counts()
     anotar("Focos por satelite", " | ".join(f"{sat}={n}" for sat, n in por_satelite.items()))

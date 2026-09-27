@@ -155,6 +155,21 @@ def _dominio_em_metros(geom_municipio, epsg_metrico: int):
     return gpd.GeoSeries([geom_municipio], crs="EPSG:4326").to_crs(epsg_metrico).iloc[0]
 
 
+def _remover_validacao_automatica(conn, codigo_ibge: str, ano: int) -> None:
+    """Município que o reprocessamento deixou sem agrupamento no ano: apaga a
+    validação AUTOMÁTICA antiga, que senão ficaria no banco com o resultado
+    de antes (ex.: calculado com todos os satélites, seção 6.53). Sem
+    agrupamento o resultado é "Insuficiente", que por desenho não tem linha
+    aqui (docs/DECISIONS.md seção 1.2). `fonte = 'automatico'` no WHERE: a
+    amostra manual nunca é apagada (seção 6.29)."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "DELETE FROM validacao_mapbiomas "
+            "WHERE codigo_ibge = %(codigo_ibge)s AND ano = %(ano)s AND fonte = 'automatico'",
+            {"codigo_ibge": codigo_ibge, "ano": ano},
+        )
+
+
 def _garantir_coluna_fonte(conn) -> None:
     """Migração idempotente — schema.sql é aplicado manualmente no Neon
     (docs/DECISIONS.md seção 6.6), então uma coluna nova só chega lá se um
@@ -343,6 +358,9 @@ def main() -> None:
             continue
 
         if resultado is None:
+            with get_connection() as conn:
+                _remover_validacao_automatica(conn, codigo_ibge, args.ano)
+            print(f"{codigo_ibge} ({nome}): sem agrupamento no ano — Insuficiente, validação automática antiga removida")
             continue
 
         with get_connection() as conn:

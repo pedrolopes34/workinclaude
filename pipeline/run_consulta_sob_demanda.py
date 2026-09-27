@@ -46,6 +46,12 @@ from pipeline.stdbscan.core import ParametrosStDbscan, resumir_eventos, rodar_st
 # não o valor reduzido (2) reservado pra sinal fraco/teste de limite.
 MIN_SAMPLES_CONSULTA = 4
 
+# Versão do método gravada com cada resultado. 1 = todos os satélites do
+# INPE (até 27/09/2026); 2 = só o satélite de referência, como a pesquisa
+# (docs/DECISIONS.md seção 6.53). O /webapp só reaproveita resultados da
+# versão atual (VERSAO_METODO_CONSULTA em webapp/src/lib/consultaSobDemanda.ts).
+VERSAO_METODO = 2
+
 
 def _garantir_tabela(conn) -> None:
     """Migração idempotente — schema.sql é aplicado manualmente no Neon
@@ -71,9 +77,15 @@ def _garantir_tabela(conn) -> None:
                 mensagem_erro       TEXT,
                 ip_solicitante      TEXT,
                 criado_em           TIMESTAMPTZ NOT NULL DEFAULT now(),
-                concluido_em        TIMESTAMPTZ
+                concluido_em        TIMESTAMPTZ,
+                versao_metodo       SMALLINT NOT NULL DEFAULT 1
             )
             """
+        )
+        # Tabela criada antes da seção 6.53 não tem a coluna.
+        cur.execute(
+            "ALTER TABLE consultas_sob_demanda "
+            "ADD COLUMN IF NOT EXISTS versao_metodo SMALLINT NOT NULL DEFAULT 1"
         )
         cur.execute(
             "CREATE INDEX IF NOT EXISTS idx_consultas_sob_demanda_ip_criado "
@@ -128,10 +140,11 @@ def _gravar_resultado(conn, consulta_id: int, resultado: dict) -> None:
                 area_st_dbscan_km2 = %(area_st_dbscan_km2)s,
                 area_dnbr_km2 = %(area_dnbr_km2)s,
                 dnbr_imagem_url = %(dnbr_imagem_url)s,
+                versao_metodo = %(versao_metodo)s,
                 concluido_em = now()
             WHERE id = %(id)s
             """,
-            {"id": consulta_id, **resultado},
+            {"id": consulta_id, **resultado, "versao_metodo": VERSAO_METODO},
         )
 
 

@@ -1,14 +1,14 @@
 """Ingestao dos focos de calor do INPE — portado de 06_08_Focos_de_Calor.ipynb
 (docs/DECISIONS.md secao 6.11).
 
-ATENCAO — premissas aqui ainda nao confirmadas com o Pedro (ver
-docs/DECISIONS.md secao 6.12/6.18, "Pendencias da ingestao INPE"):
-1. URL de download: a pesquisa original usava um arquivo local
-   `focos_br_sp_ref_AAAA.csv` (baixado manualmente); nao sabemos se "_ref_"
-   e o produto "de referencia" do INPE (so o satelite de referencia, mais
-   estavel pra comparacao entre anos) ou so um nome de arquivo local.
-   `URL_FOCOS_MENSAL_BR` abaixo aponta pro produto mensal "todos os
-   satelites" — pode ser cientificamente diferente do "_ref_" original.
+ATENCAO — premissas da ingestao (docs/DECISIONS.md secao 6.12/6.18):
+1. Satelite — RESOLVIDO (secoes 6.51/6.53): a pesquisa usou o arquivo
+   `focos_br_sp_ref_AAAA.csv`, so com o satelite de referencia do INPE.
+   `URL_FOCOS_MENSAL_BR` abaixo traz TODOS os satelites (em Pitangueiras,
+   ago/2024: 1.588 focos contra 95 da pesquisa, 100 do AQUA_M-T), entao
+   `carregar_focos_sp` filtra `SATELITE_REFERENCIA` por padrao — com o
+   filtro, os agrupamentos batem com a pesquisa. Aprovado pelo Pedro em
+   27/09/2026.
 2. **Nao existe produto anual pronto no dataserver do INPE** — a primeira
    tentativa desta sessao usava uma URL "anual" que deu 404 real (rodando
    ingest-inpe.yml de verdade). Busca subsequente achou evidencia real
@@ -46,6 +46,10 @@ URL_FOCOS_MENSAL_BR = (
 )
 
 MESES_PERIODO_SECO = {6, 7, 8, 9, 10}
+
+# Satelite de referencia do INPE (Aqua/MODIS, passagem da tarde) — o mesmo
+# do arquivo `_ref_` da pesquisa (docs/DECISIONS.md secao 6.53).
+SATELITE_REFERENCIA = "AQUA_M-T"
 
 
 def padronizar_nome(texto: str) -> str:
@@ -140,13 +144,27 @@ def _ler_csv_focos(caminho: Path) -> pd.DataFrame:
     return pd.read_csv(caminho)
 
 
-def carregar_focos_sp(caminho_csv: Path, municipios_ibge: pd.DataFrame) -> pd.DataFrame:
+def carregar_focos_sp(
+    caminho_csv: Path, municipios_ibge: pd.DataFrame, satelite: str | None = SATELITE_REFERENCIA
+) -> pd.DataFrame:
     """Le o CSV bruto do INPE (Brasil inteiro ou ja filtrado) e devolve so os
     focos de SP, com codigo_ibge/municipio_oficial casados por nome
     normalizado. `municipios_ibge` precisa ter as colunas codigo_ibge e nome
     (consultar da tabela `municipios` do banco, nao a API do IBGE — ver
-    docs/DECISIONS.md secao 6.2 sobre o bloqueio de rede da API do IBGE)."""
+    docs/DECISIONS.md secao 6.2 sobre o bloqueio de rede da API do IBGE).
+
+    `satelite`: so os focos desse satelite (padrao: o de referencia, como na
+    pesquisa — secao 6.53). `None` mantem todos, so pra diagnostico. Sem a
+    coluna `satelite` no CSV, levanta erro em vez de seguir com todos os
+    satelites calado — foi exatamente esse o problema da secao 6.51."""
     focos = _ler_csv_focos(caminho_csv)
+    if satelite is not None:
+        if "satelite" not in focos.columns:
+            raise ValueError(
+                f"CSV do INPE sem a coluna 'satelite' ({caminho_csv}) — nao da pra filtrar o "
+                f"satelite de referencia {satelite}."
+            )
+        focos = focos[focos["satelite"] == satelite]
 
     coluna_estado = next((c for c in ("estado", "uf", "state") if c in focos.columns), None)
     if coluna_estado is not None:

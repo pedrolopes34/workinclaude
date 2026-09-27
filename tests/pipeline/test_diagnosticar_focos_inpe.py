@@ -29,8 +29,10 @@ def test_recorte_com_satelite_bate_com_o_recorte_da_consulta(tmp_path: Path):
 
     focos = focos_do_recorte_com_satelite(csv_bruto, municipio_df, mes=8)
 
-    consulta = carregar_focos_sp(csv_bruto, municipio_df)
-    assert len(focos) == int((consulta["mes"] == 8).sum()) == 2
+    todos = carregar_focos_sp(csv_bruto, municipio_df, satelite=None)
+    assert len(focos) == int((todos["mes"] == 8).sum()) == 2
+    so_referencia = carregar_focos_sp(csv_bruto, municipio_df)
+    assert int((so_referencia["mes"] == 8).sum()) == 1
     assert sorted(focos["satelite"]) == ["AQUA_M-T", "GOES-16"]
     assert {"latitude", "longitude", "data_hora"} <= set(focos.columns)
 

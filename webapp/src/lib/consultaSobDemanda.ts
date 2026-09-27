@@ -11,6 +11,12 @@ import type { ConsultaSobDemanda } from "./types";
 // docs/DECISIONS.md seção 7) — lançado só pra 2024 em diante por ora.
 export const PRIMEIRO_ANO_CONSULTA = 2024;
 export const MAX_CONSULTAS_POR_HORA = 5;
+// Só reaproveita resultado calculado com o método atual: 2 = só o satélite de
+// referência do INPE, como a pesquisa (docs/DECISIONS.md seção 6.53). Os
+// resultados antigos (1 = todos os satélites) ficam no banco, mas um pedido
+// novo pro mesmo mês recalcula. Em sincronia com VERSAO_METODO em
+// pipeline/run_consulta_sob_demanda.py.
+export const VERSAO_METODO_CONSULTA = 2;
 
 const GITHUB_OWNER = "pedrolopes34";
 const GITHUB_REPO = "workinclaude";
@@ -66,8 +72,14 @@ export async function garantirTabelaConsultas(): Promise<void> {
       mensagem_erro       TEXT,
       ip_solicitante      TEXT,
       criado_em           TIMESTAMPTZ NOT NULL DEFAULT now(),
-      concluido_em        TIMESTAMPTZ
+      concluido_em        TIMESTAMPTZ,
+      versao_metodo       SMALLINT NOT NULL DEFAULT 1
     )
+  `;
+  // Tabela criada antes da seção 6.53 não tem a coluna.
+  await sql`
+    ALTER TABLE consultas_sob_demanda
+    ADD COLUMN IF NOT EXISTS versao_metodo SMALLINT NOT NULL DEFAULT 1
   `;
   await sql`
     CREATE INDEX IF NOT EXISTS idx_consultas_sob_demanda_ip_criado
@@ -101,6 +113,7 @@ export async function buscarConsultaConcluida(
     SELECT ${COLUNAS_CONSULTA}
     FROM consultas_sob_demanda
     WHERE codigo_ibge = ${codigoIbge} AND ano = ${ano} AND mes = ${mes} AND status = 'concluido'
+      AND versao_metodo = ${VERSAO_METODO_CONSULTA}
     ORDER BY criado_em DESC
     LIMIT 1
   `;

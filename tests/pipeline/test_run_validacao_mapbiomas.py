@@ -12,6 +12,7 @@ from pipeline.run_validacao_mapbiomas import (
     _descrever_validacao_temporal,
     _garantir_coluna_fonte,
     restaurar_amostra_validada,
+    _remover_validacao_automatica,
 )
 
 
@@ -95,3 +96,12 @@ def test_restaurar_amostra_validada_reaplica_seed_sem_comentarios():
     assert "Gerado por generate_seed_sql.py" not in sql_executado
     assert "INSERT INTO validacao_mapbiomas" in sql_executado
     assert sql_executado.count("'manual')") == 63
+
+
+def test_remover_validacao_automatica_nunca_apaga_a_amostra_manual():
+    conn = MagicMock()
+    _remover_validacao_automatica(conn, "3500204", 2024)
+    query, params = conn.cursor.return_value.__enter__.return_value.execute.call_args[0]
+    assert query.startswith("DELETE FROM validacao_mapbiomas")
+    assert "fonte = 'automatico'" in query
+    assert params == {"codigo_ibge": "3500204", "ano": 2024}

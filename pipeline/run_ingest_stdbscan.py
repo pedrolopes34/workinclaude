@@ -79,6 +79,18 @@ def _gravar_metricas(conn, codigo_ibge: str, ano: int, resultado: dict) -> None:
         )
 
 
+def focos_por_municipio(municipios: pd.DataFrame, focos_todos_anos: pd.DataFrame):
+    """(codigo_ibge, focos) pra TODOS os municípios, inclusive os sem nenhum
+    foco (DataFrame vazio). Antes o loop era por groupby dos focos, e
+    município sem foco nenhum na janela nem ganhava linha — ficava com a
+    linha antiga no banco. Com o filtro do satélite de referência (seção
+    6.53) isso viraria dado velho de "todos os satélites"."""
+    por_codigo = dict(tuple(focos_todos_anos.groupby("codigo_ibge")))
+    vazio = focos_todos_anos.iloc[0:0]
+    for codigo_ibge in municipios["codigo_ibge"]:
+        yield codigo_ibge, por_codigo.get(codigo_ibge, vazio)
+
+
 def processar_municipio(focos_municipio_todos_anos: pd.DataFrame, ano_alvo: int) -> dict:
     """ST-DBSCAN de um municipio pro ano alvo inteiro (nao um mes especifico
     — docs/DECISIONS.md secao 6.13), com min_samples decidido pela formula
@@ -126,7 +138,7 @@ def main() -> None:
             ignore_index=True,
         )
 
-        for codigo_ibge, focos_municipio in focos_todos_anos.groupby("codigo_ibge"):
+        for codigo_ibge, focos_municipio in focos_por_municipio(municipios, focos_todos_anos):
             try:
                 resultado = processar_municipio(focos_municipio, args.ano)
                 _gravar_metricas(conn, codigo_ibge, args.ano, resultado)
