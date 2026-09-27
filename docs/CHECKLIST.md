@@ -85,7 +85,12 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 
 - [x] HTTPS/TLS — automático pela Vercel desde o 1º deploy em produção
       (26/09/2026, `docs/DECISIONS.md` seção 6.37)
-- [ ] Rate limiting na API
+- [~] Rate limiting na API — **existe** pra `POST /api/consultas`
+      (consulta sob demanda, `docs/DECISIONS.md` seção 6.43: 5/hora por
+      IP, verificado contra o banco, confirmado por execução real). A
+      `/api` REST externa em si (`/api`) ainda não foi implementada
+      (segue `[ ]` na seção de documentação abaixo) — quando for, precisa
+      da sua própria política
 - [x] Proteção contra injeção — conferido 26/09/2026: `webapp/src/lib/queries.ts`
       usa só template tagged do `postgres.js` (`sql\`... ${valor}\``, parametriza
       sozinho), inclusive no fragmento dinâmico da busca por nome — sem
@@ -100,15 +105,18 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 
 ## Testes e operação
 
-- [~] Testes automatizados — 88 testes `pytest` cobrindo o núcleo do
+- [~] Testes automatizados — 110 testes `pytest` cobrindo o núcleo do
       `/pipeline` (ST-DBSCAN, fórmula de `min_samples` regredida contra os
       12 casos reais, ingestão INPE incluindo a concatenação mensal→anual,
-      dNBR, IoU/permutação/confiabilidade regredida contra os 5 exemplos
+      dNBR incluindo a janela histórica da consulta sob demanda, IoU/
+      permutação/confiabilidade regredida contra os 5 exemplos
       documentados, validação de campo e coerção de tipo da auditoria
       anual, proteção da amostra manual e diagnóstico de geometria da
       validação MapBiomas), com CI/CD real (`.github/workflows/tests.yml`,
       roda a cada push/PR que toque `pipeline/` ou `tests/`) — falta só
-      testes do `/webapp`
+      testes automatizados do `/webapp` (as rotas de consulta sob demanda,
+      `docs/DECISIONS.md` seção 6.43, foram validadas manualmente contra
+      Postgres real nesta sessão, não por suíte automatizada)
 - [ ] Ambiente de staging separado de produção
 - [ ] Monitoramento de erros em produção
 - [ ] Backup do banco espacial (Neon) e dos GeoTIFFs (Cloudflare R2)
@@ -148,7 +156,26 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 
 ---
 
-**Contagem atual:** 17 itens feitos, 10 parciais, 8 pendentes —
+**Contagem atual:** 17 itens feitos, 11 parciais, 7 pendentes —
+atualizado em 27/09/2026: rate limiting deixou de ser `[ ]` e virou `[~]`
+(existe pra a rota nova de consulta sob demanda, ver abaixo); testes
+pytest subiram de 88 para 110.
+
+**Consulta sob demanda — município+ano+mês calculado ao vivo
+(`docs/DECISIONS.md` seção 6.43, 27/09/2026):** funcionalidade nova
+pedida pelo Pedro — o visitante escolhe um mês já encerrado (2024–2026;
+2018–2023 mostra "histórico ainda não integrado") e o sistema roda
+ST-DBSCAN + dNBR na hora, via `workflow_dispatch` do GitHub Actions
+(reaproveita o `/pipeline` e os secrets já existentes, sem infraestrutura
+nova). Tabela `consultas_sob_demanda` nunca sobrescreve `metricas_anuais`.
+Validado de ponta a ponta contra Postgres real nesta sessão (primeira vez
+que um Postgres+PostGIS local foi montado aqui) — achou e corrigiu 3 bugs
+reais (id BIGSERIAL virando string no JSON, formato de resposta
+inconsistente, `.gitignore` bloqueando `.env.example`). Falta só o Pedro
+criar o `GITHUB_DISPATCH_TOKEN` (fine-grained PAT do GitHub) pra
+funcionar em produção — sem ele, a funcionalidade falha graciosamente
+(mensagem de erro clara, nunca quebra o resto do site).
+
 atualizado em 26/09/2026: site publicado em produção
 (`workinclaude.vercel.app`, seção 6.37 — HTTPS fecha sozinho), proteção
 contra SQL injection confirmada já existente, restyle "vidro" completo

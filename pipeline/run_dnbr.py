@@ -159,6 +159,25 @@ def janela_mes_anterior(hoje: date) -> tuple[tuple[str, str], tuple[str, str]]:
     return janela_antes, janela_depois
 
 
+def janela_mes_especifico(ano: int, mes: int) -> tuple[tuple[str, str], tuple[str, str]]:
+    """Mesma ideia de janela_mes_anterior (mês anterior inteiro vs. mês
+    alvo inteiro), mas ancorada num (ano, mes) histórico específico em vez
+    de date.today() — usada pela consulta sob demanda (docs/DECISIONS.md
+    seção 6.43, run_consulta_sob_demanda.py), nunca pelo cron mensal
+    (process-sentinel-dnbr.yml continua em janela_mes_anterior, sempre
+    relativo a agora). Diferença deliberada: como o mês alvo aqui já
+    terminou de verdade (validado pelo chamador — nunca o mês corrente),
+    a janela "depois" é o mês inteiro, não só "até hoje"."""
+    primeiro_dia_mes_alvo = date(ano, mes, 1)
+    ultimo_dia_mes_anterior = primeiro_dia_mes_alvo - timedelta(days=1)
+    primeiro_dia_mes_anterior = ultimo_dia_mes_anterior.replace(day=1)
+    primeiro_dia_proximo_mes = date(ano + 1, 1, 1) if mes == 12 else date(ano, mes + 1, 1)
+
+    janela_antes = (primeiro_dia_mes_anterior.isoformat(), primeiro_dia_mes_alvo.isoformat())
+    janela_depois = (primeiro_dia_mes_alvo.isoformat(), primeiro_dia_proximo_mes.isoformat())
+    return janela_antes, janela_depois
+
+
 def calcular_area_queimada_km2(dnbr_imagem, area, scale: int = 20) -> float:
     import ee
 

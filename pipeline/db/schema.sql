@@ -1,6 +1,7 @@
 -- Painel de Queimadas SP — schema do banco (Postgres + PostGIS)
 --
--- 5 tabelas + 1 view, conforme docs/DECISIONS.md secao 3. Decisoes de
+-- 6 tabelas + 1 view (5 + consultas_sob_demanda, secao 6.43 — ver
+-- docs/DECISIONS.md). Decisoes de
 -- coluna que nao estavam explicitas em docs/DECISIONS.md no momento da
 -- implementacao (valores do enum de status_processamento, SRID de geom,
 -- logica de fallback da view ano_ativo) estao comentadas inline e
@@ -146,6 +147,37 @@ CREATE TABLE auditorias_anuais (
 CREATE INDEX idx_auditorias_anuais_ano ON auditorias_anuais (ano_referencia DESC);
 
 COMMENT ON TABLE auditorias_anuais IS 'Log interno da auditoria anual (audit-anual.yml, executado manualmente pelo Pedro 1x/ano). Corrige dado historico e avanca ano_ativo. Nunca exposto na interface publica (docs/DECISIONS.md secao 2.5).';
+
+-- =========================================================================
+-- 6. consultas_sob_demanda (visitante escolhe municipio+ano+mes ao vivo)
+-- =========================================================================
+-- Diferente de metricas_anuais (agregado ANUAL, pipeline automatico): aqui o
+-- visitante do /webapp escolhe um mes especifico e o calculo roda sob
+-- demanda (GitHub Actions, docs/DECISIONS.md secao 6.43) — nunca sobrescreve
+-- metricas_anuais, que continua sendo o dado anual oficial/auditado.
+CREATE TABLE consultas_sob_demanda (
+    id                  BIGSERIAL PRIMARY KEY,
+    codigo_ibge         CHAR(7) NOT NULL REFERENCES municipios (codigo_ibge),
+    ano                 SMALLINT NOT NULL,
+    mes                 SMALLINT NOT NULL CHECK (mes BETWEEN 1 AND 12),
+    status              TEXT NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente', 'processando', 'concluido', 'erro')),
+    num_focos_calor     INT,
+    num_agrupamentos    INT,
+    area_st_dbscan_km2  NUMERIC(10, 2),
+    area_dnbr_km2       NUMERIC(10, 2),
+    dnbr_imagem_url     TEXT,
+    mensagem_erro       TEXT,
+    -- IP de quem pediu (nao e dado pessoal sensivel, so limite de taxa —
+    -- nunca exibido na interface). NULL em consulta antiga/sem IP capturado.
+    ip_solicitante      TEXT,
+    criado_em           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    concluido_em        TIMESTAMPTZ
+);
+
+CREATE INDEX idx_consultas_sob_demanda_ip_criado ON consultas_sob_demanda (ip_solicitante, criado_em DESC);
+CREATE INDEX idx_consultas_sob_demanda_municipio_periodo ON consultas_sob_demanda (codigo_ibge, ano, mes, status);
+
+COMMENT ON TABLE consultas_sob_demanda IS 'Fato: consulta ad-hoc de 1 municipio x 1 mes, disparada pelo visitante do /webapp e calculada sob demanda via GitHub Actions. min_samples fixo em 4 (nao usa a formula de anomalia anual de calcular_min_samples, que nao se aplica a um recorte mensal). Sem confiabilidade/MapBiomas — so ST-DBSCAN + dNBR.';
 
 -- =========================================================================
 -- view: ano_ativo (janela de evolucao, derivada — nao e 6a tabela)

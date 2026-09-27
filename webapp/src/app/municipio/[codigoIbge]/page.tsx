@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getMunicipioDetalhe } from "@/lib/queries";
 import { CONFIABILIDADE_STYLE, formatKm2, formatPct, formatPValor } from "@/lib/format";
 import { InfoTile } from "@/components/InfoTile";
+import { ConsultaSobDemanda } from "@/components/ConsultaSobDemanda";
 
 const PRIMEIRO_ANO_VALIDACAO = 2018; // período inicial de validação da pesquisa (docs/DECISIONS.md)
 
@@ -123,6 +124,8 @@ export default async function MunicipioPage({
           )}
         </dl>
       </header>
+
+      <ConsultaSobDemanda codigoIbge={municipio.codigoIbge} />
 
       {!municipio.naAmostra ? (
         <div className="rounded-2xl border border-border bg-surface px-4 py-6 text-sm text-muted shadow-sm">

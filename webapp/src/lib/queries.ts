@@ -51,6 +51,11 @@ export async function contarMunicipios(): Promise<{
   return row;
 }
 
+export async function municipioExiste(codigoIbge: string): Promise<boolean> {
+  const [row] = await sql`SELECT 1 FROM municipios WHERE codigo_ibge = ${codigoIbge}`;
+  return row !== undefined;
+}
+
 // cache() memoiza por requisicao — generateMetadata e a page chamam esta
 // funcao com o mesmo codigoIbge e reaproveitam a mesma consulta ao banco.
 export const getMunicipioDetalhe = cache(async function getMunicipioDetalhe(

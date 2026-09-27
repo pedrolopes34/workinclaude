@@ -2135,6 +2135,111 @@ só `conclusion`, lição da seção 6.22) fica pro próximo check desta sessão
 ST-DBSCAN 2026 não precisou de ação: já mantido corrente pelo cron diário
 existente.
 
+### 6.43 Consulta sob demanda — visitante escolhe município+ano+mês e o método roda ao vivo (27/09/2026)
+
+**Contexto:** Pedro pediu uma funcionalidade nova, bem maior que um ajuste
+de tela: o visitante escolhe município + ano (2018–2026, "com
+limitações") + mês, e o sistema roda ST-DBSCAN + dNBR **na hora**, só pra
+esse recorte — diferente de tudo que existia até aqui (`/webapp` só lia
+resultado pré-calculado pelo pipeline em lote). Duas decisões de
+arquitetura, ambas confirmadas pelo Pedro antes de codar:
+
+1. **Onde o cálculo roda:** GitHub Actions (`workflow_dispatch`), não um
+   serviço dedicado novo (Cloud Run etc.) — reaproveita 100% do
+   `/pipeline` Python e dos secrets já configurados, ao custo de ~1-4min
+   de latência por consulta (fila+startup do runner) em vez de resposta
+   instantânea.
+2. **Faixa de anos:** lançado já pra 2024–2026 (ST-DBSCAN via INPE
+   confirmado funcionando nesses anos, seção 6.18–6.20); 2018–2023 mostra
+   "histórico ainda não integrado" em vez de travar tudo até o
+   BDQueimadas ser resolvido (pendência separada, seção 7).
+
+**Achado técnico antes de codar, que mudou o escopo:** `run_dnbr.py`
+calculava a janela Sentinel-2 sempre a partir de `date.today()` — rodar
+pra um mês passado gravaria o dNBR de **hoje** rotulado como se fosse
+daquele mês antigo (dado errado, não "indisponível"). ST-DBSCAN não tinha
+esse problema (já processa o ano pedido de verdade via CSV histórico do
+INPE). **Decisão do Pedro:** por ora, dNBR sob demanda só funciona pra mês
+já encerrado (validado no `/webapp` e de novo no pipeline) — não existe
+"escolher o mês corrente", que eliminaria a ambiguidade de qualquer jeito.
+
+**Implementado:**
+- `pipeline/db/schema.sql` — 6ª tabela, `consultas_sob_demanda`
+  (município×ano×mês, status pendente/processando/concluido/erro,
+  resultado ST-DBSCAN+dNBR, `ip_solicitante` pra limite de taxa). Nunca
+  escreve em `metricas_anuais` (que continua sendo o dado anual oficial).
+- `pipeline/run_dnbr.py::janela_mes_especifico(ano, mes)` — mesma ideia de
+  `janela_mes_anterior`, mas ancorada num mês histórico específico (mês
+  alvo inteiro como "depois", não "até hoje"). `processar_municipio` foi
+  reaproveitado **sem nenhuma mudança** — só troca a janela recebida.
+- `pipeline/run_consulta_sob_demanda.py` (novo CLI) — filtra focos por
+  município+mês (a coluna `mes` já existia em `carregar_focos_sp`),
+  ST-DBSCAN com `min_samples=4` **fixo** (não a fórmula de anomalia anual
+  de `calcular_min_samples` — não se aplica a um recorte de 1 mês só;
+  simplificação desta sessão, não pedida explicitamente). Migração
+  idempotente da tabela (mesmo padrão de `_garantir_coluna_fonte`), já
+  que desta vez é o `/webapp` quem escreve a primeira linha, antes do
+  pipeline rodar.
+- `.github/workflows/consulta-sob-demanda.yml` — só `workflow_dispatch`
+  (nunca `schedule`), mesmos secrets de `process-sentinel-dnbr.yml`.
+- `/webapp`: `POST /api/consultas` (valida período, checa se já existe
+  resultado igual pra reaproveitar sem gastar cota de novo, checa limite
+  de 5 consultas/hora por IP, insere linha `pendente`, dispara o workflow
+  via API do GitHub) e `GET /api/consultas/[id]` (polling). Componente
+  `ConsultaSobDemanda` (client component) embutido em
+  `/municipio/[codigoIbge]`, **fora** do bloco "está na amostra" — funciona
+  pra qualquer um dos 645 municípios, não só os 63 validados, já que não
+  depende do MapBiomas.
+
+**3 bugs reais achados testando de verdade contra Postgres local (não só
+lendo o código — subi um Postgres 16+PostGIS neste sandbox pela primeira
+vez nesta sessão, apliquei schema+seeds, rodei o build de produção e
+bati com `curl` em cada rota):**
+1. `id` (BIGSERIAL) volta como **string** do driver `postgres.js`, não
+   number — `"id":"1"` no JSON, quebrando o tipo declarado. Corrigido com
+   `id::int AS id` (nunca teremos 2 bilhões de consultas).
+2. A resposta de "consulta criada" não incluía os campos nulos
+   (`numFocosCalor` etc.), só a de reaproveitamento — inconsistente com o
+   tipo `ConsultaSobDemanda`. Corrigido pra sempre devolver o formato
+   completo.
+3. `webapp/.gitignore` tinha `.env*` sem exceção — bloquearia
+   `webapp/.env.example` (que nunca existia antes desta sessão, apesar de
+   `db.ts` já instruir "copie .env.example"). Adicionado `!.env.example`.
+
+**Cenários confirmados por execução real (curl contra servidor Next.js
+local, Postgres 16+PostGIS local, 645 municípios via seed):** mês futuro
+rejeitado, ano fora de 2024–2026 rejeitado (mensagem já usa o ano corrente
+dinamicamente), município inexistente → 404, disparo sem
+`GITHUB_DISPATCH_TOKEN` → linha gravada como `erro` com mensagem limpa +
+502 (nunca fica "pendente" pra sempre), polling por id (existente/
+inexistente/inválido), limite de taxa (5 OK, 6ª vira 429, e persiste
+depois de reiniciar o servidor — é no banco, não em memória), consulta
+repetida reaproveita o resultado **sem contar no limite de taxa**.
+
+**Não executável nesta sessão (mesma limitação de sempre — GEE e o
+disparo real do GitHub Actions só respondem a partir da rede/credenciais
+do Pedro):** o caminho completo ST-DBSCAN+dNBR rodando de verdade dentro
+do `consulta-sob-demanda.yml` a partir de um disparo real do `/webapp`.
+
+**Pendência externa, só o Pedro resolve:** criar um **fine-grained PAT do
+GitHub** (permissão "Actions: Read and write", só neste repositório) e
+configurar `GITHUB_DISPATCH_TOKEN` nas variáveis de ambiente do projeto na
+Vercel. Sem isso, `POST /api/consultas` sempre grava a linha como `erro`
+("Não foi possível iniciar o cálculo") — nunca quebra o resto do site,
+só essa funcionalidade específica fica inativa. Passo a passo de como
+gerar o token fica pro chat, não pra este documento.
+
+**Testado:** 14 testes novos (`janela_mes_especifico` parametrizado +
+`tests/pipeline/test_run_consulta_sob_demanda.py`), 110 no total.
+`npm run lint`/`npm run build` limpos (0 erros novos). Não coberto por
+teste automatizado: os route handlers do `/webapp` (só validados
+manualmente por execução real acima) — `/webapp` ainda não tem suíte de
+testes própria (`docs/CHECKLIST.md`, item já pendente antes desta sessão).
+
+**Status:** Código completo e validado localmente de ponta a ponta
+(exceto GEE/disparo real). Falta: Pedro criar o `GITHUB_DISPATCH_TOKEN`,
+mesclar pra `main`, e testar o fluxo completo em produção.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)

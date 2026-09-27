@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from pipeline.run_dnbr import _endpoint_r2, _r2_configurado, janela_mes_anterior
+from pipeline.run_dnbr import _endpoint_r2, _r2_configurado, janela_mes_anterior, janela_mes_especifico
 
 
 @pytest.mark.parametrize(
@@ -17,6 +17,28 @@ def test_janela_mes_anterior(hoje, esperado_antes, esperado_depois):
     antes, depois = janela_mes_anterior(hoje)
     assert antes == esperado_antes
     assert depois == esperado_depois
+
+
+@pytest.mark.parametrize(
+    "ano,mes,esperado_antes,esperado_depois",
+    [
+        (2025, 6, ("2025-05-01", "2025-06-01"), ("2025-06-01", "2025-07-01")),
+        (2025, 1, ("2024-12-01", "2025-01-01"), ("2025-01-01", "2025-02-01")),  # virada de ano
+        (2024, 12, ("2024-11-01", "2024-12-01"), ("2024-12-01", "2025-01-01")),  # dezembro -> janeiro seguinte
+        (2024, 2, ("2024-01-01", "2024-02-01"), ("2024-02-01", "2024-03-01")),  # fevereiro bissexto
+    ],
+)
+def test_janela_mes_especifico(ano, mes, esperado_antes, esperado_depois):
+    antes, depois = janela_mes_especifico(ano, mes)
+    assert antes == esperado_antes
+    assert depois == esperado_depois
+
+
+def test_janela_mes_especifico_depois_e_mes_inteiro_nao_so_ate_hoje():
+    # Diferenca deliberada de janela_mes_anterior: aqui o mes alvo ja
+    # terminou de verdade, entao "depois" e o mes inteiro (nao "ate hoje").
+    _, depois = janela_mes_especifico(2025, 6)
+    assert depois == ("2025-06-01", "2025-07-01")
 
 
 def test_r2_configurado_falso_sem_env(monkeypatch):

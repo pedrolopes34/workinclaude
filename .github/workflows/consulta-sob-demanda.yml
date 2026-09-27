@@ -1,0 +1,64 @@
+name: Consulta sob demanda (1 município x 1 mês)
+
+# Só workflow_dispatch — nunca schedule. Disparado pelo /webapp (rota
+# POST /api/consultas) quando um visitante escolhe município+ano+mês e
+# pede o cálculo ao vivo (docs/DECISIONS.md seção 6.43). Roda 1 município
+# só, então termina em minutos — bem diferente dos outros workflows em
+# lote pros 645 (seção 2.1).
+#
+# Precisa dos mesmos secrets de process-sentinel-dnbr.yml:
+#   - DATABASE_URL, GEE_SERVICE_ACCOUNT_KEY
+#   - R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_ACCOUNT_ID / R2_BUCKET_NAME
+#     / R2_PUBLIC_URL_BASE (opcionais — sem eles, roda igual e só não gera
+#     miniatura, mesmo comportamento de run_dnbr.py)
+
+on:
+  workflow_dispatch:
+    inputs:
+      consulta_id:
+        description: "id da linha em consultas_sob_demanda (gerado pelo /webapp ao inserir a linha 'pendente')"
+        required: true
+      municipio:
+        description: "Código IBGE (7 dígitos)"
+        required: true
+      ano:
+        description: "Ano (2024–atual — 2018-2023 ainda não integrado, ver docs/DECISIONS.md seção 7)"
+        required: true
+      mes:
+        description: "Mês (1-12), precisa já ter terminado por completo"
+        required: true
+
+jobs:
+  consulta:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: pipeline/requirements.txt
+
+      - name: Instalar dependências
+        run: pip install -r pipeline/requirements.txt
+
+      - name: Rodar consulta sob demanda
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GEE_SERVICE_ACCOUNT_KEY: ${{ secrets.GEE_SERVICE_ACCOUNT_KEY }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_PUBLIC_URL_BASE: ${{ secrets.R2_PUBLIC_URL_BASE }}
+          CONSULTA_ID_INPUT: ${{ github.event.inputs.consulta_id }}
+          MUNICIPIO_INPUT: ${{ github.event.inputs.municipio }}
+          ANO_INPUT: ${{ github.event.inputs.ano }}
+          MES_INPUT: ${{ github.event.inputs.mes }}
+        run: |
+          python -m pipeline.run_consulta_sob_demanda \
+            --consulta-id "$CONSULTA_ID_INPUT" \
+            --municipio "$MUNICIPIO_INPUT" \
+            --ano "$ANO_INPUT" \
+            --mes "$MES_INPUT"

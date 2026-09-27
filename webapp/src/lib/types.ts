@@ -45,3 +45,19 @@ export interface MunicipioDetalhe {
   metricas: MetricasAnuais[];
   validacoes: ValidacaoMapbiomas[];
 }
+
+// Consulta ad-hoc de 1 município x 1 mês, calculada sob demanda via GitHub
+// Actions (docs/DECISIONS.md seção 6.43) — nunca faz parte de MetricasAnuais
+// (que é o dado anual oficial/auditado). Sem confiabilidade/MapBiomas.
+export type StatusConsulta = "pendente" | "processando" | "concluido" | "erro";
+
+export interface ConsultaSobDemanda {
+  id: number;
+  status: StatusConsulta;
+  numFocosCalor: number | null;
+  numAgrupamentos: number | null;
+  areaStDbscanKm2: string | null;
+  areaDnbrKm2: string | null;
+  dnbrImagemUrl: string | null;
+  mensagemErro: string | null;
+}
