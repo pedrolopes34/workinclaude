@@ -95,7 +95,7 @@ privacidade).
 
 ### 2.3 Stack de infraestrutura
 **Decisão:** GitHub Actions como orquestrador (repositório público por
-ora — na prática ficou privado; em 27/09/2026 o Pedro decidiu torná-lo
+ora — na prática ficou privado até 27/09/2026, quando o Pedro o tornou
 público pra liberar os minutos do Actions, seção 6.50); Neon para
 Postgres + PostGIS (preferido a Supabase por suspender só o compute em
 inatividade); Cloudflare R2 para rasters; Vercel ou Netlify para o
@@ -2526,6 +2526,8 @@ sai normalizado. Lint/build limpos.
 (sem exceção) e o bucket habilitado é o único da conta, é o mais provável.
 Se mesmo após o deploy aparecer "Não foi possível carregar o mapa", a causa
 restante é o conteúdo do bucket (conferir a aba Objects na Cloudflare).
+*(Confirmado na seção 6.50: os 645 objetos estão no bucket e o site
+publicado exibe o mapa.)*
 
 **Decisões pendentes do Pedro (conta/billing, não código):**
 1. Como devolver minutos ao Actions: (a) repositório público — minutos
@@ -2625,10 +2627,38 @@ pelo `git push --delete` foi **recusada pelo proxy git desta sessão
 O Pedro apaga pela interface do GitHub (página *Branches*, ícone de
 lixeira).
 
-**Status:** 1 e 2 feitos. 3 aguarda o Pedro apagar as 2 branches
-eleitorais e mudar a visibilidade. Depois disso: rodar o
-`diagnostico-imagens-r2.yml` (confirma o conteúdo do bucket) e testar a
-consulta sob demanda de ponta a ponta.
+**Feito pelo Pedro no mesmo dia:** apagou as 2 branches eleitorais e
+tornou o repositório público — conferido pela API do GitHub
+(`private: false`) e pela lista de branches (só restam `main`, a de
+desenvolvimento, as 2 de anotações da pesquisa, a
+`research-software-startup` já contida na `main` e as do Dependabot).
+
+**Verificação depois de público — o Actions voltou:**
+- Os testes da `main` (run `36327631486`, 2ª tentativa) pegaram runner e
+  deram **118 passed** no próprio log — antes, todo job morria em 2–4s
+  sem runner.
+- `diagnostico-imagens-r2.yml` (run `36328507090`, só leitura), achados:
+  - o secret `R2_PUBLIC_URL_BASE` agora aponta pra URL pública `r2.dev`;
+  - o bucket tem **645 objetos**, todos em `dnbr/` (`<código>-2026-09.png`);
+  - **causa raiz confirmada:** as 645 URLs gravadas em `metricas_anuais`
+    usam o endpoint S3 privado (`r2.cloudflarestorage.com`), que responde
+    HTTP 400 sem assinatura — o objeto existe, a URL gravada é que não
+    abre. A mesma chave na base pública responde HTTP 200 `image/png`
+    (68–179 KB) pra Adamantina, Olímpia e Pitangueiras;
+  - **o site publicado exibe o mapa:** as páginas dos 3 municípios
+    renderizam o `src` já remontado na base `r2.dev`, cada um HTTP 200
+    `image/png` — o conserto da seção 6.49 está no ar e funcionando.
+- As URLs erradas no banco ficam como estão: não afetam o site (ele
+  remonta na leitura) e a rodada de dNBR do dia 1º reescreve as de 2026
+  com a base certa, já que o secret foi corrigido. `--corrigir` continua
+  disponível se um dia algo ler `dnbr_imagem_url` direto do banco.
+- `consultas_sob_demanda` ainda tem 0 URLs: todas as tentativas anteriores
+  morreram pela cota.
+- Log público conferido: o nome do bucket sai mascarado (`***`) e o único
+  host impresso é o `r2.dev`, que já é público no código.
+
+**Status:** 1, 2 e 3 feitos. Falta só testar a consulta sob demanda de
+ponta a ponta pelo site.
 
 ---
 

@@ -98,11 +98,11 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 - [x] Scan de vulnerabilidade de dependências — `.github/dependabot.yml`
       criado (pip/`pipeline`, npm/`webapp`, github-actions, semanal) e
       "Dependabot alerts" confirmado ativo pelo Pedro em Settings → Code
-      security (26/09/2026) — repositório é privado, então não veio ligado
-      por padrão, mas já estava ativo quando ele conferiu. Vai virar
-      público (`docs/DECISIONS.md` seção 6.50): aí *secret scanning* e
-      *push protection* também ficam disponíveis de graça. Varredura antes
-      de abrir (todas as branches e todo o histórico): nenhum segredo.
+      security (26/09/2026) — o repositório era privado, então não veio
+      ligado por padrão, mas já estava ativo quando ele conferiu. Virou
+      público em 27/09/2026 (`docs/DECISIONS.md` seção 6.50): *secret
+      scanning* e *push protection* ficam disponíveis de graça. Varredura
+      antes de abrir (todas as branches e todo o histórico): nenhum segredo.
 - [ ] Política de retenção de dados de usuário (definir o que é coletado
       antes de escrever a política)
 
@@ -154,9 +154,9 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
       README nunca existiu — só há README por pasta
 - [x] Imagens/rasters comprimidos em produção — **fechado 26/09/2026
       (`docs/DECISIONS.md` seções 6.40/6.41)**: `run_dnbr.py` gera uma
-      miniatura PNG colorida (já leve por natureza — 800px via
-      `getThumbURL` do GEE, não GeoTIFF completo) e sobe pro Cloudflare
-      R2. Confirmado funcionando de ponta a ponta com dado real
+      miniatura PNG colorida (já leve por natureza — 400px desde a seção
+      6.46, via `getThumbURL` do GEE, não GeoTIFF completo) e sobe pro
+      Cloudflare R2. Confirmado funcionando de ponta a ponta com dado real
       (Pitangueiras, run `36276029598`) depois de 6 rodadas de teste que
       acharam e corrigiram 2 bugs reais de normalização do
       `R2_ACCOUNT_ID`. **Escala confirmada (27/09/2026, `docs/DECISIONS.md`
@@ -164,6 +164,9 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
       municípios com sucesso (confirmado por log, não só `conclusion`) —
       todos com miniatura real no R2 agora, não só Pitangueiras. Rodadas
       mensais normais (cron do dia 1) mantêm isso atualizado sozinhas.
+      **Exibição no site confirmada em produção (27/09/2026, seção
+      6.50):** 645 objetos no bucket e as páginas publicadas renderizando
+      o mapa (HTTP 200 `image/png`), depois de corrigida a URL pública.
 
 ---
 
