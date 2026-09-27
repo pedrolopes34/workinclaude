@@ -92,6 +92,44 @@ def png_para_webp(png: bytes, qualidade: int = QUALIDADE_WEBP) -> bytes:
     return saida.getvalue()
 
 
+# Cores da paleta (VIS_PARAMS: green, yellow, orange, red, black) pra resumir
+# a imagem no log — o sandbox do Claude Code não alcança o R2 pra olhar.
+_CORES_PALETA = {"verde": (0, 128, 0), "amarelo": (255, 255, 0), "laranja": (255, 165, 0), "vermelho": (255, 0, 0), "preto": (0, 0, 0)}
+_SIMBOLOS = {"verde": ".", "amarelo": "+", "laranja": "*", "vermelho": "#", "preto": "@"}
+
+
+def _cor_mais_proxima(rgb: tuple[int, int, int]) -> str:
+    return min(_CORES_PALETA, key=lambda nome: sum((a - b) ** 2 for a, b in zip(rgb, _CORES_PALETA[nome])))
+
+
+def resumo_png(png: bytes, colunas: int = 90) -> tuple[str, str]:
+    """(percentuais por cor sobre os pixels com imagem, desenho em texto da
+    imagem reduzida) — confere recorte, cobertura e cores sem abrir o PNG."""
+    from PIL import Image
+
+    imagem = Image.open(BytesIO(png)).convert("RGBA")
+    contagem = {nome: 0 for nome in _CORES_PALETA}
+    opacos = 0
+    reduzida = imagem.resize((imagem.width // 8, imagem.height // 8), Image.NEAREST)
+    for r, g, b, a in reduzida.getdata():
+        if a < 128:
+            continue
+        opacos += 1
+        contagem[_cor_mais_proxima((r, g, b))] += 1
+    total = max(1, opacos)
+    percentuais = " | ".join(f"{nome} {100 * n / total:.1f}%" for nome, n in contagem.items())
+    percentuais += f" | com imagem {100 * opacos / (reduzida.width * reduzida.height):.1f}% do retângulo"
+
+    linhas = max(1, round(colunas * imagem.height / imagem.width / 2))
+    mini = imagem.resize((colunas, linhas), Image.NEAREST)
+    desenho = "\n".join(
+        "".join(" " if a < 128 else _SIMBOLOS[_cor_mais_proxima((r, g, b))] for r, g, b, a in
+                (mini.getpixel((x, y)) for x in range(colunas)))
+        for y in range(linhas)
+    )
+    return percentuais, desenho
+
+
 def _garantir_tabela(conn) -> None:
     with conn.cursor() as cur:
         cur.execute(
@@ -189,6 +227,9 @@ def gerar_mes(ano: int, mes: int, contorno: dict) -> dict | None:
     if png is None:
         raise RuntimeError(f"{ano}-{mes:02d}: o Earth Engine recusou todos os tamanhos")
 
+    percentuais, desenho = resumo_png(png)
+    print(f"{ano}-{mes:02d} cores: {percentuais}")
+    print(desenho)
     webp = png_para_webp(png)
     imagem_url = subir_r2(webp, chave_r2(ano, mes), "image/webp")
     if imagem_url is None:

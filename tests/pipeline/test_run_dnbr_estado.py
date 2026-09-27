@@ -14,6 +14,7 @@ from pipeline.run_dnbr_estado import (
     limites_e_proporcao,
     meses_fechados_do_ano,
     png_para_webp,
+    resumo_png,
     ultimo_mes_completo,
 )
 
@@ -60,3 +61,16 @@ def test_png_para_webp_mantem_transparencia():
     assert webp.format == "WEBP" and webp.mode == "RGBA"
     assert webp.getpixel((30, 10))[3] == 0  # fora de SP continua transparente
     assert webp.getpixel((5, 10))[3] == 255
+
+
+def test_resumo_png_conta_cores_e_desenha():
+    imagem = Image.new("RGBA", (80, 40), (0, 0, 0, 0))
+    for x in range(40):
+        for y in range(40):
+            imagem.putpixel((x, y), (0, 128, 0, 255) if x < 32 else (255, 0, 0, 255))
+    png = BytesIO()
+    imagem.save(png, format="PNG")
+    percentuais, desenho = resumo_png(png.getvalue(), colunas=8)
+    assert percentuais.startswith("verde 80.0%")
+    assert "vermelho 20.0%" in percentuais and "com imagem 50.0% do retângulo" in percentuais
+    assert desenho.splitlines()[0] == "...#    "
