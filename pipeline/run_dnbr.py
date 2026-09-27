@@ -59,7 +59,12 @@ from pipeline.dnbr.constants import LIMIARES_SEVERIDADE
 
 GEE_PROJECT_ID = "concrete-bloom-374223"
 LIMIAR_AREA_QUEIMADA = LIMIARES_SEVERIDADE[0]
-DIMENSAO_MINIATURA_PX = 800  # lado maior, PNG leve (~100-300KB) — mapa de card, nao analise pericial
+# Lado maior da miniatura. Reduzido de 800 pra 400 a pedido do Pedro
+# (docs/DECISIONS.md secao 6.46) pra encurtar a consulta sob demanda —
+# ainda minimamente visivel como card (nao e analise pericial), so mais
+# leve pra gerar/baixar/subir. Vale tanto pro pipeline mensal em lote
+# quanto pra consulta sob demanda, que reaproveitam a mesma funcao.
+DIMENSAO_MINIATURA_PX = 400  # ~25-75KB de PNG (proporcional ao quadrado da dimensao)
 
 
 def _r2_configurado() -> bool:

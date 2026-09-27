@@ -2328,6 +2328,40 @@ teste). `npm run lint`/`build` limpos.
 **Status:** Fechado — corrigido e validado localmente. Depende do próximo
 deploy na Vercel pra valer em produção.
 
+### 6.46 Miniatura dNBR reduzida de 800px pra 400px, a pedido do Pedro (27/09/2026)
+
+**Contexto:** Pedro pediu pra reduzir a qualidade gráfica do mapa pra
+"consulta sob demanda" (seção 6.43) sair mais rápido, aceitando qualidade
+menor em troca. `DIMENSAO_MINIATURA_PX` (`run_dnbr.py`, compartilhada
+pelo pipeline mensal em lote e pela consulta sob demanda, já que os dois
+chamam `processar_municipio`) foi de 800 pra 400 — ainda minimamente
+visível como imagem de card, só mais leve de gerar/baixar/subir pro R2.
+
+**Ressalva honesta, pra não prometer o que esse ajuste sozinho não
+entrega:** a miniatura não é o gargalo principal do tempo de resposta.
+Pelas medições reais já feitas nesta sessão (seções 6.30/6.41), os
+minutos de uma consulta vêm principalmente de: (1) fila+cold start do
+runner do GitHub Actions (checkout + `pip install` do `requirements.txt`
+inteiro, ~30-60s fixos, mesmo pra 1 município só); (2) as chamadas
+síncronas ao Earth Engine em `calcular_dnbr` (`.getInfo()` de tamanho de
+coleção e cobertura de nuvem, em até 4 tentativas com limiares de nuvem
+crescentes). Nenhum dos dois depende do tamanho da miniatura. Reduzir a
+dimensão ajuda um pouco (menos dado pra `getThumbURL` renderizar, baixar
+e subir), mas não deve tirar a consulta sob demanda da faixa de ~1-3min.
+
+**Se quiser mais velocidade de verdade depois:** o próximo passo com
+melhor custo-benefício seria um `requirements` mais enxuto só pra
+`consulta-sob-demanda.yml` (o script não usa `geemap`/`rasterio`/
+`rasterstats`, só usados por `dnbr/validacao.py` — MapBiomas, que a
+consulta sob demanda não faz) — cortaria parte do tempo de instalação de
+dependências. Não implementado ainda, não foi pedido.
+
+**Testado:** nenhum teste automatizado depende desse valor (confirmado por
+busca antes de mudar); 110 testes seguem passando. Mudança de constante
+pura, sem lógica nova.
+
+**Status:** Fechado.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)
