@@ -2240,6 +2240,36 @@ testes própria (`docs/CHECKLIST.md`, item já pendente antes desta sessão).
 (exceto GEE/disparo real). Falta: Pedro criar o `GITHUB_DISPATCH_TOKEN`,
 mesclar pra `main`, e testar o fluxo completo em produção.
 
+### 6.44 1ª rodada real de dNBR em escala (645/645) confirmada por log — todos os municípios com imagem no R2 (27/09/2026)
+
+**Contexto:** a run `36283297358` (disparada no início desta sessão, seção
+6.42) era a primeira vez que `process-sentinel-dnbr.yml` rodava **sem**
+`--municipio` desde que o R2 foi confirmado funcionando (seção 6.41) —
+até aqui só Pitangueiras tinha miniatura real, o resto do site mostrava
+"mapa ainda não disponível".
+
+**Confirmado por log real dos 2 jobs (não só `conclusion: success` —
+lição da seção 6.22/6.24):** zero `[ERRO]`/`Traceback`/`Exception` nos
+dois jobs; `grep -c "area_dnbr_km2="` deu **323 + 322 = 645/645**
+municípios com resultado, todos também com `imagem=.../dnbr/{codigo}-
+2026-09.png` (nenhum caiu no `[AVISO]` de falha de miniatura nem no
+`[PULADO]` de `SemImagemValida`). Valores reais e variados (ex.:
+Adamantina 49,27 km², Águas de São Pedro 0,29 km², Zacarias 74,98 km²) —
+não é um número travado repetido.
+
+**Duração maior que a estimativa da seção 2.1:** job 1 (grupo 1/2) levou
+3h39min, job 2 (grupo 2/2) 5h10min — a estimativa original era ~3h cada.
+Ainda folgado do teto de 6h/job do GitHub Actions, mas cresceu o
+suficiente pra merecer acompanhamento nas próximas rodadas mensais (dia 1
+via cron) — se continuar subindo, pode precisar de mais grupos paralelos
+(`--de-grupos 3` em vez de 2) antes de esbarrar no limite de verdade.
+
+**Status:** Fechado — pipeline de dNBR em escala real, confirmado
+funcionando de ponta a ponta (GEE → R2 → Postgres) pros 645 municípios,
+não só por amostra/debug. `CHECKLIST.md` atualizado (item "Imagens/
+rasters comprimidos em produção" não depende mais de "conforme o
+pipeline processa cada um" — já processou todos).
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)

@@ -149,10 +149,11 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
       R2. Confirmado funcionando de ponta a ponta com dado real
       (Pitangueiras, run `36276029598`) depois de 6 rodadas de teste que
       acharam e corrigiram 2 bugs reais de normalização do
-      `R2_ACCOUNT_ID`. Rodadas mensais normais (cron do dia 1) já populam
-      `dnbr_imagem_url` sozinhas daqui pra frente — só falta escala (hoje
-      só Pitangueiras tem imagem real; os outros 644 ganham conforme o
-      pipeline processa cada um)
+      `R2_ACCOUNT_ID`. **Escala confirmada (27/09/2026, `docs/DECISIONS.md`
+      seção 6.44):** 1ª rodada real sem `--municipio` processou os 645/645
+      municípios com sucesso (confirmado por log, não só `conclusion`) —
+      todos com miniatura real no R2 agora, não só Pitangueiras. Rodadas
+      mensais normais (cron do dia 1) mantêm isso atualizado sozinhas.
 
 ---
 
