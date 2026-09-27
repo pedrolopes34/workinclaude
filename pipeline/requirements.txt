@@ -18,3 +18,5 @@ rasterstats>=0.19
 
 # Miniatura dNBR -> Cloudflare R2 (docs/DECISIONS.md secao 6.40)
 boto3>=1.34
+# Mosaico estadual em WebP (run_dnbr_estado.py, docs/DECISIONS.md secao 6.55)
+pillow>=10.0

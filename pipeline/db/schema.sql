@@ -184,6 +184,35 @@ CREATE INDEX idx_consultas_sob_demanda_municipio_periodo ON consultas_sob_demand
 COMMENT ON TABLE consultas_sob_demanda IS 'Fato: consulta ad-hoc de 1 municipio x 1 mes, disparada pelo visitante do /webapp e calculada sob demanda via GitHub Actions. min_samples fixo em 4 (nao usa a formula de anomalia anual de calcular_min_samples, que nao se aplica a um recorte mensal). Sem confiabilidade/MapBiomas — so ST-DBSCAN + dNBR.';
 
 -- =========================================================================
+-- 7. mosaicos_dnbr (imagem do estado inteiro por mes — so visualizacao)
+-- =========================================================================
+-- Gerada por pipeline/run_dnbr_estado.py (docs/DECISIONS.md secao 6.55): a
+-- leitura de satelite (dNBR) do estado num WebP no R2, recortada pelo
+-- contorno de SP, no mesmo retangulo do mapa do site (oeste/sul/leste/norte).
+-- O script cria a tabela se nao existir. Nao entra em nenhum numero: as areas
+-- de cada municipio vem do calculo em 20 m (metricas_anuais.area_dnbr_km2).
+CREATE TABLE mosaicos_dnbr (
+    ano             SMALLINT NOT NULL,
+    mes             SMALLINT NOT NULL CHECK (mes BETWEEN 1 AND 12),
+    imagem_url      TEXT NOT NULL,
+    oeste           DOUBLE PRECISION NOT NULL,
+    sul             DOUBLE PRECISION NOT NULL,
+    leste           DOUBLE PRECISION NOT NULL,
+    norte           DOUBLE PRECISION NOT NULL,
+    largura_px      INT NOT NULL,
+    altura_px       INT NOT NULL,
+    -- COPERNICUS/S2_SR_HARMONIZED, ou S2_HARMONIZED (sem correcao
+    -- atmosferica) nos meses sem SR no Brasil (antes de dez/2018)
+    colecao         TEXT NOT NULL,
+    n_cenas_antes   INT,
+    n_cenas_depois  INT,
+    limite_nuvem    SMALLINT,
+    cobertura_pct   NUMERIC(5, 1),
+    gerado_em       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (ano, mes)
+);
+
+-- =========================================================================
 -- view: ano_ativo (janela de evolucao, derivada — nao e 6a tabela)
 -- =========================================================================
 -- ASSUNCAO DE IMPLEMENTACAO: "ano ativo" e global (nao por municipio), e
