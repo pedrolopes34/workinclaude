@@ -2660,6 +2660,209 @@ desenvolvimento, as 2 de anotações da pesquisa, a
 **Status:** 1, 2 e 3 feitos. Falta só testar a consulta sob demanda de
 ponta a ponta pelo site.
 
+
+### 6.51 ⚠️ P0: o cálculo automático usa todos os satélites do INPE; a pesquisa usa só o de referência (27/09/2026)
+
+**Contexto:** a 1ª consulta sob demanda real (consulta 9, Pitangueiras,
+ago/2024 — seção 6.50) rodou de ponta a ponta em ~2m40s e devolveu 1.588
+focos, 4 agrupamentos e 601,87 km² de área de agrupamento. A pesquisa
+validada tem, pro mesmo município e mês (seed `validacao_mapbiomas_63`):
+**95 focos, 7 agrupamentos, 432,9 km²**. A pendência 1 do topo de
+`pipeline/ingest/inpe.py` já avisava que o produto mensal "todos os
+satélites" podia não ser o `_ref_` da pesquisa.
+
+**Confirmado com dado real** (`pipeline/diagnosticar_focos_inpe.py` +
+`diagnostico-focos-inpe.yml`, só leitura, roda no runner — o sandbox não
+alcança o INPE; resultado lido pelas anotações do job via API REST):
+
+| Pitangueiras, ago/2024 | focos | agrupamentos (min_samples=4) | área |
+|---|---|---|---|
+| Pesquisa validada | 95 | 7 | 432,9 km² |
+| Só AQUA_M-T (satélite de referência) | 100 | **7** | 622,48 km² |
+| Todos os satélites (pipeline hoje) | 1.588 | 4 | 601,87 km² |
+
+Focos por satélite no recorte: NOAA-20=443, NOAA-21=369, NPP-375=354,
+GOES-16=201, AQUA_M-T=100, MSG-03=61, METOP-B=32, TERRA_M-M=13,
+NPP-375D=9, METOP-C=6. O mesmo recorte do script bate exatamente com o da
+consulta (1.588), então o filtro por município está certo: a diferença é
+o produto de satélites. Filtrando só AQUA_M-T, o número de agrupamentos
+reproduz a pesquisa (7 = 7) e a contagem de focos fica perto (100 × 95 —
+diferença pequena, provavelmente fuso horário na virada do mês ou
+reprocessamento do INPE). AQUA_M-T ainda aparece em 2025 (1 dos 6 focos
+de Pitangueiras em ago/2025); ago/2026 veio com 0 focos de qualquer
+satélite em Pitangueiras (não conclusivo sobre o AQUA).
+
+**Segunda diferença (hipótese, não confirmada):** a área de agrupamento
+da pesquisa (432,9 km²) é quase exatamente a área do município (430,9 km²),
+enquanto o cálculo com o mesmo satélite dá 622,48 km². Sugere que a
+pesquisa recortou a área de influência pelo limite do município e o
+pipeline não recorta. Só dá pra confirmar olhando o notebook oficial.
+
+**O que isso afeta:** tudo que vem do pipeline automático — as linhas de
+2025 e 2026 de `metricas_anuais` (639 e 645 municípios), a consulta sob
+demanda e as 516 validações automáticas de 2024 (fonte `automatico`). Não
+afeta os 63 municípios validados manualmente (seed intocado: o inventário
+de produção, `pipeline/inventario_dados.py`, confirmou 63 de 63 linhas de
+2024 iguais ao seed).
+
+**Decisão tomada nesta sessão (só interface, nenhum número mudou):** o
+site passa a mostrar selo de confiabilidade só onde a pesquisa validou,
+marca a origem de cada número automático e explica a diferença em "Como
+produzimos" (seção 6.52). A especificação de evolução que o Pedro trouxe
+proíbe mudar satélite, filtro ou parâmetro sem aprovação explícita
+("sinalizar a inconsistência e propor correção").
+
+**Proposta (aguarda o Pedro):** filtrar `satelite == "AQUA_M-T"` em
+`carregar_focos_sp` (ingestão, validação MapBiomas e consulta), confirmar
+o recorte da área pelo limite do município contra o notebook oficial,
+reprocessar 2024–2026 e só então voltar a exibir as validações
+automáticas. Risco a conferir: o Aqua está em fim de vida útil, então é
+preciso saber qual satélite de referência o INPE vai adotar depois dele.
+
+**Status:** achado confirmado; correção metodológica pendente de
+aprovação.
+
+### 6.52 Evolução do produto a partir das duas propostas externas — o que foi aplicado e o que não é viável (27/09/2026)
+
+**Contexto:** o Pedro trouxe duas propostas feitas por outras IAs
+("Especificação de evolução — Work in Claude", 7 páginas, e "Diretrizes de
+execução técnica", 2 páginas) e pediu: ver o que é viável e aplicar
+imediatamente o que for. A especificação tem uma regra central que casa
+com o CLAUDE.md: nenhuma mudança científica silenciosa; separar melhoria
+de software de mudança metodológica.
+
+**Aplicado (verificado com build, servidor local + Postgres, Playwright
+em claro/escuro/celular e axe WCAG A/AA sem violação):**
+
+1. **Integridade da interface (P0 da especificação), sem mudar número:**
+   - "Como produzimos" dizia "Recall ≥ 50% **ou** p < 0,05 conta como
+     passou" — contradizia a regra fechada (Alta exige os dois). Corrigido,
+     com a regra explícita dos 4 níveis.
+   - A busca mostrava selo das 516 validações automáticas enquanto a página
+     do mesmo município dizia "não comparado/validado". Agora toda a
+     interface (busca, filtros, mapa, comparação, CSV) usa só a
+     validação `manual` (seção 6.51).
+   - Cores protegidas dos selos usadas como decoração (CLAUDE.md): barra
+     de comparação (verde/mostarda como séries), faixa de anos
+     (mostarda = "validado") e o gradiente do logo. Trocadas por
+     acento/neutros; os hex protegidos ficaram só nos selos e no mapa por
+     confiabilidade (uso funcional).
+   - Legenda do mapa dNBR errada: dizia "−0,25 a 0,75" com as cores dos
+     selos; a imagem real usa `VIS_PARAMS` (0,10 → 0,70, verde → amarelo
+     → laranja → vermelho → preto). Legenda e texto alternativo corrigidos.
+   - A tabela "Focos de calor e agrupamentos" misturava, na coluna "Ano",
+     agosto de 2024 da pesquisa (satélite de referência) com anos inteiros
+     automáticos (todos os satélites). Cada linha agora diz período e
+     origem, com nota de que não são comparáveis. Regra em
+     `lib/format.ts::origemDasMetricas`, baseada no inventário de produção
+     (seção 6.51); o certo, a médio prazo, é uma coluna de origem em
+     `metricas_anuais`.
+   - "Comparação com o MapBiomas: verificação automática mensal" virou
+     manual (seção 6.50); linguagem de "evento"/"incêndio" amenizada
+     (agrupamento pode ser mais de um episódio de queima).
+2. **Explicação obrigatória das métricas (§8):** Recall com fórmula e o
+   aviso de que não é "porcentagem de acerto"; Interseção como
+   interseção sobre união (Jaccard); valor-p como teste de permutação com
+   o número real de sorteios, sem apresentar como qualidade; áreas com
+   unidade, fonte e definição. Selo com a regra do nível, visível ao
+   passar o mouse e ao focar pelo teclado (proposta 2) — componente
+   `SeloConfiabilidade`.
+3. **Os dois critérios contra os limiares** (`CriteriosConfiabilidade`):
+   barra do Recall com marca em 50% e valor-p contra 0,05, com
+   "✓ passou / ✗ não passou" em texto. É o que justifica o selo. Substitui
+   o "gráfico INPE × MapBiomas" da proposta 2 (ver não viáveis).
+4. **Home (§5, §20, proposta 2):** atalhos (Explorar mapa, Buscar, Como
+   funciona?), cobertura com números reais do banco e data da última
+   atualização, prévia do mapa, busca por nome **ou código IBGE** sem
+   depender de acento, autocompletar nativo (`datalist`), filtros por
+   confiabilidade com contagem (na URL, reproduzíveis) e botão de CSV.
+5. **Mapa interativo de SP (`/mapa`, §6, proposta 2):** SVG coroplético
+   dos 645, cor = confiabilidade validada, cinza = não validado, legenda
+   com contagens, nome ao passar o mouse, clique abre o município. Malha
+   do IBGE via geodata-br (CC0), simplificada com
+   `shapely.coverage_simplify` (preserva divisas) em
+   `geodata/gerar_mapa_sp.py`. Geometria em `public/mapa/*.json`,
+   desenhada no navegador: renderizada no servidor, o `/mapa` passava de
+   740 KB (o Next manda o SVG no HTML e de novo no payload de
+   hidratação); agora trafegam 13 KB de página + 60 KB de geometria em
+   cache (home: 88 KB → 30 KB).
+6. **Metodologia como produto (§13, §14, §21, §22):** "Como produzimos"
+   com o passo a passo, tabela de parâmetros tirada do código,
+   limitações obrigatórias (foco ≠ incêndio, agrupamento ≠ incêndio único,
+   ausência de foco ≠ ausência de fogo, nuvem, resoluções, dNBR ≠ causa,
+   MapBiomas ≠ verdade absoluta) mais a diferença conhecida da seção
+   6.51, fontes oficiais e referências dos métodos (Birant & Kut 2007;
+   Key & Benson 2006; Alencar et al. 2022). Página do município com painel
+   "Detalhes técnicos" (parâmetros gravados por período, fonte da
+   validação, nº de permutações).
+7. **Consulta sob demanda (§17, §19):** link reproduzível
+   (`/municipio/X?ano=&mes=`) que reabre um resultado já calculado **só
+   lendo** (`GET /api/consultas?codigoIbge=&ano=&mes=`; abrir um link ou um
+   robô visitando nunca dispara cálculo), botão "Copiar link da análise",
+   etapas visíveis (pedido enviado → na fila → calculando → pronto),
+   código da consulta nas mensagens de erro e aviso de que o cálculo
+   automático usa todos os satélites.
+8. **Comparar municípios (`/comparar`, §12):** até 4 lado a lado, na
+   ordem escolhida, sem ranking; só números validados; o link reproduz a
+   comparação.
+9. **SEO (proposta 2):** imagem Open Graph (`opengraph-image.tsx`),
+   `metadataBase`, e o sitemap/robots saíam com `example.com` quando
+   `NEXT_PUBLIC_SITE_URL` não está definida — agora caem no endereço real
+   (`lib/site.ts`). Navegação com Mapa e Comparar, inclusive no celular
+   (antes a navegação sumia abaixo de 640 px).
+10. **Exportação em CSV (proposta 2):** `/dados/municipios.csv`, os 645 com
+    o dado validado (RFC 4180, UTF-8 com BOM), coluna de origem.
+
+**Não viável ou não recomendado agora:**
+- **"Remover o `<div hidden>` que esconde a lista":** não existe no
+  código. É o mecanismo de streaming do React: a lista chega num
+  `<div hidden>` e um script a troca de lugar ao carregar. Quem leu o HTML
+  cru sem executar JavaScript viu a lista "escondida"; no navegador ela
+  aparece.
+- **Rolagem virtual (react-window):** 645 linhas não pesam pro navegador,
+  e virtualizar quebra Ctrl+F, leitor de tela e SEO. A lista padrão mostra
+  63, e busca e filtros resolvem o resto.
+- **Gráfico de barras "Dado do INPE × MapBiomas Fogo" justificando a
+  confiabilidade:** enganoso. As áreas têm definições diferentes, e a
+  regra não compara áreas. Substituído pelos dois critérios contra os
+  limiares (item 3).
+- **Anonimizar o rodapé "pro sigilo da avaliação"** (tirar "professora
+  Ana", Engenharia de Biossistemas, FCE e Tupã): o nome "professora Ana"
+  não aparece em lugar nenhum do site nem do repositório. Tirar o
+  endereço contraria um item fechado do CHECKLIST ("Endereço de contato
+  real"). E anonimizar só o rodapé não adianta com a página "Quem somos"
+  identificada. Depende de o Pedro confirmar se existe avaliação cega e
+  qual o escopo.
+- **Camadas de focos e agrupamentos no mapa, clique em foco individual
+  (§6, §9):** os focos não são guardados no banco (o pipeline processa o
+  CSV em memória). Exige persistir focos e geometrias dos agrupamentos:
+  mudança de pipeline e schema.
+- **Comparação antes/depois com slider e imagem Sentinel-2 real (§11):**
+  só existe a miniatura dNBR; exigiria gerar e guardar RGB de antes e
+  depois.
+- **Série temporal mensal (§10):** só há agregados anuais (2 ou 3 pontos).
+  Um gráfico com 3 pontos seria decorativo, que a própria especificação
+  veta. Exige agregado mensal na ingestão.
+- **Storytelling "Entenda o caso" (§15), laboratório de parâmetros
+  (§23), contratos da `/api` (§18), QR code:** fases futuras. A própria
+  especificação põe o laboratório por último, depois da validação
+  metodológica, e a `/api` é componente separado ainda não implementado.
+
+**Tensão com um pedido anterior do Pedro (seção 7, 26/09/2026):** ele
+tinha pedido, ainda sem implementar, pra deixar a confiabilidade "mais
+escondida" (dado "ligeiramente sensível") e trocar a paleta. As propostas
+externas pedem o contrário (mapa colorido por confiabilidade, filtros por
+nível), e a instrução mais recente foi aplicar o que fosse viável delas.
+Apliquei, mas com o cuidado de só colorir o que a pesquisa validou e de
+dizer, no mapa e na metodologia, que a nota não é ranking. Se o pedido de
+26/09 continuar valendo, o ajuste é pequeno: o mapa pode colorir só
+"validado × não validado", e os filtros podem sair da página inicial.
+
+**Status:** aplicado e verificado localmente; aguarda deploy. Pendências
+de decisão do Pedro: correção de satélite (seção 6.51), anonimização do
+rodapé e o conflito com o pedido de deixar a confiabilidade mais
+escondida.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)
@@ -2799,4 +3002,21 @@ ponta a ponta pelo site.
   código (`Confiabilidade`, `CONFIABILIDADE_STYLE`) ou só a
   representação visual. **Quando isso for implementado, atualizar
   também o `CLAUDE.md`** (não só aqui) — é lá que as cores "fixas" estão
-  documentadas como regra do projeto.
+  documentadas como regra do projeto. *(27/09/2026: as propostas
+  externas aplicadas na seção 6.52 foram no sentido contrário — mapa e
+  filtros por confiabilidade; o conflito está descrito lá.)*
+- **⚠️ Satélite de referência no cálculo automático (27/09/2026, seção
+  6.51):** o pipeline soma todos os satélites do INPE e a pesquisa usa só
+  o de referência (AQUA_M-T). Proposta: filtrar AQUA_M-T, confirmar se a
+  pesquisa recortou a área de influência pelo limite do município,
+  reprocessar 2024–2026 e só então exibir as validações automáticas.
+  Precisa de aprovação explícita (regra da especificação e do CLAUDE.md).
+- **Anonimização do rodapé (27/09/2026, seção 6.52):** proposta externa
+  pede tirar do rodapé nomes e referências da UNESP Tupã "pro sigilo da
+  avaliação". Depende de o Pedro confirmar se existe avaliação cega e
+  qual o escopo (a página "Quem somos" também identifica).
+- **Coluna de origem em `metricas_anuais` (27/09/2026, seção 6.52):** hoje
+  a interface sabe que a linha de 2024 dos 63 é da pesquisa por uma regra
+  em `webapp/src/lib/format.ts`, conferida no banco. Uma coluna `fonte`
+  (como a de `validacao_mapbiomas`, seção 6.29) tornaria isso explícito e
+  protegeria essas linhas de sobrescrita pelo pipeline.

@@ -12,13 +12,17 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 - [x] Meta title e meta description por página — global (`layout.tsx`) +
       metadata dinâmica por município (`generateMetadata`, ex.:
       "Pitangueiras — Painel de Queimadas SP")
-- [ ] Imagem Open Graph
+- [x] Imagem Open Graph — `src/app/opengraph-image.tsx` (1200×630, título
+      provisório) + `metadataBase` no layout, pra URL absoluta no
+      compartilhamento (`docs/DECISIONS.md` seção 6.52)
 - [~] Favicon — `icon.tsx` gerado dinamicamente (círculo "Q"), placeholder
       até o nome/logo do produto ser decidido (`docs/DECISIONS.md` seção 7)
 - [x] `robots.txt` — `src/app/robots.ts`
-- [x] `sitemap.xml` — `src/app/sitemap.ts`, inclui a home + os 63
-      municípios da amostra (os outros 582 ainda não têm conteúdo próprio
-      pra valer indexação)
+- [x] `sitemap.xml` — `src/app/sitemap.ts`, inclui a home, `/mapa`,
+      `/comparar` e os 63 municípios da amostra (os outros 582 ainda não
+      têm conteúdo próprio pra valer indexação). Corrigido em 27/09/2026:
+      sem a variável `NEXT_PUBLIC_SITE_URL`, sitemap e robots saíam com
+      `example.com`; agora caem no endereço real (`src/lib/site.ts`)
 
 ## Páginas essenciais
 
@@ -44,26 +48,32 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
       Lattes, LinkedIn, endereço institucional); nome da orientadora
       deliberadamente omitido até autorização dela (`docs/DECISIONS.md`
       seção 7). Rota real: `/quem-somos`
-- [x] Página "Como produzimos" — metodologia em 3 passos, os 4 níveis de
-      confiabilidade explicados (reaproveitando `CONFIABILIDADE_STYLE`,
-      mesmas cores/critérios protegidos do `CLAUDE.md`), limitações
-      assumidas, cadência de atualização por fonte. Rota real:
-      `/como-produzimos`
+- [x] Página "Como produzimos" — passo a passo do método, tabela de
+      parâmetros tirada do código, regra dos 4 níveis (corrigida em
+      27/09/2026: dizia "Recall ≥ 50% **ou** p < 0,05"), limitações
+      obrigatórias, fontes oficiais e referências, cadência de atualização.
+      Rota real: `/como-produzimos` (`docs/DECISIONS.md` seção 6.52)
 
 ## UX e acessibilidade
 
-- [~] Texto alternativo em todas as imagens — já aplicado nas imagens do
-      mockup (mapas dNBR e cards de destaque têm `alt` descritivo);
-      confirmar quando o conteúdo real entrar
-- [~] Breakpoints para mobile — o mockup já é responsivo (grids quebram em
-      2/1 colunas); falta testar o produto real
+- [x] Texto alternativo em todas as imagens — mapas dNBR com `alt` que
+      descreve a escala real (corrigido em 27/09/2026 junto da legenda),
+      mapa de SP com `aria-label` que resume as contagens, imagem Open
+      Graph com `alt`
+- [x] Breakpoints para mobile — produto real testado a 390 px nas 10
+      páginas principais (Playwright, 27/09/2026): sem rolagem horizontal;
+      navegação vira uma linha rolável no celular (antes sumia)
 - [x] Estados de carregamento — `<Suspense>` local na busca (skeleton só na
       lista, não na rota inteira)
-- [~] Estados de erro — `src/app/error.tsx` cobre falha genérica de
-      renderização/dados; ainda não se aplica a formulários (não existe
-      formulário no produto ainda)
+- [x] Estados de erro — `src/app/error.tsx` cobre falha genérica de
+      renderização/dados; a consulta sob demanda mostra mensagem legível +
+      código da consulta pra suporte; busca, filtros e comparação têm
+      estado vazio explicado (`docs/DECISIONS.md` seção 6.52)
 - [x] Auditoria de acessibilidade nível WCAG AA — rodada com axe-core
       (Playwright) nas 3 páginas reais (home, detalhe de município, 404);
+      refeita em 27/09/2026 nas 10 páginas do produto evoluído, nos dois
+      temas: 0 violações depois de corrigir 2 achados de contraste (seção
+      6.52);
       achou 5 violações de contraste no total. 2 corrigidas direto
       (`text-stone-500` → `text-stone-600`, cinza genérico sem cor
       protegida). As 3 que esbarravam nas cores fixas do `CLAUDE.md`
@@ -108,14 +118,15 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 
 ## Testes e operação
 
-- [~] Testes automatizados — 118 testes `pytest` cobrindo o núcleo do
+- [~] Testes automatizados — 122 testes `pytest` cobrindo o núcleo do
       `/pipeline` (ST-DBSCAN, fórmula de `min_samples` regredida contra os
       12 casos reais, ingestão INPE incluindo a concatenação mensal→anual,
       dNBR incluindo a janela histórica da consulta sob demanda, IoU/
       permutação/confiabilidade regredida contra os 5 exemplos
       documentados, validação de campo e coerção de tipo da auditoria
       anual, proteção da amostra manual, diagnóstico de geometria da
-      validação MapBiomas e diagnóstico das imagens do R2), com CI/CD real
+      validação MapBiomas, diagnóstico das imagens do R2 e dos focos por
+      satélite, inventário dos dados), com CI/CD real
       (`.github/workflows/tests.yml`, roda a cada push/PR que toque
       `pipeline/` ou `tests/`) — falta só
       testes automatizados do `/webapp` (as rotas de consulta sob demanda,
@@ -139,9 +150,10 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 - [x] `CHANGELOG.md` com versionamento semântico — seção "Não lançado" com
       o que já existe
 - [ ] Documentação da API em OpenAPI/Swagger
-- [~] Página de metodologia transparente com limitações — já redigida (em
-      tom provisório) na seção "Limitações que assumimos" da página "Como
-      produzimos" do mockup; falta a versão final e o DOI
+- [~] Página de metodologia transparente com limitações — no produto
+      real desde 27/09/2026 (parâmetros, limitações obrigatórias, a
+      diferença conhecida de satélites da seção 6.51, fontes e
+      referências); falta a revisão final do Pedro e o DOI
 - [ ] DOI via Zenodo
 
 ## Dados e atribuição
@@ -152,6 +164,9 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
       (27/09/2026, `docs/DECISIONS.md` seção 6.50): este item dizia que a
       atribuição também estava "no README raiz do repositório", mas esse
       README nunca existiu — só há README por pasta
+- [x] Exportação dos dados em CSV — `/dados/municipios.csv`: os 645
+      municípios com o dado validado pela pesquisa e coluna de origem
+      (RFC 4180, UTF-8 com BOM), botão na página inicial (seção 6.52)
 - [x] Imagens/rasters comprimidos em produção — **fechado 26/09/2026
       (`docs/DECISIONS.md` seções 6.40/6.41)**: `run_dnbr.py` gera uma
       miniatura PNG colorida (já leve por natureza — 400px desde a seção
@@ -170,10 +185,11 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 
 ---
 
-**Contagem atual:** 17 itens feitos, 11 parciais, 7 pendentes —
-atualizado em 27/09/2026: rate limiting deixou de ser `[ ]` e virou `[~]`
-(existe pra a rota nova de consulta sob demanda, ver abaixo); testes
-pytest subiram de 88 para 118.
+**Contagem atual:** 22 itens feitos, 8 parciais, 6 pendentes —
+atualizado em 27/09/2026 (evolução do produto, `docs/DECISIONS.md` seção
+6.52): imagem Open Graph, texto alternativo, breakpoints e estados de erro
+viraram `[x]`, e entrou a exportação em CSV. Antes, no mesmo dia: rate
+limiting virou `[~]` e os testes pytest subiram de 88 para 122.
 
 **Consulta sob demanda — município+ano+mês calculado ao vivo
 (`docs/DECISIONS.md` seção 6.43, 27/09/2026):** funcionalidade nova

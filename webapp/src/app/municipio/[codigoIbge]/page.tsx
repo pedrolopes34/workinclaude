@@ -2,17 +2,21 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getMunicipioDetalhe } from "@/lib/queries";
-import { CONFIABILIDADE_STYLE, formatKm2, formatPct, formatPValor } from "@/lib/format";
+import { formatKm2, formatPct, formatPValor, origemDasMetricas } from "@/lib/format";
 import { InfoTile } from "@/components/InfoTile";
 import { ConsultaSobDemanda } from "@/components/ConsultaSobDemanda";
 import { ImagemComFallback } from "@/components/ImagemComFallback";
+import { SeloConfiabilidade } from "@/components/SeloConfiabilidade";
+import { CriteriosConfiabilidade } from "@/components/CriteriosConfiabilidade";
 import type { MetricasAnuais } from "@/lib/types";
 
 const PRIMEIRO_ANO_VALIDACAO = 2018; // período inicial de validação da pesquisa (docs/DECISIONS.md)
 
-// Barra de comparação (método próprio × satélite × MapBiomas) — mesma
-// ideia do mockup (docs/DECISIONS.md seção 6.38), com as 3 áreas que já
-// existem no banco (metricas_anuais + validacao_mapbiomas).
+// Três áreas com definições diferentes lado a lado (docs/DECISIONS.md seção
+// 6.38). Cores neutras de propósito: verde/mostarda/terracota são só dos
+// selos de confiabilidade (CLAUDE.md) e aqui não medem confiabilidade
+// nenhuma (seção 6.52). Cada barra diz o que mede, porque não se espera que
+// as três sejam iguais.
 function BarraComparacao({
   metodoKm2,
   satelliteKm2,
@@ -24,28 +28,50 @@ function BarraComparacao({
 }) {
   const paraNumero = (v: string | null) => (v === null ? 0 : Number(v));
   const valores = [
-    { nome: "Método próprio", valor: metodoKm2, cor: "bg-verde" },
-    { nome: "Satélite", valor: satelliteKm2, cor: "bg-acento" },
-    { nome: "MapBiomas", valor: mapbiomasKm2, cor: "bg-mostarda" },
+    {
+      nome: "Agrupamentos",
+      valor: metodoKm2,
+      cor: "bg-acento",
+      definicao: "área de influência dos focos agrupados (raio de 3 km)",
+    },
+    {
+      nome: "Leitura de satélite",
+      valor: satelliteKm2,
+      cor: "bg-stone-500",
+      definicao: "pixels com dNBR de pelo menos 0,10 (Sentinel-2)",
+    },
+    {
+      nome: "MapBiomas Fogo",
+      valor: mapbiomasKm2,
+      cor: "bg-stone-300",
+      definicao: "área mapeada como queimada pelo MapBiomas",
+    },
   ];
   const max = Math.max(1, ...valores.map((v) => paraNumero(v.valor)));
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       {valores.map((v) => (
-        <div key={v.nome} className="flex items-center gap-3">
-          <span className="w-28 shrink-0 text-xs text-muted">{v.nome}</span>
-          <div className="h-3.5 flex-1 overflow-hidden rounded-full border border-border bg-background">
-            <div
-              className={`h-full rounded-full ${v.cor}`}
-              style={{ width: `${(paraNumero(v.valor) / max) * 100}%` }}
-            />
+        <div key={v.nome}>
+          <div className="flex items-center gap-3">
+            <span className="w-32 shrink-0 text-xs text-muted">{v.nome}</span>
+            <div className="h-3.5 flex-1 overflow-hidden rounded-full border border-border bg-background">
+              <div
+                className={`h-full rounded-full ${v.cor}`}
+                style={{ width: `${(paraNumero(v.valor) / max) * 100}%` }}
+              />
+            </div>
+            <span className="w-20 shrink-0 text-right font-mono text-xs font-semibold text-foreground">
+              {formatKm2(v.valor)}
+            </span>
           </div>
-          <span className="w-20 shrink-0 text-right font-mono text-xs font-semibold text-foreground">
-            {formatKm2(v.valor)}
-          </span>
+          <p className="pl-[8.75rem] text-[11px] text-faint">{v.definicao}</p>
         </div>
       ))}
+      <p className="text-[11px] text-faint">
+        São três medidas diferentes, e não se espera que coincidam. A confiabilidade não compara esses
+        tamanhos: ela usa os dois critérios acima.
+      </p>
     </div>
   );
 }
@@ -85,22 +111,36 @@ function MapaDnbrAtual({
         <>
           <ImagemComFallback
             src={imagemUrl}
-            alt={`Mapa de severidade de queimada (dNBR) de ${nomeMunicipio}, ${rotuloAno}, estilo QGIS: verde é baixa severidade (perto de 0,10), do amarelo ao vermelho é severidade alta (até 0,75).`}
+            alt={`Mapa de severidade de queimada (dNBR) de ${nomeMunicipio}, ${rotuloAno}: verde é dNBR de até 0,10 (sem sinal de queima), passando por amarelo, laranja e vermelho até preto, que é dNBR de 0,70 ou mais.`}
             className="h-auto w-full"
             mensagemFallback="Não foi possível carregar o mapa deste município agora — tente recarregar a página."
           />
-          <div className="flex items-center gap-2 px-3 py-2">
-            <span
-              className="h-2 flex-1 max-w-32 rounded-full"
-              style={{
-                background: "linear-gradient(to right, #1d5e38, #5b9e4d, #d9d94a, #d9a441, #c1442d)",
-              }}
-              aria-hidden="true"
-            />
-            <span className="text-[11px] text-faint">−0,25 a 0,75 (dNBR)</span>
-          </div>
+          {maisRecente ? (
+            // Mesma escala da imagem gerada pelo pipeline (VIS_PARAMS em
+            // pipeline/dnbr/sentinel2.py: min 0,1, max 0,7, verde → preto).
+            // A legenda antiga dizia "−0,25 a 0,75" e usava as cores dos
+            // selos — não batia com a imagem (seção 6.52).
+            <div className="space-y-1 px-3 py-2">
+              <span
+                className="block h-2 w-full max-w-64 rounded-full"
+                style={{ background: "linear-gradient(to right, green, yellow, orange, red, black)" }}
+                aria-hidden="true"
+              />
+              <div className="flex max-w-64 justify-between text-[11px] text-faint">
+                <span>0,10 ou menos</span>
+                <span>0,70 ou mais</span>
+              </div>
+              <p className="text-[11px] text-faint">
+                dNBR (sem unidade): quanto mais alto, maior a mudança na vegetação entre antes e depois. Áreas
+                com dNBR de pelo menos 0,10 entram na área de leitura de satélite.
+              </p>
+            </div>
+          ) : (
+            <p className="px-3 py-2 text-[11px] text-faint">Imagem da pesquisa original, com paleta própria.</p>
+          )}
           <p className="border-t border-border px-3 py-2 text-xs text-muted">
-            Mapa dNBR mais recente ({rotuloAno}) · Sentinel-2/ESA, processado no Google Earth Engine
+            Mapa dNBR mais recente ({rotuloAno}) · Sentinel-2/ESA, processado no Google Earth Engine. A cor
+            mostra mudança espectral, não a causa do fogo.
           </p>
         </>
       ) : (
@@ -126,7 +166,7 @@ export async function generateMetadata({
   const ultimaValidacao = detalhe.validacoes[0];
   const descricao = ultimaValidacao
     ? `Confiabilidade ${ultimaValidacao.confiabilidade} (${ultimaValidacao.ano}) — agrupamento de focos de calor + leitura de satélite comparado ao MapBiomas Fogo.`
-    : `${detalhe.municipio.nome} ainda não foi comparado ao MapBiomas Fogo.`;
+    : `${detalhe.municipio.nome} ainda não foi validado pela pesquisa — mapa de leitura de satélite e consulta por mês.`;
 
   return {
     title: `${detalhe.municipio.nome} — Painel de Queimadas SP`,
@@ -136,10 +176,13 @@ export async function generateMetadata({
 
 export default async function MunicipioPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ codigoIbge: string }>;
+  searchParams: Promise<{ ano?: string; mes?: string }>;
 }) {
   const { codigoIbge } = await params;
+  const { ano: anoConsulta, mes: mesConsulta } = await searchParams;
   const detalhe = await getMunicipioDetalhe(codigoIbge);
 
   if (!detalhe) notFound();
@@ -148,15 +191,21 @@ export default async function MunicipioPage({
 
   return (
     <div className="space-y-8">
-      <div>
-        <Link href="/" className="text-[19px] font-bold text-acento hover:underline">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link href="/#busca" className="text-[19px] font-bold text-acento hover:underline">
           ← voltar para a busca
+        </Link>
+        <Link
+          href={`/comparar?m=${municipio.codigoIbge}`}
+          className="rounded-full border border-border bg-surface px-3 py-1 text-xs font-semibold text-foreground hover:border-acento/40"
+        >
+          Comparar com outro município
         </Link>
       </div>
 
       <header className="space-y-2">
         <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          {municipio.nome}
+          {municipio.nome} <span className="text-lg font-normal text-muted">· SP</span>
         </h1>
         <dl className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted">
           <div>
@@ -184,7 +233,7 @@ export default async function MunicipioPage({
         </dl>
       </header>
 
-      <ConsultaSobDemanda codigoIbge={municipio.codigoIbge} />
+      <ConsultaSobDemanda codigoIbge={municipio.codigoIbge} anoInicial={anoConsulta} mesInicial={mesConsulta} />
 
       <MapaDnbrAtual
         nomeMunicipio={municipio.nome}
@@ -194,8 +243,12 @@ export default async function MunicipioPage({
 
       {!municipio.naAmostra ? (
         <div className="rounded-2xl border border-border bg-surface px-4 py-6 text-sm text-muted shadow-sm">
-          Este município ainda não está na amostra validada pela pesquisa —
-          não comparado/validado.
+          Este município ainda não está na amostra validada pela pesquisa, por isso não tem selo de
+          confiabilidade. O mapa acima e a consulta por mês funcionam normalmente (
+          <Link href="/como-produzimos#limitacoes" className="underline">
+            veja as limitações do cálculo automático
+          </Link>
+          ).
         </div>
       ) : (
         <section className="space-y-4">
@@ -213,14 +266,14 @@ export default async function MunicipioPage({
                 <div
                   key={ano}
                   className={`flex w-12 flex-col items-center gap-1 rounded-lg border px-1 py-1.5 ${
-                    validado ? "border-mostarda/50 bg-mostarda/10" : "border-border bg-surface"
+                    validado ? "border-acento/50 bg-acento/10" : "border-border bg-surface"
                   }`}
-                  title={validado ? `${ano}: validado` : `${ano}: sem dado ainda`}
+                  title={validado ? `${ano}: validado pela pesquisa` : `${ano}: sem validação ainda`}
                 >
                   <span className={`font-mono text-xs font-semibold ${validado ? "text-foreground" : "text-faint"}`}>
                     &apos;{String(ano).slice(2)}
                   </span>
-                  <span className={`h-1.5 w-1.5 rounded-full ${validado ? "bg-mostarda" : "bg-stone-300"}`} />
+                  <span className={`h-1.5 w-1.5 rounded-full ${validado ? "bg-acento" : "bg-stone-300"}`} />
                 </div>
               );
             })}
@@ -233,50 +286,58 @@ export default async function MunicipioPage({
           ) : (
             <div className="space-y-4">
               {validacoes.map((v) => {
+                const metricasDoAno = metricas.find((m) => m.ano === v.ano);
                 return (
                 <div
                   key={v.ano}
                   className="rounded-2xl border border-border bg-surface p-5 shadow-sm"
                 >
-                  <div className="mb-4 flex items-center justify-between">
-                    <span className="text-sm text-muted">{v.ano}</span>
-                    <span
-                      className={`rounded-full px-3 py-1 text-[19px] font-bold ${CONFIABILIDADE_STYLE[v.confiabilidade].bg} ${CONFIABILIDADE_STYLE[v.confiabilidade].text}`}
-                    >
-                      {CONFIABILIDADE_STYLE[v.confiabilidade].label}
-                    </span>
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div>
+                      <span className="text-sm text-muted">{v.ano}</span>
+                      <p className="text-[11px] text-faint">
+                        Validado pela pesquisa · comparado ao MapBiomas Fogo {v.mapbiomasColecao}
+                      </p>
+                    </div>
+                    <SeloConfiabilidade nivel={v.confiabilidade} />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <CriteriosConfiabilidade
+                    confiabilidade={v.confiabilidade}
+                    recallPct={v.recallPct}
+                    pValor={v.pValor}
+                  />
+
+                  <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
                     <InfoTile
                       rotulo="Recall"
                       valor={formatPct(v.recallPct)}
-                      explicacao="Do que o MapBiomas considera área queimada, quanto o nosso método também encontrou. Recall alto = o método não está deixando passar queima real."
+                      explicacao="Recall = área em comum entre os agrupamentos de focos e o MapBiomas ÷ área queimada do MapBiomas. Diz quanto da queima registrada pelo MapBiomas o método também pegou. Não é uma porcentagem de acerto: o método pode pegar tudo e ainda marcar área que não queimou."
                     />
                     <InfoTile
                       rotulo="Interseção"
                       valor={formatPct(v.interseccaoPct, 2)}
-                      explicacao="O quanto a área do nosso método coincide, pixel a pixel, com a área do MapBiomas. Costuma ficar baixa mesmo com Recall alto — são medidas diferentes, mostramos as duas por transparência."
+                      explicacao="Interseção sobre união (índice de Jaccard) entre a área dos agrupamentos e a área queimada do MapBiomas: área em comum ÷ área coberta por pelo menos um dos dois. Fica baixa sempre que um dos dois é bem maior que o outro, mesmo com Recall alto."
                     />
                     <InfoTile
                       rotulo="valor-p"
                       valor={formatPValor(v.pValor)}
-                      explicacao="Mede se essa coincidência espacial poderia ter acontecido por acaso. Abaixo de 0,05 conta como estatisticamente significativa (um dos 2 critérios da confiabilidade)."
+                      explicacao={`Teste de permutação: a coincidência real entre agrupamentos e MapBiomas é comparada com ${v.nPermutacoes} posições sorteadas ao acaso, e o valor-p é a fração de sorteios que coincidiram tanto quanto ou mais que a real. Abaixo de 0,05, a coincidência dificilmente é acaso. Não mede a qualidade do método: só diz se a coincidência é maior que a esperada ao acaso.`}
                     />
                     <InfoTile
                       rotulo="Área MapBiomas"
                       valor={formatKm2(v.areaMapbiomasKm2)}
-                      explicacao="Área queimada nesse ano segundo o MapBiomas Fogo — a terceira fonte independente usada como comparação."
+                      explicacao={`Área mapeada como queimada pelo MapBiomas Fogo (${v.mapbiomasColecao}) dentro do município, em km², no mesmo recorte de tempo da comparação. É a referência independente usada nos dois critérios.`}
                     />
                   </div>
 
-                  <div className="mt-4 border-t border-border pt-4">
+                  <div className="mt-5 border-t border-border pt-4">
                     <p className="mb-2 text-xs font-medium text-muted">
-                      Área comparada · {v.ano}
+                      Três áreas do mesmo recorte · {v.ano}
                     </p>
                     <BarraComparacao
-                      metodoKm2={metricas.find((m) => m.ano === v.ano)?.areaStDbscanKm2 ?? null}
-                      satelliteKm2={metricas.find((m) => m.ano === v.ano)?.areaDnbrKm2 ?? null}
+                      metodoKm2={metricasDoAno?.areaStDbscanKm2 ?? null}
+                      satelliteKm2={metricasDoAno?.areaDnbrKm2 ?? null}
                       mapbiomasKm2={v.areaMapbiomasKm2}
                     />
                   </div>
@@ -286,9 +347,6 @@ export default async function MunicipioPage({
                       {v.validacaoTemporal}
                     </p>
                   )}
-                  <p className="mt-1 text-xs text-muted">
-                    Comparado contra MapBiomas Fogo {v.mapbiomasColecao}
-                  </p>
                 </div>
                 );
               })}
@@ -302,7 +360,7 @@ export default async function MunicipioPage({
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-muted">
                 <tr>
-                  <th className="px-4 py-3 font-medium">Ano</th>
+                  <th className="px-4 py-3 font-medium">Período</th>
                   <th className="px-4 py-3 font-medium">Focos de calor</th>
                   <th className="px-4 py-3 font-medium">Agrupamentos</th>
                   <th className="px-4 py-3 font-medium">Área (agrupamento)</th>
@@ -310,18 +368,72 @@ export default async function MunicipioPage({
                 </tr>
               </thead>
               <tbody>
-                {metricas.map((m) => (
-                  <tr key={m.ano} className="border-t border-border">
-                    <td className="px-4 py-3 font-mono">{m.ano}</td>
-                    <td className="px-4 py-3">{m.numFocosCalor ?? "—"}</td>
-                    <td className="px-4 py-3">{m.numAgrupamentos ?? "—"}</td>
-                    <td className="px-4 py-3">{formatKm2(m.areaStDbscanKm2)}</td>
-                    <td className="px-4 py-3">{formatKm2(m.areaDnbrKm2)}</td>
-                  </tr>
-                ))}
+                {metricas.map((m) => {
+                  const { periodo, origem } = origemDasMetricas(m.ano, municipio.naAmostra);
+                  return (
+                    <tr key={m.ano} className="border-t border-border">
+                      <td className="px-4 py-3">
+                        <span className="font-mono">{periodo}</span>
+                        <span className="block text-[11px] text-faint">{origem}</span>
+                      </td>
+                      <td className="px-4 py-3">{m.numFocosCalor ?? "—"}</td>
+                      <td className="px-4 py-3">{m.numAgrupamentos ?? "—"}</td>
+                      <td className="px-4 py-3">{formatKm2(m.areaStDbscanKm2)}</td>
+                      <td className="px-4 py-3">{formatKm2(m.areaDnbrKm2)}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
+          <p className="text-xs text-muted">
+            As linhas não são comparáveis entre si: a da pesquisa cobre só agosto de 2024 com o satélite de
+            referência do INPE; as automáticas cobrem o ano e somam todos os satélites, o que multiplica a
+            contagem de focos (
+            <Link href="/como-produzimos#limitacoes" className="underline">
+              por quê
+            </Link>
+            ).
+          </p>
+
+          <details className="rounded-2xl border border-border bg-surface p-4 text-sm shadow-sm">
+            <summary className="cursor-pointer font-medium text-foreground">Detalhes técnicos</summary>
+            <div className="mt-3 space-y-3 text-xs text-muted">
+              <p>Parâmetros do agrupamento espaço-temporal (ST-DBSCAN) gravados para cada período:</p>
+              <table className="w-full">
+                <thead className="text-left">
+                  <tr>
+                    <th className="py-1 pr-3 font-medium">Período</th>
+                    <th className="py-1 pr-3 font-medium">Raio espacial</th>
+                    <th className="py-1 pr-3 font-medium">Janela de tempo</th>
+                    <th className="py-1 font-medium">Mínimo de focos</th>
+                  </tr>
+                </thead>
+                <tbody className="font-mono">
+                  {metricas.map((m) => (
+                    <tr key={m.ano}>
+                      <td className="py-1 pr-3">{origemDasMetricas(m.ano, municipio.naAmostra).periodo}</td>
+                      <td className="py-1 pr-3">{Number(m.epsSpaceKm).toLocaleString("pt-BR")} km</td>
+                      <td className="py-1 pr-3">{Number(m.epsTimeDays).toLocaleString("pt-BR")} dia(s)</td>
+                      <td className="py-1">{m.minSamples}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {validacoes.map((v) => (
+                <p key={v.ano}>
+                  Validação {v.ano}: fonte <span className="font-mono">{v.fonte}</span> · MapBiomas Fogo{" "}
+                  {v.mapbiomasColecao} · {v.nPermutacoes} permutações · critério fixo Recall ≥ 50% e valor-p &lt; 0,05.
+                </p>
+              ))}
+              <p>
+                Código IBGE <span className="font-mono">{municipio.codigoIbge}</span> ·{" "}
+                <Link href="/como-produzimos#parametros" className="underline">
+                  metodologia completa
+                </Link>
+              </p>
+            </div>
+          </details>
         </section>
       )}
     </div>

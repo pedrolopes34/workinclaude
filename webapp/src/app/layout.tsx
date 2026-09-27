@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next";
 import Link from "next/link";
 import Script from "next/script";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const publicSans = Public_Sans({
@@ -29,11 +30,30 @@ const jost = Jost({
   weight: "700",
 });
 
+const DESCRICAO =
+  "Monitoramento de queimadas nos municípios de São Paulo — agrupamento de focos de calor + leitura de satélite, comparado ao MapBiomas Fogo.";
+
+// metadataBase: sem ele, a imagem de compartilhamento (opengraph-image.tsx)
+// sairia com URL relativa, que WhatsApp/redes sociais não resolvem.
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "Painel de Queimadas SP",
-  description:
-    "Monitoramento de queimadas nos municípios de São Paulo — agrupamento de focos de calor + leitura de satélite, comparado ao MapBiomas Fogo.",
+  description: DESCRICAO,
+  openGraph: {
+    title: "Painel de Queimadas SP",
+    description: DESCRICAO,
+    locale: "pt_BR",
+    type: "website",
+  },
+  twitter: { card: "summary_large_image" },
 };
+
+const LINKS_NAVEGACAO = [
+  { href: "/mapa", rotulo: "Mapa" },
+  { href: "/comparar", rotulo: "Comparar" },
+  { href: "/como-produzimos", rotulo: "Como produzimos" },
+  { href: "/quem-somos", rotulo: "Quem somos" },
+];
 
 export default function RootLayout({
   children,
@@ -62,7 +82,7 @@ export default function RootLayout({
                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.35)]"
                 style={{
                   background:
-                    "radial-gradient(circle at 30% 25%, rgba(255,255,255,.9), rgba(255,255,255,0) 45%), linear-gradient(135deg, var(--color-verde), var(--color-acento-botao))",
+                    "radial-gradient(circle at 30% 25%, rgba(255,255,255,.9), rgba(255,255,255,0) 45%), linear-gradient(135deg, var(--orb-a), var(--color-acento-botao))",
                 }}
               >
                 Q
@@ -71,21 +91,33 @@ export default function RootLayout({
                 Painel de Queimadas SP
               </span>
             </Link>
-            <nav className="hidden items-center gap-5 text-sm font-medium text-muted sm:flex">
-              <Link href="/como-produzimos" className="hover:text-foreground">
-                Como produzimos
-              </Link>
-              <Link href="/quem-somos" className="hover:text-foreground">
-                Quem somos
-              </Link>
+            <nav aria-label="Principal" className="hidden items-center gap-4 text-sm font-medium text-muted md:flex">
+              {LINKS_NAVEGACAO.map((l) => (
+                <Link key={l.href} href={l.href} className="whitespace-nowrap hover:text-foreground">
+                  {l.rotulo}
+                </Link>
+              ))}
             </nav>
             <div className="flex shrink-0 items-center gap-3">
-              <span className="hidden text-xs text-muted lg:inline">
-                pesquisa PIBIC/CNPq
-              </span>
               <ThemeToggle />
             </div>
           </div>
+          {/* No celular a navegação vira uma linha rolável logo abaixo do
+              cabeçalho — antes ela simplesmente sumia (seção 6.52). */}
+          <nav
+            aria-label="Principal (celular)"
+            className="mx-auto mt-2 flex max-w-3xl gap-2 overflow-x-auto pb-1 text-sm font-medium md:hidden"
+          >
+            {LINKS_NAVEGACAO.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className="shrink-0 rounded-full border border-glass-border bg-glass px-3 py-1.5 text-muted backdrop-blur-xl hover:text-foreground"
+              >
+                {l.rotulo}
+              </Link>
+            ))}
+          </nav>
         </header>
 
         <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">{children}</main>

@@ -1,9 +1,6 @@
 import type { MetadataRoute } from "next";
+import { SITE_URL } from "@/lib/site";
 import { sql } from "@/lib/db";
-
-// SITE_URL ainda nao existe (nome do produto/dominio nao decidido —
-// docs/DECISIONS.md secao 7); placeholder ate a publicacao real.
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://example.com";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // So os municipios da amostra tem conteudo proprio de verdade (os outros
@@ -14,6 +11,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     { url: SITE_URL, changeFrequency: "weekly", priority: 1 },
+    { url: `${SITE_URL}/mapa`, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${SITE_URL}/comparar`, changeFrequency: "monthly", priority: 0.4 },
     { url: `${SITE_URL}/como-produzimos`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${SITE_URL}/quem-somos`, changeFrequency: "monthly", priority: 0.5 },
     ...municipios.map((m) => ({

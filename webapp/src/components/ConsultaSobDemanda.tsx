@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { InfoTile } from "./InfoTile";
 import { ImagemComFallback } from "./ImagemComFallback";
 import { formatKm2 } from "@/lib/format";
@@ -19,6 +20,8 @@ const INTERVALO_POLLING_MS = 6000;
 // ~9min: acima dos 8min em que o servidor marca a consulta travada como erro (expirarSeTravada).
 const LIMITE_TENTATIVAS_POLLING = 90;
 
+const ETAPAS = ["Pedido enviado", "Na fila", "Calculando", "Pronto"] as const;
+
 function mesEstaDisponivel(ano: number, mes: number, hoje: Date): boolean {
   const anoAtual = hoje.getFullYear();
   const mesAtual = hoje.getMonth() + 1; // Date usa 0-indexado; aqui é 1-12
@@ -34,21 +37,90 @@ function primeiroMesDisponivel(ano: number, hoje: Date): number {
   return 1;
 }
 
-export function ConsultaSobDemanda({ codigoIbge }: { codigoIbge: string }) {
+// Período vindo da URL (?ano=&mes=) só vale se for um mês já encerrado e
+// dentro da janela da consulta — senão cai no padrão (último mês encerrado).
+function periodoDaUrl(
+  anoTexto: string | undefined,
+  mesTexto: string | undefined,
+  hoje: Date
+): { ano: number; mes: number } | null {
+  const ano = Number(anoTexto);
+  const mes = Number(mesTexto);
+  if (!Number.isInteger(ano) || !Number.isInteger(mes)) return null;
+  if (ano < PRIMEIRO_ANO || ano > hoje.getFullYear() || mes < 1 || mes > 12) return null;
+  return mesEstaDisponivel(ano, mes, hoje) ? { ano, mes } : null;
+}
+
+function etapaAtual(consulta: ConsultaSobDemandaResultado | null, enviando: boolean): number {
+  if (enviando) return 0;
+  if (!consulta) return -1;
+  if (consulta.status === "pendente") return 1;
+  if (consulta.status === "processando") return 2;
+  return 3;
+}
+
+export function ConsultaSobDemanda({
+  codigoIbge,
+  anoInicial,
+  mesInicial,
+}: {
+  codigoIbge: string;
+  anoInicial?: string;
+  mesInicial?: string;
+}) {
   const hoje = useMemo(() => new Date(), []);
   const anoAtual = hoje.getFullYear();
   const anosDisponiveis = useMemo(
     () => Array.from({ length: anoAtual - PRIMEIRO_ANO + 1 }, (_, i) => PRIMEIRO_ANO + i),
     [anoAtual]
   );
+  const periodoInicial = useMemo(
+    () => periodoDaUrl(anoInicial, mesInicial, hoje),
+    [anoInicial, mesInicial, hoje]
+  );
 
-  const [ano, setAno] = useState(anoAtual);
-  const [mes, setMes] = useState(() => primeiroMesDisponivel(anoAtual, hoje));
+  const [ano, setAno] = useState(periodoInicial?.ano ?? anoAtual);
+  const [mes, setMes] = useState(() => periodoInicial?.mes ?? primeiroMesDisponivel(anoAtual, hoje));
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
   const [consultaId, setConsultaId] = useState<number | null>(null);
   const [consulta, setConsulta] = useState<ConsultaSobDemandaResultado | null>(null);
+  const [linkCopiado, setLinkCopiado] = useState(false);
+  // Período do resultado na tela — separado dos seletores, que a pessoa pode
+  // mexer depois: rótulos, texto alternativo e URL seguem o resultado, não o
+  // seletor.
+  const [periodoResultado, setPeriodoResultado] = useState<{ ano: number; mes: number } | null>(null);
   const tentativasRef = useRef(0);
+
+  // Link reproduzível: abrir /municipio/X?ano=&mes= mostra o resultado se ele
+  // já foi calculado — só leitura, nunca dispara cálculo (seção 6.52).
+  useEffect(() => {
+    if (!periodoInicial) return;
+    const controle = new AbortController();
+    const busca = new URLSearchParams({
+      codigoIbge,
+      ano: String(periodoInicial.ano),
+      mes: String(periodoInicial.mes),
+    });
+    fetch(`/api/consultas?${busca}`, { signal: controle.signal })
+      .then(async (resposta) => {
+        if (resposta.ok) {
+          const dados = await resposta.json();
+          setPeriodoResultado(periodoInicial);
+          setConsultaId(dados.id);
+          setConsulta(dados);
+        } else if (resposta.status === 404) {
+          setAviso(
+            `${NOMES_MESES[periodoInicial.mes - 1]}/${periodoInicial.ano} ainda não foi calculado para este município. Clique em Calcular.`
+          );
+        }
+      })
+      .catch(() => {
+        // falha de rede ao abrir o link: o formulário continua funcionando
+      });
+    return () => controle.abort();
+  }, [codigoIbge, periodoInicial]);
 
   useEffect(() => {
     if (!consultaId || !consulta) return;
@@ -73,6 +145,16 @@ export function ConsultaSobDemanda({ codigoIbge }: { codigoIbge: string }) {
     return () => clearInterval(intervalo);
   }, [consultaId, consulta]);
 
+  // Mantém a URL da página em sincronia com o período do resultado mostrado,
+  // pra "copiar link" (ou o endereço do navegador) reproduzir a mesma análise.
+  useEffect(() => {
+    if (consulta?.status !== "concluido" || !periodoResultado) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("ano", String(periodoResultado.ano));
+    url.searchParams.set("mes", String(periodoResultado.mes));
+    window.history.replaceState(null, "", url);
+  }, [consulta?.status, periodoResultado]);
+
   function selecionarAno(novoAno: number) {
     setAno(novoAno);
     if (!mesEstaDisponivel(novoAno, mes, hoje)) {
@@ -83,8 +165,11 @@ export function ConsultaSobDemanda({ codigoIbge }: { codigoIbge: string }) {
   async function calcular() {
     setEnviando(true);
     setErro(null);
+    setAviso(null);
     setConsulta(null);
     setConsultaId(null);
+    setLinkCopiado(false);
+    setPeriodoResultado({ ano, mes });
     tentativasRef.current = 0;
 
     try {
@@ -107,7 +192,20 @@ export function ConsultaSobDemanda({ codigoIbge }: { codigoIbge: string }) {
     }
   }
 
+  async function copiarLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setLinkCopiado(true);
+    } catch {
+      setLinkCopiado(false);
+    }
+  }
+
   const emAndamento = consulta?.status === "pendente" || consulta?.status === "processando";
+  const etapa = etapaAtual(consulta, enviando);
+  const rotuloPeriodo = periodoResultado
+    ? `${NOMES_MESES[periodoResultado.mes - 1]}/${periodoResultado.ano}`
+    : `${NOMES_MESES[mes - 1]}/${ano}`;
 
   return (
     <section className="space-y-3 rounded-2xl border border-border bg-surface p-5 shadow-sm">
@@ -168,56 +266,100 @@ export function ConsultaSobDemanda({ codigoIbge }: { codigoIbge: string }) {
 
       <p className="text-[11px] text-faint">2018–2023: histórico do INPE ainda não integrado.</p>
 
+      {aviso && !consulta && (
+        <p className="rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground">{aviso}</p>
+      )}
+
       {erro && (
         <p className="rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground">
           {erro}
+          {consultaId && <span className="mt-1 block text-faint">Código para suporte: consulta #{consultaId}</span>}
         </p>
       )}
 
+      {etapa >= 0 && etapa < 3 && (
+        <ol className="flex flex-wrap gap-x-4 gap-y-1 text-xs" aria-live="polite">
+          {ETAPAS.map((nome, i) => (
+            <li
+              key={nome}
+              aria-current={i === etapa ? "step" : undefined}
+              className={i < etapa ? "text-muted" : i === etapa ? "font-semibold text-foreground" : "text-faint"}
+            >
+              {i < etapa ? "✓" : i === etapa ? "●" : "○"} {nome}
+              {i === etapa && i < 3 && (
+                <span
+                  className="ml-1.5 inline-block h-3 w-3 animate-spin rounded-full border-2 border-acento border-t-transparent align-[-2px]"
+                  aria-hidden="true"
+                />
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+
       {emAndamento && (
-        <p className="flex items-center gap-2 text-xs text-muted">
-          <span
-            className="h-3 w-3 animate-spin rounded-full border-2 border-acento border-t-transparent"
-            aria-hidden="true"
-          />
-          Calculando {NOMES_MESES[mes - 1]}/{ano}…
+        <p className="text-xs text-muted">
+          Calculando {rotuloPeriodo} · consulta #{consultaId}. Pode sair desta página: o resultado
+          fica guardado e aparece de novo pelo link.
         </p>
       )}
 
       {consulta?.status === "erro" && (
         <p className="rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground">
           {consulta.mensagemErro ?? "Não foi possível concluir o cálculo."}
+          <span className="mt-1 block text-faint">Código para suporte: consulta #{consulta.id}</span>
         </p>
       )}
 
       {consulta?.status === "concluido" && (
         <div className="space-y-3 border-t border-border pt-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-medium text-muted">
+              Resultado de {rotuloPeriodo} · consulta #{consulta.id}
+            </p>
+            <button
+              type="button"
+              onClick={copiarLink}
+              className="rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground hover:border-acento/40"
+            >
+              {linkCopiado ? "Link copiado ✓" : "Copiar link da análise"}
+            </button>
+          </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <InfoTile
               rotulo="Focos de calor"
               valor={consulta.numFocosCalor ?? "—"}
-              explicacao="Total de focos de calor do INPE detectados nesse município, nesse mês."
+              explicacao="Focos de calor do INPE detectados nesse município, nesse mês, somando todos os satélites. Foco de calor não é incêndio confirmado: é um ponto quente visto pelo satélite, e o mesmo fogo pode ser visto por vários satélites."
             />
             <InfoTile
               rotulo="Agrupamentos"
               valor={consulta.numAgrupamentos ?? "—"}
-              explicacao="Quantos agrupamentos espaço-temporais (focos próximos no tempo e no espaço) o método formou nesse mês."
+              explicacao="Quantos agrupamentos espaço-temporais (focos a até 3 km e 1 dia uns dos outros, com pelo menos 4 focos) o método formou nesse mês. Um agrupamento pode ser um ou mais episódios de queima."
             />
             <InfoTile
               rotulo="Área (agrupamento)"
               valor={formatKm2(consulta.areaStDbscanKm2)}
-              explicacao="Área de influência dos agrupamentos de focos de calor formados nesse mês."
+              explicacao="Soma das áreas de influência dos agrupamentos (raio de 3 km em volta de cada foco agrupado), em km². Não é área queimada: pode passar da área do município."
             />
             <InfoTile
               rotulo="Área (satélite)"
               valor={formatKm2(consulta.areaDnbrKm2)}
-              explicacao="Área com evidência espectral de queima (dNBR) na leitura de satélite desse mês. Fica sem valor quando a imagem disponível tinha nuvem demais sobre o município."
+              explicacao="Área dentro do município com dNBR de pelo menos 0,10 (Sentinel-2), comparando o mês anterior com o mês escolhido. Fica sem valor quando a imagem disponível tinha nuvem demais sobre o município."
             />
           </div>
+          <p className="text-[11px] leading-relaxed text-faint">
+            Cálculo automático com todos os satélites do INPE. A pesquisa validada usa só o satélite de referência,
+            então aqui a contagem de focos tende a ser bem maior e os números não são comparáveis com os da
+            pesquisa (
+            <Link href="/como-produzimos#limitacoes" className="underline">
+              por quê
+            </Link>
+            ).
+          </p>
           {consulta.dnbrImagemUrl && (
             <ImagemComFallback
               src={consulta.dnbrImagemUrl}
-              alt={`Mapa de severidade de queimada (dNBR) deste município em ${NOMES_MESES[mes - 1]}/${ano}`}
+              alt={`Mapa de severidade de queimada (dNBR) deste município em ${rotuloPeriodo}: verde é dNBR de até 0,10, passando por amarelo, laranja e vermelho até preto, 0,70 ou mais.`}
               className="h-auto w-full rounded-xl border border-border"
               mensagemFallback="Não foi possível carregar o mapa desta consulta agora."
             />

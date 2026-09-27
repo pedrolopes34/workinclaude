@@ -26,6 +26,9 @@ export interface MetricasAnuais {
   areaStDbscanKm2: string | null;
   areaDnbrKm2: string | null;
   dnbrImagemUrl: string | null;
+  epsSpaceKm: string;
+  epsTimeDays: string;
+  minSamples: number;
 }
 
 export interface ValidacaoMapbiomas {
@@ -38,7 +41,31 @@ export interface ValidacaoMapbiomas {
   confiabilidade: Confiabilidade;
   validacaoTemporal: string | null;
   mapbiomasColecao: string;
+  fonte: FonteValidacao;
+  nPermutacoes: number;
 }
+
+// 'manual' = validado pela pesquisa (os 63 da amostra); 'automatico' =
+// pipeline (docs/DECISIONS.md seção 6.29). A interface só exibe 'manual'
+// por enquanto (seção 6.52).
+export type FonteValidacao = "manual" | "automatico";
+
+// Linha única por município (os 645), com a confiabilidade validada pela
+// pesquisa quando existe — usada no mapa, na busca e na exportação.
+export interface MunicipioNoMapa {
+  codigoIbge: string;
+  nome: string;
+  confiabilidade: Confiabilidade | null;
+}
+
+export interface ResumoCobertura {
+  total: number;
+  naAmostra: number;
+  comMapaDnbr: number;
+  ultimaAtualizacao: Date | null;
+}
+
+export type ContagemConfiabilidade = Record<Confiabilidade, number>;
 
 export interface MunicipioDetalhe {
   municipio: Municipio;

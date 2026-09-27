@@ -11,6 +11,33 @@ import {
   validarPeriodo,
 } from "@/lib/consultaSobDemanda";
 
+// GET /api/consultas?codigoIbge=&ano=&mes= — só procura um resultado já
+// concluído pro recorte, sem disparar cálculo nenhum. É o que o link
+// reproduzível (/municipio/X?ano=&mes=) usa ao abrir a página
+// (docs/DECISIONS.md seção 6.52): abrir um link compartilhado, ou um robô
+// visitando a URL, nunca gasta minutos do Actions nem cota do GEE.
+export async function GET(request: NextRequest) {
+  const busca = request.nextUrl.searchParams;
+  const codigoIbge = busca.get("codigoIbge");
+  const ano = Number(busca.get("ano"));
+  const mes = Number(busca.get("mes"));
+
+  if (!codigoIbge || !/^\d{7}$/.test(codigoIbge)) {
+    return NextResponse.json({ erro: "Município é obrigatório." }, { status: 400 });
+  }
+  const periodo = validarPeriodo(ano, mes);
+  if (!periodo.ok) {
+    return NextResponse.json({ erro: periodo.motivo }, { status: 400 });
+  }
+
+  await garantirTabelaConsultas();
+  const existente = await buscarConsultaConcluida(codigoIbge, ano, mes);
+  if (!existente) {
+    return NextResponse.json({ erro: "Ainda não calculado." }, { status: 404 });
+  }
+  return NextResponse.json({ ...existente, reaproveitado: true });
+}
+
 // POST /api/consultas — visitante escolhe município+ano+mês e pede o
 // cálculo ao vivo (docs/DECISIONS.md seção 6.43). Cria a linha 'pendente'
 // e dispara consulta-sob-demanda.yml; o resultado chega por polling em
