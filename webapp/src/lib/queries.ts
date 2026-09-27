@@ -83,14 +83,31 @@ export async function contarPorConfiabilidade(): Promise<ContagemConfiabilidade>
   return contagem;
 }
 
-// Os 645, pro mapa estadual, o autocompletar da busca, a comparação e o CSV.
+// Os 645, pro mapa estadual, o autocompletar da busca e a comparação. Focos
+// do ano anterior (completo) e do ano corrente (até agora) vêm do pipeline
+// automático, que desde a seção 6.53 usa só o satélite de referência; a área
+// de leitura de satélite é a da miniatura dNBR mais recente. Nunca usa as
+// linhas de 2024, que na amostra são os números da pesquisa (ago/2024).
 export const listarMunicipiosNoMapa = cache(async function listarMunicipiosNoMapa(): Promise<
   MunicipioNoMapa[]
 > {
+  const anoAtual = new Date().getFullYear();
   return sql<MunicipioNoMapa[]>`
-    SELECT m.codigo_ibge, m.nome, v.confiabilidade
+    SELECT m.codigo_ibge, m.nome, v.confiabilidade,
+           fa.num_focos_calor AS focos_ano_anterior,
+           fb.num_focos_calor AS focos_ano_atual,
+           d.area_dnbr_km2, d.dnbr_imagem_url
     FROM municipios m
     ${confiabilidadeValidada}
+    LEFT JOIN metricas_anuais fa ON fa.codigo_ibge = m.codigo_ibge AND fa.ano = ${anoAtual - 1}
+    LEFT JOIN metricas_anuais fb ON fb.codigo_ibge = m.codigo_ibge AND fb.ano = ${anoAtual}
+    LEFT JOIN LATERAL (
+      SELECT area_dnbr_km2, dnbr_imagem_url
+      FROM metricas_anuais
+      WHERE codigo_ibge = m.codigo_ibge AND dnbr_imagem_url IS NOT NULL
+      ORDER BY ano DESC
+      LIMIT 1
+    ) d ON true
     ORDER BY m.nome
   `;
 });

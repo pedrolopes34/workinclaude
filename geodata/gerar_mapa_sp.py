@@ -27,6 +27,7 @@ import math
 import sys
 from pathlib import Path
 
+from pyproj import Geod
 from shapely import coverage_simplify
 from shapely.geometry import MultiPolygon, Polygon, shape
 
@@ -39,8 +40,8 @@ FONTE = "Malha municipal: IBGE, via geodata-br (CC0)"
 # e ~55 KB antes do gzip. Com viewBox de 1000 de largura, 1 unidade ≈ 0,9 km
 # no terreno, então coordenada inteira basta pra tela.
 VERSOES = {
-    "sp.json": {"tolerancia_graus": 0.01, "casas": 0},
-    "sp-leve.json": {"tolerancia_graus": 0.03, "casas": 0},
+    "sp.json": {"tolerancia_graus": 0.01, "casas": 0, "com_areas": True},
+    "sp-leve.json": {"tolerancia_graus": 0.03, "casas": 0, "com_areas": False},
 }
 
 
@@ -70,6 +71,14 @@ def caminho_svg(geometria, projetar, casas: int) -> str:
     return "".join(partes)
 
 
+def area_km2(geometria) -> float:
+    """Área geodésica (elipsoide GRS80, o do SIRGAS 2000) da malha ORIGINAL,
+    antes de simplificar — usada no /mapa pra camada de leitura de satélite
+    em % do município (seção 6.54)."""
+    area_m2, _ = Geod(ellps="GRS80").geometry_area_perimeter(geometria)
+    return round(abs(area_m2) / 1e6, 1)
+
+
 def gerar(caminho_geojson: Path) -> None:
     dados = json.loads(caminho_geojson.read_text(encoding="utf-8"))
     codigos = [f["properties"]["id"] for f in dados["features"]]
@@ -88,6 +97,8 @@ def gerar(caminho_geojson: Path) -> None:
     def projetar(lon: float, lat: float) -> tuple[float, float]:
         return (lon - lon_min) * fator_lon * escala, (lat_max - lat) * escala
 
+    areas = {codigo: area_km2(geom) for codigo, geom in zip(codigos, geometrias)}
+
     DESTINO.mkdir(parents=True, exist_ok=True)
     for nome_arquivo, cfg in VERSOES.items():
         simplificadas = coverage_simplify(geometrias, cfg["tolerancia_graus"])
@@ -100,6 +111,8 @@ def gerar(caminho_geojson: Path) -> None:
                 for codigo, geom in zip(codigos, simplificadas)
             },
         }
+        if cfg["com_areas"]:
+            saida["areas_km2"] = areas
         destino = DESTINO / nome_arquivo
         destino.write_text(json.dumps(saida, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
         print(f"{destino.relative_to(RAIZ)}: {destino.stat().st_size / 1024:.0f} KB, viewBox 0 0 {LARGURA} {altura}")

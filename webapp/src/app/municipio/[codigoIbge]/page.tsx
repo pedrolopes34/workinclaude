@@ -387,11 +387,10 @@ export default async function MunicipioPage({
             </table>
           </div>
           <p className="text-xs text-muted">
-            As linhas não são comparáveis entre si: a da pesquisa cobre só agosto de 2024 com o satélite de
-            referência do INPE; as automáticas cobrem o ano e somam todos os satélites, o que multiplica a
-            contagem de focos (
+            As linhas cobrem períodos diferentes: a da pesquisa é só agosto de 2024; as automáticas cobrem o ano
+            inteiro (ou até agora, no ano corrente). Todas usam o satélite de referência do INPE (
             <Link href="/como-produzimos#limitacoes" className="underline">
-              por quê
+              detalhes
             </Link>
             ).
           </p>

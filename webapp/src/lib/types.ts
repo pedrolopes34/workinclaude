@@ -51,11 +51,16 @@ export interface ValidacaoMapbiomas {
 export type FonteValidacao = "manual" | "automatico";
 
 // Linha única por município (os 645), com a confiabilidade validada pela
-// pesquisa quando existe — usada no mapa, na busca e na exportação.
+// pesquisa quando existe e os dados automáticos que cobrem todos — usada no
+// mapa (camadas, seção 6.54), na busca e na comparação.
 export interface MunicipioNoMapa {
   codigoIbge: string;
   nome: string;
   confiabilidade: Confiabilidade | null;
+  focosAnoAnterior: number | null;
+  focosAnoAtual: number | null;
+  areaDnbrKm2: string | null;
+  dnbrImagemUrl: string | null;
 }
 
 export interface ResumoCobertura {

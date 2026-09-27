@@ -2719,8 +2719,8 @@ reprocessar 2024–2026 e só então voltar a exibir as validações
 automáticas. Risco a conferir: o Aqua está em fim de vida útil, então é
 preciso saber qual satélite de referência o INPE vai adotar depois dele.
 
-**Status:** achado confirmado; correção metodológica pendente de
-aprovação.
+**Status:** achado confirmado; correção aprovada pelo Pedro e aplicada
+na seção 6.53.
 
 ### 6.52 Evolução do produto a partir das duas propostas externas — o que foi aplicado e o que não é viável (27/09/2026)
 
@@ -2858,10 +2858,130 @@ dizer, no mapa e na metodologia, que a nota não é ranking. Se o pedido de
 26/09 continuar valendo, o ajuste é pequeno: o mapa pode colorir só
 "validado × não validado", e os filtros podem sair da página inicial.
 
-**Status:** aplicado e verificado localmente; aguarda deploy. Pendências
-de decisão do Pedro: correção de satélite (seção 6.51), anonimização do
-rodapé e o conflito com o pedido de deixar a confiabilidade mais
-escondida.
+**Status:** aplicado, publicado (deploy da Vercel do commit `8d7afbd`,
+conferido pelo status do commit e por diagnóstico no runner). As três
+pendências de decisão (satélite, rodapé, visibilidade da confiabilidade)
+foram respondidas pelo Pedro na seção 6.53.
+
+
+### 6.53 Cálculo automático alinhado com a pesquisa: só o satélite de referência do INPE (27/09/2026)
+
+**Decisões do Pedro** (respostas às perguntas do fim da seção 6.52):
+1. **Satélite:** "Sim, filtrar AQUA_M-T e reprocessar", com a conferência
+   de que os 63 da pesquisa são reproduzidos.
+2. **Visibilidade da confiabilidade:** manter como está (mapa e filtros por
+   nível). Resolve o conflito com o pedido de 26/09 descrito na seção
+   6.52; a troca de paleta daquele pedido segue sem decisão (seção 7).
+3. **Rodapé:** não existe avaliação cega; nada é anonimizado.
+
+**Conferência antes de mexer** (`diagnosticar_focos_inpe.py --amostra`, no
+runner, run `36339358238`), para os 63 municípios de ago/2024 só com
+AQUA_M-T:
+- **Agrupamentos batem com a pesquisa em 62 de 63** com min_samples=4 (a
+  exceção é Morro Agudo: 4 na pesquisa, 1 aqui) e em 63 de 63 aceitando o
+  min_samples de cada município.
+- **Focos:** 18 de 63 iguais, 32 a até 10%; soma 1.847 contra 1.574 da
+  pesquisa (+17%). Nunca menos que a pesquisa, e vários exatamente o dobro
+  (Alumínio 8→16, Amparo 10→20, Pedregulho 13→26): suspeita de o produto
+  mensal do INPE listar o mesmo foco mais de uma vez. Medição dos repetidos
+  em andamento (mesmo diagnóstico, run `36340196156`).
+- **Hipótese do recorte da área pelo município (seção 6.51): refutada.**
+  Sem recorte, mediana 1,10× a área da pesquisa (18 a até 5%); recortada,
+  0,93× (12 a até 5%). Pitangueiras (432,9 ≈ 430,9 km²) foi coincidência.
+- **AQUA_M-T segue ativo:** tem focos em SP em todos os meses de 2025 (ex.:
+  set/2025, 1.009 de 21.132) e de 2026 até setembro (ago/2026, 170 de
+  3.754). O filtro não zera os anos recentes.
+
+**Mudança no pipeline (commit `cce22f7`):**
+- `carregar_focos_sp` filtra `SATELITE_REFERENCIA = "AQUA_M-T"` por padrão
+  (ingestão, validação MapBiomas e consulta por mês usam a mesma função);
+  `satelite=None` só em diagnóstico. CSV sem a coluna `satelite` agora é
+  erro, em vez de seguir calado com todos os satélites.
+- **Dado velho no reprocessamento, corrigido junto:** a ingestão só gravava
+  municípios com algum foco na janela (loop por `groupby` dos focos), então
+  quem ficasse sem foco do AQUA manteria a linha antiga. Agora grava os 645
+  (`focos_por_municipio`). Na validação, município que ficou sem agrupamento
+  fazia `continue` e mantinha a validação automática antiga; agora ela é
+  apagada (`_remover_validacao_automatica`, com `fonte = 'automatico'` no
+  WHERE, então a amostra manual nunca é tocada).
+- `consultas_sob_demanda.versao_metodo` (1 = todos os satélites, 2 =
+  satélite de referência): o site só reaproveita resultado da versão
+  atual, e os cálculos antigos (ex.: Pitangueiras ago/2024 com 1.588
+  focos) são refeitos no próximo pedido.
+
+**Reprocessamento disparado:** ingestão 2025 (run `36340159081` ou
+`36340160776`), ingestão 2026 (a outra) e validação MapBiomas 2024 com
+`ano=2024` explícito (run `36340162162`; o padrão do workflow seria 2025, e
+a Coleção 4 só vai até 2024). As linhas de 2024 da amostra (seed da
+pesquisa) não são tocadas: a ingestão não roda pra 2024.
+
+**Resultado do reprocessamento (inventário de produção, run `36340610210`):**
+as duas ingestões terminaram com sucesso em ~5 min cada. `metricas_anuais`
+tem agora **645 linhas em 2025** (eram 639: os municípios sem foco passaram a
+ter linha com zero) e 645 em 2026. A soma dos focos por município bate
+exatamente com a contagem estadual do AQUA_M-T medida no diagnóstico: **2.366
+em 2025 e 568 em 2026 até setembro** — sinal de que o filtro está certo e
+nenhum município ficou de fora. 2025: 233 municípios com zero, mediana 1,
+p90 11, máximo 59, 225 com agrupamento. 2026: 424 com zero, p90 3, máximo 18,
+85 com agrupamento. As linhas de 2024 da amostra seguem iguais ao seed (63
+de 63). A validação MapBiomas de 2024 (~2h) segue rodando.
+
+**O que continua diferente da pesquisa, de propósito ou em aberto:** a
+validação automática compara o ano inteiro com o MapBiomas anual (decisão
+de desenho, seções 1.1/6.13), e a pesquisa comparou agosto. Por isso a
+interface continua mostrando selo só onde a pesquisa validou; exibir as
+validações automáticas depende de decisão do Pedro. A diferença de contagem
+de focos (+17%) está em apuração.
+
+### 6.54 Mapa com os 645 municípios cobertos: camadas de dado real (27/09/2026)
+
+**Pedido do Pedro:** "exibir o mapa com todos os municípios cobertos com
+algum dado", pra ter cara de pronto; ele entendia que havia dNBR dos 645
+de 2018 a 2026. **Correção de premissa:** o dNBR dos 645 existe só pro mês
+mais recente (ago → set/2026, rodada mensal); o de 2025 foi adiado por
+decisão dele (seção 6.42) e 2018–2023 não existe (o INPE não publica esse
+histórico no dataserver, seção 6.35). O que cobre os 645 hoje: focos e
+agrupamentos de 2025 e 2026 (já com o satélite de referência, seção 6.53)
+e a leitura de satélite mais recente.
+
+**Implementado (`components/MapaSP.tsx`, `/mapa`, prévia da home):**
+- **Camadas:** "Focos {ano anterior}" (padrão: último ano completo, o mais
+  informativo), "Focos {ano corrente}" (até agora), "Mudança na vegetação"
+  (área com dNBR ≥ 0,10 em % da área do município, janela tirada da chave da
+  miniatura) e "Confiabilidade (pesquisa)" (a camada anterior, só os 63).
+  As três primeiras colorem os 645.
+- **Escala:** um tom só (azul), claro → escuro, com faixas FIXAS escolhidas
+  pela distribuição real de produção (focos: 0 · 1–2 · 3–5 · 6–10 · 11–20 ·
+  21+; vegetação: até 5% · 5–10% · 10–20% · 20–40% · 40%+). Validada com o
+  validador de paleta da orientação de visualização (modo ordinal: L
+  monotônico, ΔL ≥ 0,06, faixa mais clara ≥ 2:1 sobre a superfície): passa no
+  claro (superfície `#ffffff`); no escuro (`#2b2622`) o passo 600 dava 1,85:1,
+  então a escala escura subiu um passo e passou (2,26:1). No escuro a âncora
+  inverte (pouco = escuro, perto do fundo). Tokens `--mapa-0…5` no
+  `globals.css`. Azul de propósito: longe de verde/mostarda/terracota, que
+  continuam exclusivos dos selos (e do mapa de confiabilidade).
+- **Legenda com contagem por faixa**, dica ao passar o mouse com o valor
+  ("Pitangueiras: 33 focos de calor em 2025"), clique abre o município,
+  camada na URL (`?camada=`), via `useSearchParams` + `history.replaceState`
+  dentro de `<Suspense>` (o `/mapa` continua estático com revalidação de
+  1h; a primeira versão guardava a camada num estado atualizado por efeito,
+  e o lint do React reprovou).
+- **Área dos municípios:** `geodata/gerar_mapa_sp.py` passou a gravar a área
+  geodésica (GRS80) de cada município, da malha original, no `sp.json`
+  (conferência: Pitangueiras 429,7 km² contra 430,9 do IBGE; estado 248.210
+  contra 248.219). A área dNBR já é medida dentro do polígono do município
+  (`run_dnbr.processar_municipio`), então a porcentagem é válida.
+- **Texto de cada camada** na página, com definição, período e limite. Pra
+  vegetação, em destaque: **não é área queimada** — a mediana é 35 km² por
+  município em um mês, o que confirma que o dNBR ≥ 0,10 pega colheita e
+  outras mudanças (na validação visual da pesquisa, a maior parte dos pontos
+  era atividade agrícola).
+
+**Verificado:** build (o `/mapa` segue estático, revalidação 1h), lint e
+tipagem; Playwright com dado sintético no Postgres local (os 645 com focos e
+dNBR): camada padrão, troca de camada mudando título e URL, link com
+`?camada=focos-atual` abrindo na camada certa, dica ao passar o mouse, claro,
+escuro e 390 px sem rolagem horizontal, axe WCAG A/AA sem violação.
 
 ---
 
@@ -3005,16 +3125,13 @@ escondida.
   documentadas como regra do projeto. *(27/09/2026: as propostas
   externas aplicadas na seção 6.52 foram no sentido contrário — mapa e
   filtros por confiabilidade; o conflito está descrito lá.)*
-- **⚠️ Satélite de referência no cálculo automático (27/09/2026, seção
-  6.51):** o pipeline soma todos os satélites do INPE e a pesquisa usa só
-  o de referência (AQUA_M-T). Proposta: filtrar AQUA_M-T, confirmar se a
-  pesquisa recortou a área de influência pelo limite do município,
-  reprocessar 2024–2026 e só então exibir as validações automáticas.
-  Precisa de aprovação explícita (regra da especificação e do CLAUDE.md).
-- **Anonimização do rodapé (27/09/2026, seção 6.52):** proposta externa
-  pede tirar do rodapé nomes e referências da UNESP Tupã "pro sigilo da
-  avaliação". Depende de o Pedro confirmar se existe avaliação cega e
-  qual o escopo (a página "Quem somos" também identifica).
+- ~~Satélite de referência no cálculo automático~~ — **resolvido
+  (27/09/2026, seção 6.53):** aprovado e aplicado (só AQUA_M-T), com
+  reprocessamento de 2024–2026. Ficam em aberto: a diferença de contagem de
+  focos (+17% na amostra, suspeita de focos repetidos no produto do INPE) e
+  se as validações automáticas (ano inteiro) devem aparecer na interface.
+- ~~Anonimização do rodapé~~ — **decidido (27/09/2026, seção 6.53):** não
+  existe avaliação cega; rodapé e "Quem somos" continuam identificados.
 - **Coluna de origem em `metricas_anuais` (27/09/2026, seção 6.52):** hoje
   a interface sabe que a linha de 2024 dos 63 é da pesquisa por uma regra
   em `webapp/src/lib/format.ts`, conferida no banco. Uma coluna `fonte`

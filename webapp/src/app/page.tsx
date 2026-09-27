@@ -7,10 +7,10 @@ import {
   listMunicipios,
   listarMunicipiosNoMapa,
 } from "@/lib/queries";
-import { formatData } from "@/lib/format";
+import { formatData, rotuloJanelaDnbr } from "@/lib/format";
 import type { Confiabilidade } from "@/lib/types";
 import { Hero } from "@/components/Hero";
-import { MapaSP } from "@/components/MapaSP";
+import { CAMADA_PADRAO, MapaSP, type MunicipioMapa } from "@/components/MapaSP";
 import { SeloConfiabilidade } from "@/components/SeloConfiabilidade";
 
 function lerNivel(valor?: string): Confiabilidade | undefined {
@@ -104,9 +104,16 @@ export default async function Home({
     contarPorConfiabilidade(),
     listarMunicipiosNoMapa(),
   ]);
-  const categorias: Record<string, Confiabilidade> = Object.fromEntries(
-    todos.filter((m) => m.confiabilidade).map((m) => [m.codigoIbge, m.confiabilidade as Confiabilidade])
-  );
+  const anoAtual = new Date().getFullYear();
+  const anos = { anterior: anoAtual - 1, atual: anoAtual };
+  // Prévia sem nomes (não tem dica nem link por município) — só o desenho.
+  const dadosMapa: MunicipioMapa[] = todos.map((m) => ({
+    codigoIbge: m.codigoIbge,
+    confiabilidade: m.confiabilidade,
+    focosAnoAnterior: m.focosAnoAnterior,
+    focosAnoAtual: m.focosAnoAtual,
+    areaDnbrKm2: m.areaDnbrKm2 === null ? null : Number(m.areaDnbrKm2),
+  }));
 
   return (
     <div className="space-y-8">
@@ -160,11 +167,13 @@ export default async function Home({
         >
           <MapaSP
             arquivo="/mapa/sp-leve.json"
-            categorias={categorias}
-            descricao={`Prévia do mapa de São Paulo com os ${cobertura.naAmostra} municípios validados pela pesquisa coloridos pela confiabilidade.`}
+            municipios={dadosMapa}
+            anos={anos}
+            rotuloVegetacao={rotuloJanelaDnbr(todos.map((m) => m.dnbrImagemUrl))}
+            camada={CAMADA_PADRAO}
           />
           <span className="block text-sm font-semibold text-acento-texto group-hover:underline">
-            Abrir o mapa interativo →
+            Abrir o mapa interativo, com outras camadas →
           </span>
         </Link>
       </section>

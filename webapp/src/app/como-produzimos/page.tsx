@@ -19,7 +19,7 @@ const PASSOS = [
   {
     titulo: "Focos de calor",
     texto:
-      "O INPE publica, todos os dias, os pontos onde satélites detectaram calor compatível com fogo. Um foco de calor não é um incêndio confirmado: é um ponto quente visto do espaço, e o mesmo fogo pode aparecer várias vezes.",
+      "O INPE publica, todos os dias, os pontos onde satélites detectaram calor compatível com fogo. Usamos só os do satélite de referência, como a pesquisa. Um foco de calor não é um incêndio confirmado: é um ponto quente visto do espaço.",
   },
   {
     titulo: "Agrupamento de focos",
@@ -39,6 +39,7 @@ const PASSOS = [
 ];
 
 const PARAMETROS: { nome: string; valor: string }[] = [
+  { nome: "Focos de calor", valor: "só os do satélite de referência do INPE (AQUA_M-T), como a pesquisa" },
   { nome: "Raio espacial do agrupamento", valor: "3 km" },
   { nome: "Janela de tempo do agrupamento", valor: "1 dia" },
   {
@@ -178,14 +179,17 @@ export default function ComoProduzimosPage() {
       <section id="limitacoes" className="scroll-mt-24 space-y-4">
         <h2 className="text-sm font-medium text-muted">Limitações que assumimos</h2>
         <div className="rounded-2xl border border-border bg-surface p-5 text-sm shadow-sm">
-          <p className="font-semibold text-foreground">Diferença conhecida entre a pesquisa e o cálculo automático</p>
+          <p className="font-semibold text-foreground">Correção de 27/09/2026: o mesmo satélite da pesquisa</p>
           <p className="mt-2 text-muted">
-            Os resultados validados (amostra de 63 municípios, agosto de 2024) usam só o satélite de referência do
-            INPE. O cálculo automático (2025 em diante, a consulta por mês e os municípios fora da amostra) soma
-            todos os satélites. Em Pitangueiras, em agosto de 2024, a pesquisa contou 95 focos; o cálculo
-            automático contou 1.588, dos quais 100 do satélite de referência. Por isso o selo de confiabilidade só
-            aparece onde a pesquisa validou, e os números automáticos vêm marcados. O alinhamento do cálculo
-            automático com a pesquisa está em revisão.
+            Até esse dia, o cálculo automático somava os focos de todos os satélites do INPE, e a pesquisa usa só o
+            satélite de referência. Em Pitangueiras, em agosto de 2024, eram 1.588 focos contra 95. O cálculo
+            automático passou a usar só o satélite de referência e foi refeito de 2024 a 2026. Conferindo nos 63
+            municípios da pesquisa, os agrupamentos de agosto de 2024 agora batem em 62 deles.
+          </p>
+          <p className="mt-2 text-muted">
+            O que ainda difere: a contagem de focos que o INPE publica hoje é um pouco maior que a da pesquisa (em
+            apuração), e a validação automática compara o ano inteiro com o MapBiomas, enquanto a da pesquisa
+            compara agosto. Por isso o selo de confiabilidade continua aparecendo só onde a pesquisa validou.
           </p>
         </div>
         <ul className="list-disc space-y-2 pl-5 text-sm text-muted">

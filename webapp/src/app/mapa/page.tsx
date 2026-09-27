@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Link from "next/link";
 import { Hero } from "@/components/Hero";
-import { FONTE_MALHA, LegendaMapa, MapaSP } from "@/components/MapaSP";
-import { contarPorConfiabilidade, listarMunicipiosNoMapa } from "@/lib/queries";
-import type { Confiabilidade } from "@/lib/types";
+import { FONTE_MALHA, MapaSPComCamadaNaUrl, type MunicipioMapa } from "@/components/MapaSP";
+import { listarMunicipiosNoMapa } from "@/lib/queries";
+import { rotuloJanelaDnbr } from "@/lib/format";
 
 export const metadata: Metadata = {
   title: "Mapa de São Paulo — Painel de Queimadas SP",
   description:
-    "Os 645 municípios de São Paulo no mapa, com a confiabilidade validada pela pesquisa em cada um dos 63 municípios da amostra.",
+    "Os 645 municípios de São Paulo no mapa: focos de calor, mudança na vegetação vista por satélite e a confiabilidade validada pela pesquisa.",
 };
 
 // Dado muda no máximo uma vez por dia (pipeline) — revalida de hora em hora
@@ -16,52 +17,77 @@ export const metadata: Metadata = {
 export const revalidate = 3600;
 
 export default async function MapaPage() {
-  const [municipios, contagem] = await Promise.all([listarMunicipiosNoMapa(), contarPorConfiabilidade()]);
-  const semValidacao = municipios.filter((m) => !m.confiabilidade).length;
-  const validados = municipios.length - semValidacao;
-  const categorias: Record<string, Confiabilidade> = Object.fromEntries(
-    municipios.filter((m) => m.confiabilidade).map((m) => [m.codigoIbge, m.confiabilidade as Confiabilidade])
-  );
-  const nomes = Object.fromEntries(municipios.map((m) => [m.codigoIbge, m.nome]));
+  const municipios = await listarMunicipiosNoMapa();
+  const anoAtual = new Date().getFullYear();
+  const anos = { anterior: anoAtual - 1, atual: anoAtual };
+  const rotuloVegetacao = rotuloJanelaDnbr(municipios.map((m) => m.dnbrImagemUrl));
+  const dados: MunicipioMapa[] = municipios.map((m) => ({
+    codigoIbge: m.codigoIbge,
+    nome: m.nome,
+    confiabilidade: m.confiabilidade,
+    focosAnoAnterior: m.focosAnoAnterior,
+    focosAnoAtual: m.focosAnoAtual,
+    areaDnbrKm2: m.areaDnbrKm2 === null ? null : Number(m.areaDnbrKm2),
+  }));
+  const validados = municipios.filter((m) => m.confiabilidade).length;
 
   return (
     <div className="space-y-6">
       <Hero
         eyebrow="Mapa · São Paulo"
         titulo="Os 645 municípios, de uma vez"
-        descricao="Cada cor é a confiabilidade validada pela pesquisa (agosto de 2024) nos municípios da amostra. Clique num município para abrir a página dele."
+        descricao="Focos de calor, mudança na vegetação vista por satélite e a confiabilidade validada pela pesquisa. Troque a camada, passe o mouse para ver o valor e clique num município para abrir a página dele."
       />
 
-      <section className="space-y-3 rounded-2xl border border-border bg-surface p-4 shadow-sm">
-        <LegendaMapa contagem={{ ...contagem, semValidacao }} />
-        <MapaSP
-          arquivo="/mapa/sp.json"
-          categorias={categorias}
-          nomes={nomes}
-          descricao={`Mapa dos 645 municípios de São Paulo: ${validados} validados pela pesquisa (Alta ${contagem.Alta}, Média ${contagem.Média}, Baixa ${contagem.Baixa}, Insuficiente ${contagem.Insuficiente}) e ${semValidacao} ainda sem validação. A mesma informação está na busca da página inicial.`}
-        />
-        <p className="text-[11px] text-faint">
-          {FONTE_MALHA}. Passe o mouse num município para ver o nome; clique (ou toque) para abrir a página dele.
-        </p>
+      <section className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
+        <Suspense
+          fallback={<div className="w-full animate-pulse rounded-xl bg-background" style={{ aspectRatio: "1000 / 740" }} />}
+        >
+          <MapaSPComCamadaNaUrl
+            arquivo="/mapa/sp.json"
+            municipios={dados}
+            anos={anos}
+            rotuloVegetacao={rotuloVegetacao}
+          />
+        </Suspense>
+        <p className="mt-3 text-[11px] text-faint">{FONTE_MALHA}. As faixas são fixas: não mudam de um ano para o outro.</p>
       </section>
 
-      <section className="space-y-2 text-sm text-muted">
-        <p>
-          <strong className="text-foreground">Por que a maioria está em cinza?</strong> A confiabilidade só é
-          exibida onde a pesquisa comparou o resultado com o MapBiomas Fogo e conferiu à mão: os {validados}{" "}
-          municípios da amostra. Os outros continuam com página própria (mapa de leitura de satélite e consulta
-          por mês), mas sem selo até serem validados.
-        </p>
-        <p>
-          <strong className="text-foreground">O que a cor não diz:</strong> a confiabilidade mede o quanto dá para
-          confiar no resultado do método naquele município, não se queimou mais ou menos lá. Não é um ranking.
-        </p>
+      <section className="space-y-3 text-sm text-muted">
+        <h2 className="text-sm font-medium text-foreground">O que cada camada mostra</h2>
+        <dl className="space-y-2.5">
+          <div>
+            <dt className="font-semibold text-foreground">Focos de calor</dt>
+            <dd>
+              Pontos quentes detectados pelo satélite de referência do INPE, o mesmo da pesquisa, somados no ano
+              ({anos.anterior} completo; {anos.atual} até agora). Foco de calor não é incêndio confirmado, e zero
+              focos não prova que não houve fogo.
+            </dd>
+          </div>
+          <div>
+            <dt className="font-semibold text-foreground">Mudança na vegetação</dt>
+            <dd>
+              Parte do município em que o satélite Sentinel-2 viu mudança compatível com queima (dNBR de pelo menos
+              0,10) entre {rotuloVegetacao}. <strong className="text-foreground">Não é área queimada</strong>: colheita
+              e outras mudanças no campo entram nessa conta, e na validação visual da pesquisa boa parte dos pontos
+              era atividade agrícola.
+            </dd>
+          </div>
+          <div>
+            <dt className="font-semibold text-foreground">Confiabilidade (pesquisa)</dt>
+            <dd>
+              O quanto dá para confiar no resultado do método, onde a pesquisa comparou com o MapBiomas Fogo e
+              conferiu à mão: os {validados} municípios da amostra (agosto de 2024). Os outros aparecem em cinza até
+              serem validados. A cor não diz se queimou mais ou menos, e não é ranking.
+            </dd>
+          </div>
+        </dl>
         <p className="flex flex-wrap gap-x-4 gap-y-1">
           <Link href="/#busca" className="font-semibold text-acento-texto hover:underline">
             Buscar um município
           </Link>
-          <Link href="/como-produzimos#confiabilidade" className="font-semibold text-acento-texto hover:underline">
-            Como a confiabilidade é calculada
+          <Link href="/como-produzimos#parametros" className="font-semibold text-acento-texto hover:underline">
+            Como os números são feitos
           </Link>
           <Link href="/comparar" className="font-semibold text-acento-texto hover:underline">
             Comparar municípios

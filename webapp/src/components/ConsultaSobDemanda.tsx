@@ -329,7 +329,7 @@ export function ConsultaSobDemanda({
             <InfoTile
               rotulo="Focos de calor"
               valor={consulta.numFocosCalor ?? "—"}
-              explicacao="Focos de calor do INPE detectados nesse município, nesse mês, somando todos os satélites. Foco de calor não é incêndio confirmado: é um ponto quente visto pelo satélite, e o mesmo fogo pode ser visto por vários satélites."
+              explicacao="Focos de calor do INPE detectados nesse município, nesse mês, pelo satélite de referência (o mesmo que a pesquisa usa). Foco de calor não é incêndio confirmado: é um ponto quente visto pelo satélite."
             />
             <InfoTile
               rotulo="Agrupamentos"
@@ -348,11 +348,10 @@ export function ConsultaSobDemanda({
             />
           </div>
           <p className="text-[11px] leading-relaxed text-faint">
-            Cálculo automático com todos os satélites do INPE. A pesquisa validada usa só o satélite de referência,
-            então aqui a contagem de focos tende a ser bem maior e os números não são comparáveis com os da
-            pesquisa (
+            Cálculo automático, com o mesmo satélite de referência do INPE que a pesquisa usa, mas sem a
+            conferência manual que a pesquisa fez nos 63 municípios da amostra (
             <Link href="/como-produzimos#limitacoes" className="underline">
-              por quê
+              limitações
             </Link>
             ).
           </p>

@@ -57,21 +57,41 @@ export function formatData(valor: Date | string | null): string {
   return data.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }
 
-// De onde vem cada linha de metricas_anuais (docs/DECISIONS.md seção 6.52).
-// Conferido no banco de produção (inventário, seção 6.51): as linhas de 2024
-// dos 63 da amostra são exatamente os valores da pesquisa, que são de AGOSTO
-// de 2024 com o satélite de referência do INPE; 2025 em diante vem do
-// pipeline automático, com o ano inteiro e todos os satélites. Enquanto
-// metricas_anuais não tiver uma coluna de origem, a regra fica aqui.
+// De onde vem cada linha de metricas_anuais (docs/DECISIONS.md seções 6.52
+// e 6.53). Conferido no banco de produção (inventário, seção 6.51): as linhas
+// de 2024 dos 63 da amostra são exatamente os valores da pesquisa, que são de
+// AGOSTO de 2024; 2025 em diante vem do pipeline automático, com o ano
+// inteiro. Os dois usam só o satélite de referência do INPE desde o
+// reprocessamento da seção 6.53. Enquanto metricas_anuais não tiver uma
+// coluna de origem, a regra fica aqui.
 export const ANO_DA_PESQUISA = 2024;
 
 export function origemDasMetricas(ano: number, naAmostra: boolean): { periodo: string; origem: string } {
   if (ano === ANO_DA_PESQUISA && naAmostra) {
-    return { periodo: "ago/2024", origem: "pesquisa validada · satélite de referência do INPE" };
+    return { periodo: "ago/2024", origem: "pesquisa validada" };
   }
   const anoAtual = new Date().getFullYear();
   return {
     periodo: ano === anoAtual ? `${ano}, até agora` : `${ano}, ano inteiro`,
-    origem: "cálculo automático · todos os satélites do INPE",
+    origem: "cálculo automático, sem conferência manual",
   };
+}
+
+const MESES_CURTOS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+// Janela da leitura de satélite mais recente, a partir da chave da miniatura
+// (`dnbr/<código>-<ano>-<mês>.png`, pipeline/run_dnbr.py): o pipeline mensal
+// compara o mês anterior inteiro com o mês da chave. Ex.: "ago → set/2026".
+export function rotuloJanelaDnbr(urls: (string | null)[]): string {
+  let maior: [number, number] | null = null;
+  for (const url of urls) {
+    const achado = url?.match(/-(\d{4})-(\d{2})\.png$/);
+    if (!achado) continue;
+    const par: [number, number] = [Number(achado[1]), Number(achado[2])];
+    if (!maior || par[0] > maior[0] || (par[0] === maior[0] && par[1] > maior[1])) maior = par;
+  }
+  if (!maior) return "mais recente";
+  const [ano, mes] = maior;
+  const anterior = mes === 1 ? `${MESES_CURTOS[11]}/${ano - 1}` : MESES_CURTOS[mes - 2];
+  return `${anterior} → ${MESES_CURTOS[mes - 1]}/${ano}`;
 }

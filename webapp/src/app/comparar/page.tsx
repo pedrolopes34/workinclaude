@@ -171,9 +171,10 @@ export default async function CompararPage({
 
       <p className="text-xs text-muted">
         Só entram números validados pela pesquisa (agosto de 2024). Municípios fora da amostra aparecem com
-        &ldquo;—&rdquo; nesses campos: o cálculo automático deles ainda não é comparável com a pesquisa (
+        &ldquo;—&rdquo; nesses campos: o cálculo automático deles ainda não passou pela conferência da
+        pesquisa (
         <Link href="/como-produzimos#limitacoes" className="underline">
-          por quê
+          limitações
         </Link>
         ). O link desta página reproduz a mesma comparação.
       </p>

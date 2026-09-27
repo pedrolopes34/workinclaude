@@ -118,7 +118,7 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 
 ## Testes e operação
 
-- [~] Testes automatizados — 122 testes `pytest` cobrindo o núcleo do
+- [~] Testes automatizados — 132 testes `pytest` cobrindo o núcleo do
       `/pipeline` (ST-DBSCAN, fórmula de `min_samples` regredida contra os
       12 casos reais, ingestão INPE incluindo a concatenação mensal→anual,
       dNBR incluindo a janela histórica da consulta sob demanda, IoU/
@@ -189,7 +189,8 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 atualizado em 27/09/2026 (evolução do produto, `docs/DECISIONS.md` seção
 6.52): imagem Open Graph, texto alternativo, breakpoints e estados de erro
 viraram `[x]`, e entrou a exportação em CSV. Antes, no mesmo dia: rate
-limiting virou `[~]` e os testes pytest subiram de 88 para 122.
+limiting virou `[~]` e os testes pytest subiram de 88 para 132 (os últimos
+com o filtro do satélite de referência, `docs/DECISIONS.md` seção 6.53).
 
 **Consulta sob demanda — município+ano+mês calculado ao vivo
 (`docs/DECISIONS.md` seção 6.43, 27/09/2026):** funcionalidade nova
