@@ -38,10 +38,15 @@ jobs:
         with:
           python-version: "3.11"
           cache: "pip"
-          cache-dependency-path: pipeline/requirements.txt
+          cache-dependency-path: pipeline/requirements-consulta.txt
 
-      - name: Instalar dependências
-        run: pip install -r pipeline/requirements.txt
+      # Subconjunto de requirements.txt, sem rasterio/rasterstats (só usados
+      # por dnbr/validacao.py, que este script nunca importa) — corta a
+      # instalação de ~51s pra ~28s (medido localmente, docs/DECISIONS.md
+      # seção 6.47). Vale a pena só aqui: é o único workflow com alguém
+      # esperando a resposta ao vivo.
+      - name: Instalar dependências (subconjunto enxuto)
+        run: pip install -r pipeline/requirements-consulta.txt
 
       - name: Rodar consulta sob demanda
         env:

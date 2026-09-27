@@ -1,0 +1,29 @@
+# Subconjunto de requirements.txt so' com o que run_consulta_sob_demanda.py
+# de fato importa (direto ou pela cadeia real: run_dnbr.py, dnbr/sentinel2.py,
+# stdbscan/core.py, common/geo.py, common/ibge_malhas.py, common/db.py) —
+# confirmado por import real num venv limpo antes de criar este arquivo
+# (docs/DECISIONS.md secao 6.47), nao so leitura de codigo.
+#
+# Deixados de fora, de proposito, porque nada nessa cadeia os importa:
+#   - rasterio / rasterstats: so' usados por dnbr/validacao.py, que nenhum
+#     script de orquestracao chama (nem este, nem run_dnbr.py) — so tem
+#     teste unitario proprio (tests/pipeline/test_dnbr_validacao.py).
+#   - geemap: nao e importado em lugar nenhum do repositorio (nem codigo,
+#     nem teste) — removido tambem do requirements.txt principal.
+# Corta a instalacao de dependencias de ~51s pra ~28s (medido localmente,
+# docs/DECISIONS.md secao 6.47) — usado so por consulta-sob-demanda.yml,
+# onde tem gente esperando a resposta ao vivo.
+
+requests>=2.31
+pandas>=2.2
+psycopg[binary]>=3.1
+python-dotenv>=1.0
+
+numpy>=1.26
+scikit-learn>=1.4
+geopandas>=0.14
+shapely>=2.0
+pyproj>=3.6
+
+earthengine-api>=0.1.400
+boto3>=1.34

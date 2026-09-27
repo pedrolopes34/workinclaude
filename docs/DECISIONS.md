@@ -2362,6 +2362,57 @@ pura, sem lógica nova.
 
 **Status:** Fechado.
 
+### 6.47 Dependências enxutas pra consulta sob demanda — ~51s → ~28s de instalação (27/09/2026)
+
+**Contexto:** Pedro reforçou que velocidade da consulta sob demanda importa
+mais que qualidade de imagem ("nosso stakeholder não vai se preocupar
+primeiro com a qualidade da imagem... há softwares de monitoramento em
+baixa qualidade que são necessários, vide IPMet") — mas eu já tinha
+avisado que a miniatura (seção 6.46) não era o gargalo principal. Segui
+com o próximo passo de melhor custo-benefício que eu mesmo tinha
+identificado: o `pip install` do `requirements.txt` inteiro a cada
+disparo, mesmo pra calcular 1 município.
+
+**Achado, confirmado por grep no repositório inteiro, não suposição:**
+`geemap` não é importado em **nenhum lugar** (nem código, nem teste) —
+dependência morta desde sempre, provavelmente resquício das notebooks
+originais (uso interativo, nunca portado pro pipeline). `rasterio`/
+`rasterstats` só são importados por `pipeline/dnbr/validacao.py` — que
+**nenhum** dos 4 scripts de orquestração (`run_ingest_stdbscan.py`,
+`run_dnbr.py`, `run_validacao_mapbiomas.py`,
+`run_consulta_sob_demanda.py`) importa; só tem teste unitário próprio
+(`test_dnbr_validacao.py`), nunca é exercitado em produção.
+
+**Verificado antes de aplicar, não só argumentado:** criei um venv limpo,
+instalei só o subconjunto proposto, e importei de verdade toda a cadeia
+real que `processar_consulta()` percorre — incluindo os imports
+condicionais (`import ee`, `import boto3`, `from shapely.geometry import
+mapping`, que só acontecem dentro de função, não no topo do arquivo) —
+tudo importou sem erro. Depois medi tempo de instalação lado a lado:
+`requirements.txt` completo (51,4s) vs. o subconjunto novo (28,0s) — quase
+metade, medido localmente (a diferença real no runner do GitHub Actions
+pode variar, mas a proporção deve se manter ou ser maior, já que
+`rasterio` puxa binários GDAL pesados).
+
+**Feito:**
+- `geemap` removido do `pipeline/requirements.txt` principal (usado por
+  `tests.yml` e os outros 3 workflows) — sem risco, zero lugar o usa.
+- `pipeline/requirements-consulta.txt` novo — mesmo conteúdo do principal
+  menos `rasterio`/`rasterstats` (que continuam no principal, pois
+  `test_dnbr_validacao.py` precisa deles).
+- `consulta-sob-demanda.yml` passa a instalar do arquivo novo. Os outros 3
+  workflows continuam no `requirements.txt` completo — não mexi neles
+  agora (não é onde alguém espera resposta ao vivo), mas o mesmo corte
+  serviria lá também se um dia o tempo de instalação incomodar.
+
+**Testado:** 110 testes seguem passando (a mudança não afeta o ambiente
+de teste, que continua usando `requirements.txt` completo +
+`requirements-dev.txt`). Import real verificado em venv limpo (acima) —
+mais forte que rodar pytest aqui, já que os imports condicionais
+(`ee`/`boto3`) não são exercitados na coleta dos testes.
+
+**Status:** Fechado.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)
