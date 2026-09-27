@@ -3154,6 +3154,16 @@ sandbox não alcança o Neon nem o R2):
   axe WCAG 2.1 A/AA **sem violação** em 7 páginas × claro/escuro (inclui
   390 px).
 
+**Rodada mensal do dNBR municipal nunca atualizava nada** (achado ao
+escrever o mosaico): o cron roda no dia 1, e a janela era "mês anterior ×
+mês corrente até hoje" — no dia 1, 1º ao 1º do mês, vazia. Todo município
+saía `[PULADO]`; as miniaturas de produção vieram de disparos manuais no
+meio do mês (ex.: 27/09). O teste antigo até registrava a janela vazia como
+esperada. Agora a rodada processa o **último mês completo contra o
+anterior** (`mes_a_processar` + `janela_mes_especifico`, a mesma janela da
+consulta por mês e do mosaico), e grava no ano desse mês (em janeiro, o ano
+anterior).
+
 **Malha do mapa:** 7 municípios do litoral (Bertioga, Cananéia,
 Caraguatatuba, Ilhabela, Peruíbe, São Sebastião, Ubatuba) vinham na malha
 do geodata-br com o anel de uma ilhota como exterior; o retângulo

@@ -2,21 +2,26 @@ from datetime import date
 
 import pytest
 
-from pipeline.run_dnbr import _endpoint_r2, _r2_configurado, janela_mes_anterior, janela_mes_especifico
+from pipeline.run_dnbr import _endpoint_r2, _r2_configurado, janela_mes_especifico, mes_a_processar
 
 
 @pytest.mark.parametrize(
-    "hoje,esperado_antes,esperado_depois",
+    "hoje,esperado",
     [
-        (date(2024, 9, 15), ("2024-08-01", "2024-09-01"), ("2024-09-01", "2024-09-15")),
-        (date(2024, 1, 10), ("2023-12-01", "2024-01-01"), ("2024-01-01", "2024-01-10")),  # virada de ano
-        (date(2024, 3, 1), ("2024-02-01", "2024-03-01"), ("2024-03-01", "2024-03-01")),  # fevereiro bissexto
+        (date(2026, 10, 1), (2026, 9)),  # dia do cron: o mês que acabou de fechar
+        (date(2026, 9, 27), (2026, 8)),  # disparo manual no meio do mês: o último completo
+        (date(2027, 1, 1), (2026, 12)),  # virada de ano
     ],
 )
-def test_janela_mes_anterior(hoje, esperado_antes, esperado_depois):
-    antes, depois = janela_mes_anterior(hoje)
-    assert antes == esperado_antes
-    assert depois == esperado_depois
+def test_mes_a_processar_e_o_ultimo_mes_completo(hoje, esperado):
+    assert mes_a_processar(hoje) == esperado
+
+
+def test_rodada_do_dia_1_tem_janela_depois_com_o_mes_inteiro():
+    """A janela antiga saía vazia no dia 1 (1º ao 1º do mês) — seção 6.55."""
+    antes, depois = janela_mes_especifico(*mes_a_processar(date(2026, 10, 1)))
+    assert antes == ("2026-08-01", "2026-09-01")
+    assert depois == ("2026-09-01", "2026-10-01")
 
 
 @pytest.mark.parametrize(
@@ -35,8 +40,7 @@ def test_janela_mes_especifico(ano, mes, esperado_antes, esperado_depois):
 
 
 def test_janela_mes_especifico_depois_e_mes_inteiro_nao_so_ate_hoje():
-    # Diferenca deliberada de janela_mes_anterior: aqui o mes alvo ja
-    # terminou de verdade, entao "depois" e o mes inteiro (nao "ate hoje").
+    # O mes alvo ja terminou, entao "depois" e o mes inteiro (nao "ate hoje").
     _, depois = janela_mes_especifico(2025, 6)
     assert depois == ("2025-06-01", "2025-07-01")
 

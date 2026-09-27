@@ -10,8 +10,8 @@ fatias aproximadamente iguais, uma por job. `--municipio` testa 1 código
 IBGE só, minutos em vez de ~2h (docs/DECISIONS.md seção 6.41, mesmo padrão
 de run_validacao_mapbiomas.py seção 6.30).
 
-Compara Sentinel-2 do mês anterior ("antes") contra o mês corrente
-("depois") — generalização mensal contínua do método de pesquisa (que
+Compara o último mês completo ("depois") com o mês anterior a ele ("antes"),
+os dois inteiros (mes_a_processar, seção 6.55) — generalização mensal contínua do método de pesquisa (que
 comparava julho/setembro em torno do evento de agosto/2024, pulando o
 próprio mês do evento). Uma cadência mensal contínua não tem um "mês do
 evento" fixo pra pular no meio; comparar mês a mês direto é a extensão mais
@@ -38,8 +38,9 @@ imagem nunca bloqueia a gravação de `area_dnbr_km2`, que é o dado principal.
 NÃO EXECUTÁVEL/TESTÁVEL nesta sessão — precisa de rede e credenciais do
 Earth Engine indisponíveis neste sandbox de propósito (mesma limitação de
 `dnbr/sentinel2.py`), e depende de secrets do R2 que ainda não existem
-(seção 6.40 — pendência do Pedro criar a conta/bucket). `janela_mes_anterior`
-(lógica pura, sem GEE) tem testes em tests/pipeline/test_run_dnbr.py;
+(seção 6.40 — pendência do Pedro criar a conta/bucket). `mes_a_processar` e
+`janela_mes_especifico` (lógica pura, sem GEE) têm testes em
+tests/pipeline/test_run_dnbr.py;
 `dividir_em_grupo` mudou pra pipeline/common/particionamento.py (reaproveitado
 também por run_validacao_mapbiomas.py) e é testado lá.
 """
@@ -157,27 +158,23 @@ def inicializar_gee() -> None:
     ee.Initialize(credenciais, project=os.environ.get("GEE_PROJECT_ID", GEE_PROJECT_ID))
 
 
-def janela_mes_anterior(hoje: date) -> tuple[tuple[str, str], tuple[str, str]]:
-    """(janela "antes" = mês anterior inteiro, janela "depois" = mês
-    corrente até hoje)."""
-    primeiro_dia_mes_atual = hoje.replace(day=1)
-    ultimo_dia_mes_anterior = primeiro_dia_mes_atual - timedelta(days=1)
-    primeiro_dia_mes_anterior = ultimo_dia_mes_anterior.replace(day=1)
+def mes_a_processar(hoje: date) -> tuple[int, int]:
+    """(ano, mês) do último mês completo — o "depois" da rodada mensal, que
+    compara esse mês inteiro com o anterior (janela_mes_especifico).
 
-    janela_antes = (primeiro_dia_mes_anterior.isoformat(), primeiro_dia_mes_atual.isoformat())
-    janela_depois = (primeiro_dia_mes_atual.isoformat(), hoje.isoformat())
-    return janela_antes, janela_depois
+    Antes (até a seção 6.55) a rodada comparava o mês anterior com "o mês
+    corrente até hoje". Como o cron roda no dia 1, essa janela saía vazia
+    (1º ao 1º do mês): nenhuma cena, todo município [PULADO], e as rodadas
+    agendadas nunca atualizaram nada — as miniaturas que existem vieram de
+    disparos manuais no meio do mês."""
+    return (hoje.year - 1, 12) if hoje.month == 1 else (hoje.year, hoje.month - 1)
 
 
 def janela_mes_especifico(ano: int, mes: int) -> tuple[tuple[str, str], tuple[str, str]]:
-    """Mesma ideia de janela_mes_anterior (mês anterior inteiro vs. mês
-    alvo inteiro), mas ancorada num (ano, mes) histórico específico em vez
-    de date.today() — usada pela consulta sob demanda (docs/DECISIONS.md
-    seção 6.43, run_consulta_sob_demanda.py), nunca pelo cron mensal
-    (process-sentinel-dnbr.yml continua em janela_mes_anterior, sempre
-    relativo a agora). Diferença deliberada: como o mês alvo aqui já
-    terminou de verdade (validado pelo chamador — nunca o mês corrente),
-    a janela "depois" é o mês inteiro, não só "até hoje"."""
+    """(janela "antes" = mês anterior inteiro, janela "depois" = mês alvo
+    inteiro). Usada pela consulta sob demanda (docs/DECISIONS.md seção 6.43)
+    e, desde a seção 6.55, pela rodada mensal e pelo mosaico estadual, com o
+    último mês completo (mes_a_processar)."""
     primeiro_dia_mes_alvo = date(ano, mes, 1)
     ultimo_dia_mes_anterior = primeiro_dia_mes_alvo - timedelta(days=1)
     primeiro_dia_mes_anterior = ultimo_dia_mes_anterior.replace(day=1)
@@ -310,7 +307,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--grupo", type=int, default=1, help="1-indexado (ex.: 1 ou 2 pra 2 jobs)")
     parser.add_argument("--de-grupos", type=int, default=1)
-    parser.add_argument("--ano", type=int, default=date.today().year)
+    parser.add_argument(
+        "--ano",
+        type=int,
+        default=None,
+        help="Ano da linha em metricas_anuais (padrão: o do mês processado — em janeiro, o ano anterior).",
+    )
     parser.add_argument(
         "--municipio",
         default=None,
@@ -321,8 +323,9 @@ def main() -> None:
     args = parser.parse_args()
 
     inicializar_gee()
-    janela_antes, janela_depois = janela_mes_anterior(date.today())
-    mes_atual = date.today().month
+    ano_do_mes, mes_atual = mes_a_processar(date.today())
+    janela_antes, janela_depois = janela_mes_especifico(ano_do_mes, mes_atual)
+    ano_gravacao = args.ano or ano_do_mes
 
     with get_connection() as conn:
         _garantir_coluna_imagem(conn)
@@ -333,7 +336,7 @@ def main() -> None:
             fatia = dividir_em_grupo(municipios, args.grupo, args.de_grupos)
 
     if args.municipio:
-        print(f"Modo debug --municipio: {fatia.iloc[0]['codigo_ibge']} ({fatia.iloc[0]['nome']}), ano {args.ano}")
+        print(f"Modo debug --municipio: {fatia.iloc[0]['codigo_ibge']} ({fatia.iloc[0]['nome']}), ano {ano_gravacao}")
     else:
         print(f"Grupo {args.grupo}/{args.de_grupos}: {len(fatia)} municípios. Janelas: {janela_antes} -> {janela_depois}")
     print(f"Miniatura dNBR: {'ligada (R2 configurado)' if _r2_configurado() else 'desligada (sem R2_* no ambiente)'}")
@@ -349,7 +352,7 @@ def main() -> None:
                 row["nome"],
                 janela_antes,
                 janela_depois,
-                args.ano,
+                ano_gravacao,
                 mes_atual,
                 debug=bool(args.municipio),
             )
@@ -362,7 +365,7 @@ def main() -> None:
         area_km2, imagem_url = resultado
 
         with get_connection() as conn:
-            _gravar_area_dnbr(conn, row["codigo_ibge"], args.ano, area_km2, imagem_url)
+            _gravar_area_dnbr(conn, row["codigo_ibge"], ano_gravacao, area_km2, imagem_url)
         print(
             f"{row['codigo_ibge']} ({row['nome']}): area_dnbr_km2={area_km2}"
             + (f" imagem={imagem_url}" if imagem_url else "")

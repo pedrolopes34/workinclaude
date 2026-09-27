@@ -18,9 +18,9 @@ inteiro contra o teto histórico anual — não se aplica a um recorte de 1 mês
 só; decisão de simplificação desta sessão, não pedida explicitamente a
 Pedro, documentada em docs/DECISIONS.md seção 6.43).
 
-dNBR reaproveita `run_dnbr.py::processar_municipio` inalterado, só trocando
-a janela: `janela_mes_especifico(ano, mes)` no lugar de
-`janela_mes_anterior(date.today())`. Já herda de lá o comportamento de
+dNBR reaproveita `run_dnbr.py::processar_municipio` inalterado, com a
+janela `janela_mes_especifico(ano, mes)` (a mesma da rodada mensal desde a
+seção 6.55). Já herda de lá o comportamento de
 "sem imagem válida (nuvem) -> None, sem derrubar a consulta" e o upload
 opcional da miniatura pro R2 se os secrets estiverem configurados.
 
