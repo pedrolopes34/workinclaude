@@ -2082,6 +2082,59 @@ pra popular `dnbr_imagem_url` em escala — cada rodada mensal normal
 automaticamente a partir de agora, então nem precisa disparar manual se
 não houver pressa.
 
+### 6.42 Backfill 2025 (ST-DBSCAN) e 1ª rodada real de dNBR em produção pros 645 disparados — dNBR 2025 adiado por decisão do Pedro (27/09/2026)
+
+**Contexto:** início da sessão SOFTWARE 2 (continuação linear da SOFTWARE).
+Pedro pediu pra tocar a fila já confirmada na seção 7: "Rodar ST-DBSCAN +
+dNBR pros 645 sem confiabilidade, 2025–2026".
+
+**Achado antes de disparar qualquer coisa (leitura direta do código, não
+suposição):** `run_dnbr.py::janela_mes_anterior(date.today())` calcula a
+janela Sentinel-2 "antes/depois" sempre a partir da data real de execução
+— nunca do `--ano` passado (que só rotula a linha gravada em
+`metricas_anuais`). Rodar `--ano 2025` hoje gravaria o dNBR de **agora**
+(set/2026) rotulado como se fosse de 2025 — dado cientificamente errado,
+não um "não disponível" honesto. Diferente do ST-DBSCAN
+(`run_ingest_stdbscan.py`), que processa o ano pedido de verdade via os
+CSVs históricos do INPE (`--ano` já existia desde a seção 6.13).
+
+**Decisão do Pedro:** pular dNBR pra 2025 por enquanto —
+`area_dnbr_km2`/`dnbr_imagem_url` ficam `NULL` nesse ano, só ST-DBSCAN
+roda (`num_focos_calor`, `num_agrupamentos`, `area_st_dbscan_km2`).
+Honesto sobre o que não foi medido, sem risco de gravar dado incorreto
+(mesmo princípio da seção 6.29: não inventar/deslocar número pra parecer
+completo). Se um dia for necessário medir dNBR de 2025 retroativamente,
+precisa de um parâmetro novo de janela fixa (mês "antes"/"depois"
+específicos daquele ano, tipo a pesquisa fez pra agosto/2024) — não
+implementado.
+
+**Segundo achado:** `ingest-inpe.yml` nunca expôs `--ano` via
+`workflow_dispatch` (só o cron diário, sempre ano corrente). Adicionado o
+input `ano` (opcional, `env:` em vez de interpolar direto no `run:` —
+mesmo padrão anti shell-injection do input `municipio` em
+`process-sentinel-dnbr.yml`, seção 6.28/6.30), sem mudar o comportamento
+padrão do cron (sem input, roda exatamente como antes).
+
+**Autorização:** Pedro aprovou mesclar esse commit direto pra `main`
+(fast-forward de 1 commit só, `c3298b5`→`172c1b7`) — necessário porque o
+GitHub só reconhece inputs de `workflow_dispatch` declarados na cópia do
+arquivo já presente na branch padrão (mesma trava documentada na seção
+6.17, agora confirmada de novo numa sessão nova).
+
+**Disparado (`workflow_dispatch` via API, ambos `in_progress` no momento
+em que esta seção foi escrita):**
+- `process-sentinel-dnbr.yml` sem `--municipio` (run `36283297358`) — 1ª
+  rodada de **produção real** (não debug) pros 645 municípios inteiros,
+  ano 2026 (default, corrente). 2 jobs paralelos, ~2-3h cada (seção 2.1).
+- `ingest-inpe.yml` com `ano=2025` (run `36283427897`) — backfill
+  ST-DBSCAN pros 645, ano 2025 (janela histórica completa: CSVs
+  2019–2025, mesmo `ANOS_HISTORICO=6` de sempre).
+
+**Status:** Aberto — ambos disparados, confirmação de sucesso real (não
+só `conclusion`, lição da seção 6.22) fica pro próximo check desta sessão.
+ST-DBSCAN 2026 não precisou de ação: já mantido corrente pelo cron diário
+existente.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)
@@ -2179,14 +2232,18 @@ não houver pressa.
   **Status:** Pedro confirmou querer isso, mas a prioridade desta sessão
   ficou a seção 6.40 (dNBR em escala) — este item entra na fila depois.
 - **Rodar ST-DBSCAN + dNBR pros 645 sem confiabilidade, 2025–2026
-  (pedido 26/09/2026, Pedro confirmou):** tecnicamente mais simples que o
-  item acima — o endpoint atual do INPE já está confirmado funcionando
-  pra 2024–2026 (seção 6.20), então não precisa de integração nova, só
-  disparar `ingest-inpe.yml`/`process-sentinel-dnbr.yml` pra esses anos
-  pros 645 (não só a amostra de 63). MapBiomas Fogo Coleção 4 só cobre
-  até 2024 (seção 6.22) — esses anos ficam sem `validacao_mapbiomas`
-  mesmo, por design, não por bug. **Status:** confirmado pelo Pedro,
-  ainda não executado — entra na fila depois da seção 6.40.
+  (pedido 26/09/2026, Pedro confirmou):** MapBiomas Fogo Coleção 4 só
+  cobre até 2024 (seção 6.22) — esses anos ficam sem `validacao_mapbiomas`
+  mesmo, por design, não por bug. **Status (27/09/2026, seção 6.42):** em
+  andamento — ST-DBSCAN 2026 já mantido corrente pelo cron diário sem
+  ação extra; dNBR 2026 real (645 municípios, não debug) e ST-DBSCAN 2025
+  (backfill) disparados, resultado ainda não confirmado. **dNBR 2025
+  ficou de fora por decisão do Pedro** — o método atual não tem como
+  calcular uma janela retroativa (só sabe "mês anterior vs. corrente" a
+  partir da data real), então rodar `--ano 2025` gravaria o dNBR de hoje
+  rotulado como se fosse de 2025. `area_dnbr_km2` fica `NULL` em 2025 até
+  alguém pedir explicitamente a janela retroativa fixa que isso exigiria
+  implementar.
 - **"Mudanças de segurança" (pedido 26/09/2026, sem detalhar quais):**
   conferido nesta sessão que a proteção contra SQL injection **já
   existe** — `webapp/src/lib/queries.ts` usa só template tagged do
