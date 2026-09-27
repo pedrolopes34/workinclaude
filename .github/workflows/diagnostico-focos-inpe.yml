@@ -26,6 +26,9 @@ on:
       mes:
         description: "Mês 1-12 (padrão: 8)"
         required: false
+      amostra:
+        description: "true = compara os 63 da pesquisa (ago/2024, só satélite de referência) e conta o satélite de referência em 2025-2026 — ignora os campos acima"
+        required: false
 
 jobs:
   diagnostico:
@@ -49,8 +52,13 @@ jobs:
           MUNICIPIO_INPUT: ${{ github.event.inputs.municipio }}
           ANO_INPUT: ${{ github.event.inputs.ano }}
           MES_INPUT: ${{ github.event.inputs.mes }}
+          AMOSTRA_INPUT: ${{ github.event.inputs.amostra }}
         run: |
-          python -m pipeline.diagnosticar_focos_inpe \
-            --municipio "${MUNICIPIO_INPUT:-3539509}" \
-            --ano "${ANO_INPUT:-2024}" \
-            --mes "${MES_INPUT:-8}"
+          if [ "$AMOSTRA_INPUT" = "true" ]; then
+            python -m pipeline.diagnosticar_focos_inpe --amostra
+          else
+            python -m pipeline.diagnosticar_focos_inpe \
+              --municipio "${MUNICIPIO_INPUT:-3539509}" \
+              --ano "${ANO_INPUT:-2024}" \
+              --mes "${MES_INPUT:-8}"
+          fi
