@@ -197,17 +197,19 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 
 ---
 
-**Contagem atual:** 22 itens feitos, 8 parciais, 6 pendentes —
-atualizado em 27/09/2026 (evolução do produto, `docs/DECISIONS.md` seção
-6.52): imagem Open Graph, texto alternativo, breakpoints e estados de erro
-viraram `[x]`, e entrou a exportação em CSV. Antes, no mesmo dia: rate
-limiting virou `[~]` e os testes pytest subiram de 88 para 132 (os últimos
-com o filtro do satélite de referência, `docs/DECISIONS.md` seção 6.53).
+**Contagem atual:** 26 itens feitos, 8 parciais, 6 pendentes —
+atualizado em 27/09/2026 à noite (`docs/DECISIONS.md` seção 6.55): entraram
+a identidade visual dos selos e a fonte Inter, os mapas do estado lado a
+lado, a busca até o último município com a lista por nível, e a página do
+município ano a ano. Os testes pytest subiram de 132 para 145 (download
+anual do INPE, mosaico estadual, Insuficiente explícito, rodada mensal do
+último mês completo). Antes, no mesmo dia (seção 6.52): imagem Open Graph,
+texto alternativo, breakpoints, estados de erro e exportação em CSV.
 
 **Consulta sob demanda — município+ano+mês calculado ao vivo
 (`docs/DECISIONS.md` seção 6.43, 27/09/2026):** funcionalidade nova
-pedida pelo Pedro — o visitante escolhe um mês já encerrado (2024–2026;
-2018–2023 mostra "histórico ainda não integrado") e o sistema roda
+pedida pelo Pedro — o visitante escolhe um mês já encerrado (desde 2018,
+seção 6.55; antes, só 2024–2026) e o sistema roda
 ST-DBSCAN + dNBR na hora, via `workflow_dispatch` do GitHub Actions
 (reaproveita o `/pipeline` e os secrets já existentes, sem infraestrutura
 nova). Tabela `consultas_sob_demanda` nunca sobrescreve `metricas_anuais`.
