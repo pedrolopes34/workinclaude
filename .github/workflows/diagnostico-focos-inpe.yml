@@ -1,0 +1,56 @@
+name: Diagnóstico dos focos do INPE (por satélite)
+
+# Ferramenta de operação, só leitura (docs/DECISIONS.md seção 6.51): conta os
+# focos de um município/mês por satélite e roda o ST-DBSCAN com todos os
+# satélites e só com o de referência, pra comparar com a pesquisa validada.
+# Não usa secrets (o INPE é público e o nome do município vem do seed).
+# O sandbox do Claude Code não alcança o INPE; este runner alcança.
+#
+# Dispara em push na branch de desenvolvimento (só quando este arquivo ou o
+# script mudam) e aceita disparo manual depois de mesclado.
+
+on:
+  push:
+    branches: [claude/software-2-cqnuui]
+    paths:
+      - .github/workflows/diagnostico-focos-inpe.yml
+      - pipeline/diagnosticar_focos_inpe.py
+  workflow_dispatch:
+    inputs:
+      municipio:
+        description: "Código IBGE (padrão: 3539509, Pitangueiras)"
+        required: false
+      ano:
+        description: "Ano (padrão: 2024)"
+        required: false
+      mes:
+        description: "Mês 1-12 (padrão: 8)"
+        required: false
+
+jobs:
+  diagnostico:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: pipeline/requirements-consulta.txt
+
+      - name: Instalar dependências
+        run: pip install -r pipeline/requirements-consulta.txt
+
+      - name: Contar focos por satélite
+        env:
+          MUNICIPIO_INPUT: ${{ github.event.inputs.municipio }}
+          ANO_INPUT: ${{ github.event.inputs.ano }}
+          MES_INPUT: ${{ github.event.inputs.mes }}
+        run: |
+          python -m pipeline.diagnosticar_focos_inpe \
+            --municipio "${MUNICIPIO_INPUT:-3539509}" \
+            --ano "${ANO_INPUT:-2024}" \
+            --mes "${MES_INPUT:-8}"
