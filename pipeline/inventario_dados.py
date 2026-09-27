@@ -121,6 +121,23 @@ def main() -> None:
             f"exemplo de chave {(exemplo or '').rsplit('/', 1)[-1]}",
         )
 
+        # Mosaicos estaduais de dNBR por ano (seção 6.55) — acompanha o lote.
+        cur.execute("SELECT to_regclass('mosaicos_dnbr') IS NOT NULL")
+        if cur.fetchone()[0]:
+            cur.execute(
+                "SELECT ano, array_agg(mes ORDER BY mes), count(*) FILTER (WHERE colecao LIKE '%%SR%%') "
+                "FROM mosaicos_dnbr GROUP BY ano ORDER BY ano"
+            )
+            linhas = cur.fetchall()
+            total = sum(len(meses) for _, meses, _ in linhas)
+            anotar(
+                "Mosaicos dNBR",
+                f"{total} meses | " + " | ".join(
+                    f"{ano}: {','.join(str(m) for m in meses)}" + ("" if sr == len(meses) else f" ({len(meses) - sr} L1C)")
+                    for ano, meses, sr in linhas
+                ),
+            )
+
         cur.execute("SELECT to_regclass('consultas_sob_demanda') IS NOT NULL")
         if cur.fetchone()[0]:
             cur.execute("SELECT status, count(*) FROM consultas_sob_demanda GROUP BY status ORDER BY status")
