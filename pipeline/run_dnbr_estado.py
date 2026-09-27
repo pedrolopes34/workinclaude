@@ -111,7 +111,8 @@ def resumo_png(png: bytes, colunas: int = 90) -> tuple[str, str]:
     contagem = {nome: 0 for nome in _CORES_PALETA}
     opacos = 0
     reduzida = imagem.resize((imagem.width // 8, imagem.height // 8), Image.NEAREST)
-    for r, g, b, a in reduzida.getdata():
+    pixels = reduzida.get_flattened_data() if hasattr(reduzida, "get_flattened_data") else reduzida.getdata()
+    for r, g, b, a in pixels:
         if a < 128:
             continue
         opacos += 1

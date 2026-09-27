@@ -8,3 +8,14 @@ export function urlPublicaDnbr(urlGravada: string | null): string | null {
   const i = urlGravada.lastIndexOf("/dnbr/");
   return i === -1 ? urlGravada : `${R2_BASE_PUBLICA}${urlGravada.slice(i)}`;
 }
+
+// Mesma remontagem pros mosaicos estaduais (`dnbr-estado/AAAA-MM.webp`,
+// seção 6.55).
+export function urlPublicaR2(urlGravada: string | null): string | null {
+  if (!urlGravada) return null;
+  for (const pasta of ["/dnbr-estado/", "/dnbr/"]) {
+    const i = urlGravada.lastIndexOf(pasta);
+    if (i !== -1) return `${R2_BASE_PUBLICA}${urlGravada.slice(i)}`;
+  }
+  return urlGravada;
+}

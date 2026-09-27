@@ -3078,6 +3078,82 @@ guarda de jan/2023 em diante, com 2023 em `.zip` (12 arquivos) e 2024+ em
   de 2018 a 2024 (7 runs, a Coleção 4 vai até 2024). Resultado registrado
   abaixo quando terminar.
 
+**Mosaico estadual de dNBR** (`pipeline/run_dnbr_estado.py`,
+`.github/workflows/dnbr-estado.yml`, commits `272bb19`/`6b782aa`): o mapa do
+estado inteiro com a leitura de satélite de todos os municípios, mês a mês,
+que o Pedro pediu (com a figura "Panorama Estadual — dNBR das cidades
+estudadas", só que com os 645 preenchidos). Mesmo cálculo das miniaturas
+municipais (`calcular_dnbr`: mediana do Sentinel-2 do mês anterior × mês
+alvo, fallback de nuvem, cobertura mínima de 50%) e a mesma paleta (0,10 →
+0,70, verde → preto), numa imagem só, recortada pelo contorno de SP, no
+retângulo exato do viewBox do mapa do site (2400 × 1607 px, ~380 m por
+pixel). É só visualização: os números de cada município seguem vindo do
+cálculo em 20 m. WebP no R2 (`dnbr-estado/AAAA-MM.webp`) e uma linha por mês
+em `mosaicos_dnbr` (tabela nova, criada pelo script; `schema.sql` seção 7).
+Meses sem Sentinel-2 com correção atmosférica no Brasil (antes de dez/2018)
+caem pro nível 1C, anotado na linha. **Teste real (ago/2024, runs
+`36356806748` e `36357099157`):** ~2 min no Earth Engine, PNG de 629 KB →
+WebP de 381 KB; o resumo impresso no log (o sandbox não alcança o R2) deu
+95,1% sem sinal, 2,4% amarelo, 2,1% laranja, 0,4% vermelho, imagem em 43% do
+retângulo (a área de SP), e o desenho em texto reproduz o contorno do estado.
+O workflow roda todo dia 1 (mês que fechou), por mês ou em lote por ano.
+
+**Interface** (tudo conferido com dado sintético no Postgres local — o
+sandbox não alcança o Neon nem o R2):
+- **Página inicial:** o destaque passou a ser **645 municípios
+  monitorados** (focos diários, leitura de satélite mês a mês, contagem da
+  confiabilidade por nível); os 63 saíram do cartão. **Dois mapas lado a
+  lado:** leitura de satélite de agosto de 2024 (vitrine: o período da
+  pesquisa; senão o mês mais recente) e confiabilidade dos 645 no ano mais
+  recente. A lista virou **grupos fechados por nível** (Alta, Média, Baixa,
+  Insuficiente, com a regra ao lado): abre-se o nível e aparecem os
+  municípios dele, ordenados pela **Interseção** com o MapBiomas, com uma
+  barrinha de escala. Filtros por nível saíram (os grupos fazem esse papel;
+  `?nivel=Alta` abre o grupo). "Baixar dados completos (CSV)".
+- **Busca própria** (`components/BuscaMunicipio.tsx`, combobox do WAI-ARIA):
+  o `<datalist>` nativo do Chrome parava em "Santa Cruz das Palmeiras" (a
+  521ª de 645 — o navegador limita as sugestões). Agora a lista vai até
+  Zacarias, filtra sem acento e por código, e escolher uma sugestão abre o
+  município. Vale também em /comparar.
+- **/mapa:** leitura de satélite do estado (mês e ano escolhidos, limites
+  dos municípios liga/desliga, dica com o nome, clique abre o município) ao
+  lado da confiabilidade dos 645 (ano escolhido; trocar o mês leva a
+  confiabilidade pro mesmo ano). Mês e ano na URL (`?mes=AAAA-MM&ano=AAAA`).
+  Embaixo, o mapa de focos por município (2025 e 2026); as camadas "Mudança
+  na vegetação" e "Confiabilidade (pesquisa)" do mapa antigo saíram (os dois
+  mapas novos cobrem as duas).
+- **Mapa de focos no tema escuro:** a escala invertia (pouco foco = azul
+  escuro, muito = azul claro), e o Pedro leu como "ao contrário". Agora é a
+  **mesma escala nos dois temas** (menos focos = azul claro, mais = azul
+  escuro); no escuro, o contorno dos municípios clareia (`--mapa-contorno`)
+  pra o azul mais escuro não sumir no fundo.
+- **Página do município:** a faixa de anos (2018 → ano corrente) virou
+  **links clicáveis** (`?periodo=AAAA`, compartilhável), cada um com um ponto
+  na cor da confiabilidade do ano. O ano escolhido abre um painel com o que
+  existe dele: focos, agrupamentos, área dos agrupamentos, leitura de
+  satélite e a comparação com o MapBiomas (critérios, Recall, Interseção,
+  valor-p, área MapBiomas), com a origem em poucas palavras ("agosto de
+  2024, conferido na pesquisa" ou "2021 inteiro, cálculo automático"). **Sem
+  quadro nem linha zerada:** zero agrupamento vira uma frase ("3 focos de
+  calor, espalhados: nenhum agrupamento se formou"). A tabela de linhas não
+  comparáveis e a nota sobre ela saíram. Selo da confiabilidade mais recente
+  ao lado do nome. A consulta por mês passou a aceitar **2018 em diante**.
+- **/comparar:** mesmos indicadores pros 645 (confiabilidade mais recente
+  com a origem, Recall, Interseção, valor-p, área MapBiomas, focos e
+  agrupamentos dos dois últimos anos, leitura de satélite mais recente).
+- **Como produzimos:** saíram a caixa "Correção de 27/09/2026" e a nota dos
+  17% (notas internas); entrou que a nota é calculada pros 645, ano a ano,
+  desde 2018, e de onde vem cada uma. **Consulta por mês:** aviso reduzido.
+- **CSV completo** (`/dados/municipios.csv`): uma linha por município × ano,
+  com focos, agrupamentos, áreas, parâmetros do agrupamento, confiabilidade,
+  Recall, Interseção, valor-p, permutações, área e coleção do MapBiomas, e
+  colunas de origem (`pesquisa`/`automatico`) pras métricas e pra
+  confiabilidade.
+- **Verificado:** build, lint (0 erros), tipagem, 144 testes do pipeline;
+  Playwright (busca até Zacarias, filtro, setas + Enter, clique no ano);
+  axe WCAG 2.1 A/AA **sem violação** em 7 páginas × claro/escuro (inclui
+  390 px).
+
 **Malha do mapa:** 7 municípios do litoral (Bertioga, Cananéia,
 Caraguatatuba, Ilhabela, Peruíbe, São Sebastião, Ubatuba) vinham na malha
 do geodata-br com o anel de uma ilhota como exterior; o retângulo

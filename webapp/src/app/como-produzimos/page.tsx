@@ -39,7 +39,11 @@ const PASSOS = [
 ];
 
 const PARAMETROS: { nome: string; valor: string }[] = [
-  { nome: "Focos de calor", valor: "só os do satélite de referência do INPE (AQUA_M-T), como a pesquisa" },
+  {
+    nome: "Focos de calor",
+    valor:
+      "só os do satélite de referência do INPE (AQUA_M-T): o arquivo anual de referência nos anos fechados (o mesmo da pesquisa) e os arquivos mensais no ano corrente",
+  },
   { nome: "Raio espacial do agrupamento", valor: "3 km" },
   { nome: "Janela de tempo do agrupamento", valor: "1 dia" },
   {
@@ -48,7 +52,11 @@ const PARAMETROS: { nome: string; valor: string }[] = [
       "4 quando o período tem mais focos que o histórico do próprio município (caso da maioria em ago/2024); 2 nos demais. A consulta por mês usa sempre 4.",
   },
   { nome: "Área de influência", valor: "raio de 3 km em volta de cada foco agrupado, unido por agrupamento" },
-  { nome: "Imagens", valor: "Sentinel-2 nível 2A harmonizado (COPERNICUS/S2_SR_HARMONIZED), mediana das cenas de cada janela" },
+  {
+    nome: "Imagens",
+    valor:
+      "Sentinel-2 nível 2A harmonizado (COPERNICUS/S2_SR_HARMONIZED), mediana das cenas de cada janela; no mapa do estado, os meses antes de dez/2018 usam o nível 1C",
+  },
   { nome: "Índice", valor: "NBR = (B8 − B12) ÷ (B8 + B12); dNBR = NBR antes − NBR depois" },
   { nome: "Janela do cálculo automático", valor: "mês anterior × mês analisado" },
   {
@@ -64,7 +72,7 @@ const NIVEIS: Confiabilidade[] = ["Alta", "Média", "Baixa", "Insuficiente"];
 
 const ATUALIZACOES = [
   { fonte: "Focos de calor (INPE)", cadencia: "Automático, todos os dias." },
-  { fonte: "Leitura de satélite (dNBR)", cadencia: "Automático, uma vez por mês, para os 645 municípios." },
+  { fonte: "Leitura de satélite (dNBR)", cadencia: "Automático, uma vez por mês: os 645 municípios e o mapa do estado inteiro." },
   { fonte: "Comparação com o MapBiomas", cadencia: "Manual, quando sai uma coleção nova do MapBiomas Fogo (uma vez por ano)." },
   { fonte: "Auditoria geral", cadencia: "Uma vez por ano, feita manualmente pela equipe de pesquisa." },
 ];
@@ -170,6 +178,12 @@ export default function ComoProduzimosPage() {
             </div>
           ))}
         </div>
+        <p className="text-sm text-muted">
+          A nota é calculada para os 645 municípios, ano a ano, desde 2018, com a mesma regra. Nos 63 municípios
+          estudados na pesquisa, a comparação de 2024 é a de agosto, conferida à mão; nos demais anos e
+          municípios, o cálculo compara o ano inteiro com o MapBiomas Fogo, automaticamente. A página de cada
+          município diz de qual dos dois vem cada nota.
+        </p>
         <p className="text-xs text-faint">
           A nota diz o quanto dá para confiar no resultado do método naquele município e ano. Não diz se queimou
           mais ou menos, e não serve para ranquear municípios.
@@ -178,21 +192,6 @@ export default function ComoProduzimosPage() {
 
       <section id="limitacoes" className="scroll-mt-24 space-y-4">
         <h2 className="text-sm font-medium text-muted">Limitações que assumimos</h2>
-        <div className="rounded-2xl border border-border bg-surface p-5 text-sm shadow-sm">
-          <p className="font-semibold text-foreground">Correção de 27/09/2026: o mesmo satélite da pesquisa</p>
-          <p className="mt-2 text-muted">
-            Até esse dia, o cálculo automático somava os focos de todos os satélites do INPE, e a pesquisa usa só o
-            satélite de referência. Em Pitangueiras, em agosto de 2024, eram 1.588 focos contra 95. O cálculo
-            automático passou a usar só o satélite de referência e foi refeito de 2024 a 2026. Conferindo nos 63
-            municípios da pesquisa, os agrupamentos de agosto de 2024 agora batem em 62 deles.
-          </p>
-          <p className="mt-2 text-muted">
-            O que ainda difere: a contagem de focos que o INPE publica hoje é cerca de 17% maior que a da pesquisa
-            nesses 63 municípios (não é foco repetido; a causa está sendo conferida contra o arquivo original da
-            pesquisa), e a validação automática compara o ano inteiro com o MapBiomas, enquanto a da pesquisa
-            compara agosto. Por isso o selo de confiabilidade continua aparecendo só onde a pesquisa validou.
-          </p>
-        </div>
         <ul className="list-disc space-y-2 pl-5 text-sm text-muted">
           <li>
             <strong className="text-foreground">Foco de calor não é incêndio confirmado</strong>, e um mesmo fogo
@@ -227,7 +226,6 @@ export default function ComoProduzimosPage() {
             diferentes e não precisam coincidir. Em municípios com pouca área queimada, o Recall varia muito com
             poucos pixels de diferença, por isso ele nunca decide sozinho.
           </li>
-          <li>O histórico de focos de 2018 a 2023 ainda não foi integrado.</li>
         </ul>
       </section>
 
@@ -250,7 +248,7 @@ export default function ComoProduzimosPage() {
             ))}
           </ul>
           <p className="text-faint">
-            Os dados tabulares dos municípios validados podem ser baixados em CSV na{" "}
+            Os dados dos 645 municípios, ano a ano, podem ser baixados em CSV na{" "}
             <Link href="/#lista" className="underline">
               página inicial
             </Link>

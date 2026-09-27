@@ -67,13 +67,18 @@ export const ANO_DA_PESQUISA = 2024;
 
 export function origemDasMetricas(ano: number, naAmostra: boolean): { periodo: string; origem: string } {
   if (ano === ANO_DA_PESQUISA && naAmostra) {
-    return { periodo: "ago/2024", origem: "pesquisa validada" };
+    return { periodo: "agosto de 2024, pesquisa", origem: "pesquisa" };
   }
   const anoAtual = new Date().getFullYear();
   return {
-    periodo: ano === anoAtual ? `${ano}, até agora` : `${ano}, ano inteiro`,
-    origem: "cálculo automático, sem conferência manual",
+    periodo: ano === anoAtual ? `${ano} até agora` : `${ano} inteiro`,
+    origem: "cálculo automático",
   };
+}
+
+// Origem de uma comparação com o MapBiomas, em poucas palavras (seção 6.55).
+export function rotuloOrigemValidacao(fonte: "manual" | "automatico", ano: number): string {
+  return fonte === "manual" ? `agosto de ${ano}, conferido na pesquisa` : `${ano} inteiro, cálculo automático`;
 }
 
 const MESES_CURTOS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];

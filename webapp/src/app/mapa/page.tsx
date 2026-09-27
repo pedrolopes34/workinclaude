@@ -2,14 +2,16 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
 import { Hero } from "@/components/Hero";
-import { FONTE_MALHA, MapaSPComCamadaNaUrl, type MunicipioMapa } from "@/components/MapaSP";
-import { listarMunicipiosNoMapa } from "@/lib/queries";
-import { rotuloJanelaDnbr } from "@/lib/format";
+import { MapaSPComCamadaNaUrl, type MunicipioMapa } from "@/components/MapaSP";
+import { PainelMapas } from "@/components/mapas/PainelMapas";
+import { chaveMes } from "@/lib/meses";
+import { listarConfiabilidadePorAno, listarMosaicos, listarMunicipiosNoMapa } from "@/lib/queries";
+import { agruparConfiabilidade } from "@/lib/mapas";
 
 export const metadata: Metadata = {
   title: "Mapa de São Paulo — Painel de Queimadas SP",
   description:
-    "Os 645 municípios de São Paulo no mapa: focos de calor, mudança na vegetação vista por satélite e a confiabilidade validada pela pesquisa.",
+    "Os 645 municípios de São Paulo: leitura de satélite (dNBR) do estado mês a mês, confiabilidade ano a ano e focos de calor.",
 };
 
 // Dado muda no máximo uma vez por dia (pipeline) — revalida de hora em hora
@@ -17,68 +19,78 @@ export const metadata: Metadata = {
 export const revalidate = 3600;
 
 export default async function MapaPage() {
-  const municipios = await listarMunicipiosNoMapa();
+  const [municipios, confiabilidades, mosaicos] = await Promise.all([
+    listarMunicipiosNoMapa(),
+    listarConfiabilidadePorAno(),
+    listarMosaicos(),
+  ]);
   const anoAtual = new Date().getFullYear();
   const anos = { anterior: anoAtual - 1, atual: anoAtual };
-  const rotuloVegetacao = rotuloJanelaDnbr(municipios.map((m) => m.dnbrImagemUrl));
-  const dados: MunicipioMapa[] = municipios.map((m) => ({
+  const nomes = Object.fromEntries(municipios.map((m) => [m.codigoIbge, m.nome]));
+  const porAno = agruparConfiabilidade(confiabilidades);
+  const ultimoMosaico = mosaicos[mosaicos.length - 1];
+  const focos: MunicipioMapa[] = municipios.map((m) => ({
     codigoIbge: m.codigoIbge,
     nome: m.nome,
-    confiabilidade: m.confiabilidade,
     focosAnoAnterior: m.focosAnoAnterior,
     focosAnoAtual: m.focosAnoAtual,
-    areaDnbrKm2: m.areaDnbrKm2 === null ? null : Number(m.areaDnbrKm2),
   }));
-  const validados = municipios.filter((m) => m.confiabilidade).length;
 
   return (
     <div className="space-y-6">
       <Hero
         eyebrow="Mapa · São Paulo"
-        titulo="Os 645 municípios, de uma vez"
-        descricao="Focos de calor, mudança na vegetação vista por satélite e a confiabilidade validada pela pesquisa. Troque a camada, passe o mouse para ver o valor e clique num município para abrir a página dele."
+        titulo="O estado inteiro, mês a mês"
+        descricao="À esquerda, a leitura de satélite de todo o estado; à direita, a confiabilidade de cada município. Troque o mês e o ano, ligue ou desligue os limites dos municípios, passe o mouse para ver o nome e clique para abrir a página do município."
       />
+
+      <Suspense
+        fallback={<div className="w-full animate-pulse rounded-2xl bg-surface" style={{ aspectRatio: "2000 / 740" }} />}
+      >
+        <PainelMapas
+          mosaicos={mosaicos}
+          porAno={porAno}
+          nomes={nomes}
+          mesPadrao={ultimoMosaico ? chaveMes(ultimoMosaico) : null}
+        />
+      </Suspense>
 
       <section className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
         <Suspense
           fallback={<div className="w-full animate-pulse rounded-xl bg-background" style={{ aspectRatio: "1000 / 740" }} />}
         >
-          <MapaSPComCamadaNaUrl
-            arquivo="/mapa/sp.json"
-            municipios={dados}
-            anos={anos}
-            rotuloVegetacao={rotuloVegetacao}
-          />
+          <MapaSPComCamadaNaUrl arquivo="/mapa/sp.json" municipios={focos} anos={anos} />
         </Suspense>
-        <p className="mt-3 text-[11px] text-faint">{FONTE_MALHA}. As faixas são fixas: não mudam de um ano para o outro.</p>
+        <p className="mt-3 text-[11px] text-faint">As faixas são fixas: não mudam de um ano para o outro.</p>
       </section>
 
       <section className="space-y-3 text-sm text-muted">
-        <h2 className="text-sm font-medium text-foreground">O que cada camada mostra</h2>
+        <h2 className="text-sm font-medium text-foreground">O que cada mapa mostra</h2>
         <dl className="space-y-2.5">
+          <div>
+            <dt className="font-semibold text-foreground">Leitura de satélite (dNBR)</dt>
+            <dd>
+              A diferença do índice de queima (NBR) do Sentinel-2 entre o mês anterior e o mês escolhido, no estado
+              inteiro. Verde é sem sinal; do amarelo ao preto, mudança cada vez maior na vegetação. Mostra onde a
+              vegetação mudou, e não só fogo: colheita também muda o sinal. Onde houve nuvem demais, o município
+              fica sem cor.
+            </dd>
+          </div>
+          <div>
+            <dt className="font-semibold text-foreground">Confiabilidade</dt>
+            <dd>
+              O quanto dá para confiar no resultado do método em cada município, comparando os agrupamentos de focos
+              com o MapBiomas Fogo. Nos 63 municípios estudados na pesquisa, a nota de 2024 é a de agosto,
+              conferida à mão; nos demais, o mesmo cálculo roda para o ano inteiro. A cor não diz se queimou mais ou
+              menos, e não é ranking.
+            </dd>
+          </div>
           <div>
             <dt className="font-semibold text-foreground">Focos de calor</dt>
             <dd>
-              Pontos quentes detectados pelo satélite de referência do INPE, o mesmo da pesquisa, somados no ano
-              ({anos.anterior} completo; {anos.atual} até agora). Foco de calor não é incêndio confirmado, e zero
-              focos não prova que não houve fogo.
-            </dd>
-          </div>
-          <div>
-            <dt className="font-semibold text-foreground">Mudança na vegetação</dt>
-            <dd>
-              Parte do município em que o satélite Sentinel-2 viu mudança compatível com queima (dNBR de pelo menos
-              0,10) entre {rotuloVegetacao}. <strong className="text-foreground">Não é área queimada</strong>: colheita
-              e outras mudanças no campo entram nessa conta, e na validação visual da pesquisa boa parte dos pontos
-              era atividade agrícola.
-            </dd>
-          </div>
-          <div>
-            <dt className="font-semibold text-foreground">Confiabilidade (pesquisa)</dt>
-            <dd>
-              O quanto dá para confiar no resultado do método, onde a pesquisa comparou com o MapBiomas Fogo e
-              conferiu à mão: os {validados} municípios da amostra (agosto de 2024). Os outros aparecem em cinza até
-              serem validados. A cor não diz se queimou mais ou menos, e não é ranking.
+              Pontos quentes detectados pelo satélite de referência do INPE, o mesmo da pesquisa, somados no ano (
+              {anos.anterior} completo; {anos.atual} até agora). Foco de calor não é incêndio confirmado, e zero focos
+              não prova que não houve fogo.
             </dd>
           </div>
         </dl>

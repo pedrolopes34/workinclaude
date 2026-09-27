@@ -1,11 +1,13 @@
 import { listarParaExportacao } from "@/lib/queries";
-import { origemDasMetricas } from "@/lib/format";
+import { ANO_DA_PESQUISA } from "@/lib/format";
 
-// GET /dados/municipios.csv — os 645 municípios com o dado validado pela
-// pesquisa, pra quem quiser trabalhar com a base tabular (docs/DECISIONS.md
-// seção 6.52). Lê direto do banco como o resto do /webapp (CLAUDE.md), sem
-// passar pela /api. Só entra o que a interface mostra: a confiabilidade e as
-// métricas validadas; os números automáticos ficam de fora (seção 6.51).
+// GET /dados/municipios.csv — base completa (docs/DECISIONS.md seção 6.55):
+// uma linha por município × ano, com focos, agrupamentos, áreas, parâmetros
+// do agrupamento e a comparação com o MapBiomas Fogo, dos 645 municípios.
+// Lê direto do banco como o resto do /webapp (CLAUDE.md), sem passar pela
+// /api. As colunas de origem dizem de onde vem cada número: "pesquisa" (os 63
+// da amostra, ago/2024, conferidos à mão) ou "automatico" (pipeline, mesma
+// regra) — quem for analisar precisa separar os dois.
 //
 // CSV padrão (RFC 4180): vírgula como separador, ponto decimal, UTF-8 com BOM
 // pro Excel abrir os acentos certo.
@@ -13,20 +15,25 @@ const COLUNAS = [
   "codigo_ibge",
   "municipio",
   "mesorregiao",
-  "na_amostra",
-  "ano_validacao",
-  "confiabilidade",
-  "recall_pct",
-  "interseccao_pct",
-  "p_valor",
-  "area_mapbiomas_km2",
-  "colecao_mapbiomas",
+  "na_amostra_da_pesquisa",
+  "ano",
   "periodo_metricas",
+  "origem_metricas",
   "focos_calor",
   "agrupamentos",
   "area_agrupamentos_km2",
-  "area_dnbr_km2",
-  "origem",
+  "area_leitura_satelite_km2",
+  "raio_agrupamento_km",
+  "janela_agrupamento_dias",
+  "minimo_focos_agrupamento",
+  "confiabilidade",
+  "origem_confiabilidade",
+  "recall_pct",
+  "interseccao_pct",
+  "p_valor",
+  "n_permutacoes",
+  "area_mapbiomas_km2",
+  "colecao_mapbiomas",
 ] as const;
 
 function celula(valor: string | number | boolean | null): string {
@@ -37,28 +44,37 @@ function celula(valor: string | number | boolean | null): string {
 
 export async function GET() {
   const linhas = await listarParaExportacao();
+  const anoAtual = new Date().getFullYear();
 
   const corpo = linhas.map((l) => {
-    const temValidacao = l.anoValidacao !== null;
-    const origem = temValidacao ? origemDasMetricas(l.anoValidacao as number, l.naAmostra) : null;
+    const temMetricas = l.numFocosCalor !== null || l.areaDnbrKm2 !== null;
+    // Período das métricas: agosto nos números da pesquisa; o ano inteiro
+    // (ou até a data do processamento, no ano corrente) no cálculo automático.
+    const daPesquisa = l.naAmostra && l.ano === ANO_DA_PESQUISA;
+    const periodo = daPesquisa ? `${l.ano}-08` : l.ano === anoAtual ? `${l.ano} (parcial)` : String(l.ano);
     return [
       l.codigoIbge,
       l.nome,
       l.mesorregiao,
       l.naAmostra,
-      l.anoValidacao,
-      l.confiabilidade,
-      l.recallPct,
-      l.interseccaoPct,
-      l.pValor,
-      l.areaMapbiomasKm2,
-      l.mapbiomasColecao,
-      origem?.periodo ?? null,
+      l.ano,
+      temMetricas ? periodo : null,
+      temMetricas ? (daPesquisa ? "pesquisa" : "automatico") : null,
       l.numFocosCalor,
       l.numAgrupamentos,
       l.areaStDbscanKm2,
       l.areaDnbrKm2,
-      origem?.origem ?? null,
+      l.epsSpaceKm,
+      l.epsTimeDays,
+      l.minSamples,
+      l.confiabilidade,
+      l.fonte === null ? null : l.fonte === "manual" ? "pesquisa" : "automatico",
+      l.recallPct,
+      l.interseccaoPct,
+      l.pValor,
+      l.nPermutacoes,
+      l.areaMapbiomasKm2,
+      l.mapbiomasColecao,
     ]
       .map(celula)
       .join(",");
@@ -68,7 +84,7 @@ export async function GET() {
   return new Response(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": 'attachment; filename="painel-queimadas-sp-municipios.csv"',
+      "Content-Disposition": 'attachment; filename="painel-queimadas-sp.csv"',
       "Cache-Control": "public, max-age=3600",
     },
   });

@@ -13,9 +13,8 @@ const NOMES_MESES = [
 ];
 
 // Mantido em sincronia manual com PRIMEIRO_ANO_CONSULTA
-// (webapp/src/lib/consultaSobDemanda.ts) — 2018-2023 ainda não têm o
-// histórico do INPE integrado (docs/DECISIONS.md seção 7).
-const PRIMEIRO_ANO = 2024;
+// (webapp/src/lib/consultaSobDemanda.ts, seção 6.55).
+const PRIMEIRO_ANO = 2018;
 const INTERVALO_POLLING_MS = 6000;
 // ~9min: acima dos 8min em que o servidor marca a consulta travada como erro (expirarSeTravada).
 const LIMITE_TENTATIVAS_POLLING = 90;
@@ -264,8 +263,6 @@ export function ConsultaSobDemanda({
         </button>
       </div>
 
-      <p className="text-[11px] text-faint">2018–2023: histórico do INPE ainda não integrado.</p>
-
       {aviso && !consulta && (
         <p className="rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground">{aviso}</p>
       )}
@@ -348,10 +345,9 @@ export function ConsultaSobDemanda({
             />
           </div>
           <p className="text-[11px] leading-relaxed text-faint">
-            Cálculo automático, com o mesmo satélite de referência do INPE que a pesquisa usa, mas sem a
-            conferência manual que a pesquisa fez nos 63 municípios da amostra (
-            <Link href="/como-produzimos#limitacoes" className="underline">
-              limitações
+            Cálculo automático, com o satélite de referência do INPE (
+            <Link href="/como-produzimos#parametros" className="underline">
+              como é feito
             </Link>
             ).
           </p>

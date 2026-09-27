@@ -64,17 +64,21 @@
   --orb-a: #7cc26a;
   --orb-b: #5aa0d0;
 
-  /* Escala sequencial do mapa (focos, mudança na vegetação) — docs/DECISIONS.md
-     seção 6.54. Um tom só (azul), claro → escuro, validada com o validador de
+  /* Escala sequencial do mapa de focos — docs/DECISIONS.md seções 6.54 e
+     6.55. Um tom só (azul), claro → escuro, validada com o validador de
      paleta (ordinal: L monotônico, ΔL ≥ 0,06, faixa mais clara ≥ 2:1 sobre a
-     superfície). --mapa-0 é o "zero", que pode sumir no fundo de propósito.
-     Longe do verde/verde claro/areia, que são só dos selos (CLAUDE.md). */
+     superfície). A MESMA nos dois temas (pedido do Pedro, seção 6.55: no
+     escuro a escala invertia e "mais focos" virava o azul mais claro); no
+     escuro, o contorno dos municípios clareia (--mapa-contorno) pra o azul
+     mais escuro não se confundir com o fundo. Longe do verde/verde
+     claro/areia, que são só dos selos (CLAUDE.md). */
   --mapa-0: #cde2fb;
   --mapa-1: #86b6ef;
   --mapa-2: #3987e5;
   --mapa-3: #256abf;
   --mapa-4: #184f95;
   --mapa-5: #0d366b;
+  --mapa-contorno: var(--background);
 }
 
 @theme inline {
@@ -118,15 +122,7 @@
     --glass-hi: rgba(255, 255, 255, 0.14);
     --orb-a: #2e5c3f;
     --orb-b: #234a63;
-    /* No escuro a escala inverte a âncora: pouco = escuro, perto do fundo;
-       muito = claro. Um passo mais clara que a de referência porque esta
-       superfície (#2b2622) é mais clara que a dela — validada assim. */
-    --mapa-0: #0d366b;
-    --mapa-1: #1c5cab;
-    --mapa-2: #2a78d6;
-    --mapa-3: #5598e7;
-    --mapa-4: #86b6ef;
-    --mapa-5: #cde2fb;
+    --mapa-contorno: #6b635a;
   }
 }
 
@@ -148,12 +144,7 @@
   --glass-hi: rgba(255, 255, 255, 0.14);
   --orb-a: #2e5c3f;
   --orb-b: #234a63;
-  --mapa-0: #0d366b;
-  --mapa-1: #1c5cab;
-  --mapa-2: #2a78d6;
-  --mapa-3: #5598e7;
-  --mapa-4: #86b6ef;
-  --mapa-5: #cde2fb;
+  --mapa-contorno: #6b635a;
 }
 
 body {

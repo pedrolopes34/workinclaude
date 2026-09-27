@@ -61,6 +61,13 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
       validados no validador de paleta (visão normal ΔE 16,3; daltonismo
       ΔE 10,6); fonte Inter em toda a página, conferida no navegador;
       botões do topo alinhados (27/09/2026, `docs/DECISIONS.md` seção 6.55)
+- [x] Mapas do estado lado a lado — leitura de satélite (dNBR) mês a mês,
+      com limites municipais liga/desliga, e confiabilidade dos 645 por ano;
+      mapa de focos com a mesma escala nos dois temas (seção 6.55)
+- [x] Busca com sugestões próprias até o último município (o `<datalist>`
+      do Chrome parava no 521º) e lista agrupada por nível de confiabilidade
+- [x] Página do município ano a ano — anos clicáveis, painel por ano sem
+      campos zerados, origem de cada número em poucas palavras
 - [x] Texto alternativo em todas as imagens — mapas dNBR com `alt` que
       descreve a escala real (corrigido em 27/09/2026 junto da legenda),
       mapa de SP com `aria-label` que resume as contagens, imagem Open

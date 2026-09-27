@@ -2,15 +2,34 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getMunicipioDetalhe } from "@/lib/queries";
-import { formatKm2, formatPct, formatPValor, origemDasMetricas } from "@/lib/format";
+import {
+  formatKm2,
+  formatPct,
+  formatPValor,
+  origemDasMetricas,
+  rotuloJanelaDnbr,
+  rotuloOrigemValidacao,
+} from "@/lib/format";
 import { InfoTile } from "@/components/InfoTile";
 import { ConsultaSobDemanda } from "@/components/ConsultaSobDemanda";
 import { ImagemComFallback } from "@/components/ImagemComFallback";
 import { SeloConfiabilidade } from "@/components/SeloConfiabilidade";
 import { CriteriosConfiabilidade } from "@/components/CriteriosConfiabilidade";
-import type { MetricasAnuais } from "@/lib/types";
+import type { Confiabilidade, MetricasAnuais, ValidacaoMapbiomas } from "@/lib/types";
 
-const PRIMEIRO_ANO_VALIDACAO = 2018; // período inicial de validação da pesquisa (docs/DECISIONS.md)
+// Janela de anos da página (docs/DECISIONS.md seção 6.55): desde 2018, início
+// do histórico da pesquisa, até o ano corrente. Cada ano é um link
+// (`?periodo=AAAA`), então dá pra compartilhar a visão de um ano.
+const PRIMEIRO_ANO = 2018;
+
+// Ponto de cada ano na faixa: a cor do selo quando há confiabilidade; neutro
+// quando só há focos/agrupamentos; vazio quando ainda não há nada.
+const PONTO_CONFIABILIDADE: Record<Confiabilidade, string> = {
+  Alta: "bg-verde",
+  Média: "bg-verde-claro",
+  Baixa: "bg-areia ring-1 ring-areia-borda",
+  Insuficiente: "bg-transparent ring-1 ring-faint",
+};
 
 // Três áreas com definições diferentes lado a lado (docs/DECISIONS.md seção
 // 6.38). Cores neutras de propósito: verde/mostarda/terracota são só dos
@@ -47,11 +66,12 @@ function BarraComparacao({
       definicao: "área mapeada como queimada pelo MapBiomas",
     },
   ];
-  const max = Math.max(1, ...valores.map((v) => paraNumero(v.valor)));
+  const presentes = valores.filter((v) => v.valor !== null && Number(v.valor) > 0);
+  const max = Math.max(1, ...presentes.map((v) => paraNumero(v.valor)));
 
   return (
     <div className="space-y-2.5">
-      {valores.map((v) => (
+      {presentes.map((v) => (
         <div key={v.nome}>
           <div className="flex items-center gap-3">
             <span className="w-32 shrink-0 text-xs text-muted">{v.nome}</span>
@@ -69,8 +89,8 @@ function BarraComparacao({
         </div>
       ))}
       <p className="text-[11px] text-faint">
-        São três medidas diferentes, e não se espera que coincidam. A confiabilidade não compara esses
-        tamanhos: ela usa os dois critérios acima.
+        São medidas diferentes, e não se espera que coincidam. A confiabilidade não compara esses tamanhos:
+        ela usa os dois critérios acima.
       </p>
     </div>
   );
@@ -153,6 +173,153 @@ function MapaDnbrAtual({
   );
 }
 
+// O que se sabe de um ano (docs/DECISIONS.md seção 6.55): focos e
+// agrupamentos, leitura de satélite e a comparação com o MapBiomas, cada um
+// só quando existe — sem linha nem quadro zerado. Um ano por vez, porque os
+// períodos variam (a pesquisa é agosto de 2024; o cálculo automático, o ano
+// inteiro) e lado a lado pareceriam comparáveis.
+function PainelDoAno({
+  ano,
+  nomeMunicipio,
+  naAmostra,
+  metricas,
+  validacao,
+}: {
+  ano: number;
+  nomeMunicipio: string;
+  naAmostra: boolean;
+  metricas: MetricasAnuais | null;
+  validacao: ValidacaoMapbiomas | null;
+}) {
+  const focos = metricas?.numFocosCalor ?? null;
+  const agrupamentos = metricas?.numAgrupamentos ?? 0;
+  const areaAgrupamentos = metricas?.areaStDbscanKm2 ?? null;
+  const areaDnbr = metricas?.areaDnbrKm2 && Number(metricas.areaDnbrKm2) > 0 ? metricas.areaDnbrKm2 : null;
+  const { periodo } = origemDasMetricas(ano, naAmostra);
+
+  if (focos === null && areaDnbr === null && !validacao) {
+    return (
+      <div className="rounded-2xl border border-border bg-surface px-5 py-6 text-sm text-muted shadow-sm">
+        <p className="text-xl font-bold tracking-tight text-foreground">{ano}</p>
+        <p className="mt-1">
+          Os números de {ano} de {nomeMunicipio} ainda estão sendo calculados. Dá para calcular um mês
+          específico na consulta logo abaixo.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <article className="rounded-2xl border border-border bg-surface p-5 shadow-sm" aria-labelledby="titulo-ano">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 id="titulo-ano" className="text-xl font-bold tracking-tight text-foreground">
+            {ano}
+          </h3>
+          {focos !== null && <p className="text-xs text-muted">Focos e agrupamentos: {periodo}</p>}
+        </div>
+        {validacao && <SeloConfiabilidade nivel={validacao.confiabilidade} />}
+      </div>
+
+      {(focos !== null || areaDnbr !== null) && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {focos !== null && focos > 0 && (
+            <InfoTile
+              rotulo="Focos de calor"
+              valor={focos.toLocaleString("pt-BR")}
+              explicacao="Focos detectados pelo satélite de referência do INPE (Aqua, passagem da tarde) dentro do município, no período. É o mesmo satélite que a pesquisa usa."
+            />
+          )}
+          {agrupamentos > 0 && (
+            <InfoTile
+              rotulo="Agrupamentos"
+              valor={agrupamentos.toLocaleString("pt-BR")}
+              explicacao="Grupos de focos próximos no espaço (até 3 km) e no tempo (até 1 dia): o sinal de uma queimada contínua, e não de focos soltos."
+            />
+          )}
+          {agrupamentos > 0 && areaAgrupamentos !== null && Number(areaAgrupamentos) > 0 && (
+            <InfoTile
+              rotulo="Área dos agrupamentos"
+              valor={formatKm2(areaAgrupamentos)}
+              explicacao="Área de influência dos focos agrupados: um raio de 3 km em volta de cada foco, somado por agrupamento."
+            />
+          )}
+          {areaDnbr !== null && (
+            <InfoTile
+              rotulo="Leitura de satélite"
+              valor={formatKm2(areaDnbr)}
+              explicacao={`Área com dNBR de pelo menos 0,10 (Sentinel-2) ${
+                metricas?.dnbrImagemUrl ? `na janela ${rotuloJanelaDnbr([metricas.dnbrImagemUrl])}` : "no período"
+              }: onde a vegetação mudou entre antes e depois. Inclui colheita e outras mudanças, não só fogo.`}
+            />
+          )}
+        </div>
+      )}
+
+      {focos !== null && agrupamentos === 0 && (
+        <p className="mt-3 text-sm text-muted">
+          {focos === 0
+            ? "Nenhum foco de calor do satélite de referência neste período."
+            : `${focos} foco${focos === 1 ? "" : "s"} de calor, espalhados: nenhum agrupamento se formou.`}
+        </p>
+      )}
+
+      {validacao && (
+        <div className="mt-5 space-y-4 border-t border-border pt-4">
+          <p className="text-xs font-medium text-muted">
+            Comparação com o MapBiomas Fogo ({validacao.mapbiomasColecao}) ·{" "}
+            {rotuloOrigemValidacao(validacao.fonte, validacao.ano)}
+          </p>
+
+          <CriteriosConfiabilidade
+            confiabilidade={validacao.confiabilidade}
+            recallPct={validacao.recallPct}
+            pValor={validacao.pValor}
+          />
+
+          {validacao.confiabilidade !== "Insuficiente" && (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <InfoTile
+                rotulo="Recall"
+                valor={formatPct(validacao.recallPct)}
+                explicacao="Recall = área em comum entre os agrupamentos de focos e o MapBiomas ÷ área queimada do MapBiomas. Diz quanto da queima registrada pelo MapBiomas o método também pegou. Não é uma porcentagem de acerto: o método pode pegar tudo e ainda marcar área que não queimou."
+              />
+              <InfoTile
+                rotulo="Interseção"
+                valor={formatPct(validacao.interseccaoPct, 2)}
+                explicacao="Interseção sobre união (índice de Jaccard) entre a área dos agrupamentos e a área queimada do MapBiomas: área em comum ÷ área coberta por pelo menos um dos dois. Fica baixa sempre que um dos dois é bem maior que o outro, mesmo com Recall alto."
+              />
+              <InfoTile
+                rotulo="valor-p"
+                valor={formatPValor(validacao.pValor)}
+                explicacao={`Teste de permutação: a coincidência real entre agrupamentos e MapBiomas é comparada com ${validacao.nPermutacoes} posições sorteadas ao acaso, e o valor-p é a fração de sorteios que coincidiram tanto quanto ou mais que a real. Abaixo de 0,05, a coincidência dificilmente é acaso.`}
+              />
+              <InfoTile
+                rotulo="Área MapBiomas"
+                valor={formatKm2(validacao.areaMapbiomasKm2)}
+                explicacao={`Área mapeada como queimada pelo MapBiomas Fogo (${validacao.mapbiomasColecao}) dentro do município, no mesmo recorte de tempo da comparação. É a referência independente usada nos dois critérios.`}
+              />
+            </div>
+          )}
+
+          {validacao.confiabilidade !== "Insuficiente" && (
+            <div className="border-t border-border pt-4">
+              <p className="mb-2 text-xs font-medium text-muted">Áreas do mesmo recorte · {ano}</p>
+              <BarraComparacao
+                metodoKm2={areaAgrupamentos}
+                satelliteKm2={areaDnbr}
+                mapbiomasKm2={validacao.areaMapbiomasKm2}
+              />
+            </div>
+          )}
+
+          {validacao.validacaoTemporal && <p className="text-xs text-muted">{validacao.validacaoTemporal}</p>}
+        </div>
+      )}
+    </article>
+  );
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -166,7 +333,7 @@ export async function generateMetadata({
   const ultimaValidacao = detalhe.validacoes[0];
   const descricao = ultimaValidacao
     ? `Confiabilidade ${ultimaValidacao.confiabilidade} (${ultimaValidacao.ano}) — agrupamento de focos de calor + leitura de satélite comparado ao MapBiomas Fogo.`
-    : `${detalhe.municipio.nome} ainda não foi validado pela pesquisa — mapa de leitura de satélite e consulta por mês.`;
+    : `${detalhe.municipio.nome}: focos de calor, agrupamentos e leitura de satélite, ano a ano, e consulta por mês.`;
 
   return {
     title: `${detalhe.municipio.nome} — Painel de Queimadas SP`,
@@ -179,15 +346,30 @@ export default async function MunicipioPage({
   searchParams,
 }: {
   params: Promise<{ codigoIbge: string }>;
-  searchParams: Promise<{ ano?: string; mes?: string }>;
+  searchParams: Promise<{ ano?: string; mes?: string; periodo?: string }>;
 }) {
   const { codigoIbge } = await params;
-  const { ano: anoConsulta, mes: mesConsulta } = await searchParams;
+  const { ano: anoConsulta, mes: mesConsulta, periodo } = await searchParams;
   const detalhe = await getMunicipioDetalhe(codigoIbge);
 
   if (!detalhe) notFound();
 
   const { municipio, metricas, validacoes } = detalhe;
+  const anoAtual = new Date().getFullYear();
+  const anos = Array.from({ length: anoAtual - PRIMEIRO_ANO + 1 }, (_, i) => anoAtual - i);
+  const ultimaValidacao = validacoes[0] ?? null;
+  // Padrão: o ano mais recente com confiabilidade; sem nenhuma, o mais recente com dado.
+  const anoPadrao = ultimaValidacao?.ano ?? metricas.find((m) => m.numFocosCalor !== null)?.ano ?? anoAtual;
+  const anoSelecionado = anos.includes(Number(periodo)) ? Number(periodo) : anoPadrao;
+
+  // Mantém ?ano=&mes= da consulta por mês ao trocar o ano do painel.
+  function hrefAno(ano: number): string {
+    const busca = new URLSearchParams();
+    if (anoConsulta) busca.set("ano", anoConsulta);
+    if (mesConsulta) busca.set("mes", mesConsulta);
+    busca.set("periodo", String(ano));
+    return `?${busca.toString()}#ano`;
+  }
 
   return (
     <div className="space-y-8">
@@ -204,9 +386,17 @@ export default async function MunicipioPage({
       </div>
 
       <header className="space-y-2">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-          {municipio.nome} <span className="text-lg font-normal text-muted">· SP</span>
-        </h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            {municipio.nome} <span className="text-lg font-normal text-muted">· SP</span>
+          </h1>
+          {ultimaValidacao && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted">Confiabilidade {ultimaValidacao.ano}</span>
+              <SeloConfiabilidade nivel={ultimaValidacao.confiabilidade} />
+            </div>
+          )}
+        </div>
         <dl className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted">
           <div>
             <dt className="inline">código IBGE </dt>
@@ -233,208 +423,103 @@ export default async function MunicipioPage({
         </dl>
       </header>
 
-      <ConsultaSobDemanda codigoIbge={municipio.codigoIbge} anoInicial={anoConsulta} mesInicial={mesConsulta} />
-
       <MapaDnbrAtual
         nomeMunicipio={municipio.nome}
         codigoIbge={municipio.codigoIbge}
         metricas={metricas}
       />
 
-      {!municipio.naAmostra ? (
-        <div className="rounded-2xl border border-border bg-surface px-4 py-6 text-sm text-muted shadow-sm">
-          Este município ainda não está na amostra validada pela pesquisa, por isso não tem selo de
-          confiabilidade. O mapa acima e a consulta por mês funcionam normalmente (
-          <Link href="/como-produzimos#limitacoes" className="underline">
-            veja as limitações do cálculo automático
-          </Link>
-          ).
-        </div>
-      ) : (
-        <section className="space-y-4">
-          <h2 className="text-sm font-medium text-muted">
-            Confiabilidade por ano
-          </h2>
-
-          <div className="flex flex-wrap gap-1.5">
-            {Array.from(
-              { length: new Date().getFullYear() - PRIMEIRO_ANO_VALIDACAO + 1 },
-              (_, i) => PRIMEIRO_ANO_VALIDACAO + i
-            ).map((ano) => {
-              const validado = validacoes.some((v) => v.ano === ano);
-              return (
-                <div
-                  key={ano}
-                  className={`flex w-12 flex-col items-center gap-1 rounded-lg border px-1 py-1.5 ${
-                    validado ? "border-acento/50 bg-acento/10" : "border-border bg-surface"
+      <section id="ano" className="scroll-mt-24 space-y-4" aria-labelledby="titulo-ano-a-ano">
+        <h2 id="titulo-ano-a-ano" className="text-sm font-medium text-muted">
+          Ano a ano
+        </h2>
+        <nav aria-label="Escolher o ano" className="flex flex-wrap gap-1.5">
+          {anos.map((ano) => {
+            const v = validacoes.find((x) => x.ano === ano);
+            const m = metricas.find((x) => x.ano === ano);
+            const selecionado = ano === anoSelecionado;
+            const descricao = v
+              ? `confiabilidade ${v.confiabilidade}`
+              : m
+                ? "focos e agrupamentos"
+                : "sem dados ainda";
+            return (
+              <Link
+                key={ano}
+                href={hrefAno(ano)}
+                scroll={false}
+                aria-current={selecionado ? "true" : undefined}
+                title={`${ano}: ${descricao}`}
+                className={`flex w-14 flex-col items-center gap-1 rounded-xl border px-1 py-2 transition-colors ${
+                  selecionado
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-border bg-surface text-foreground hover:border-acento/50"
+                }`}
+              >
+                <span className="tabular-nums text-sm font-semibold">{ano}</span>
+                <span
+                  aria-hidden="true"
+                  className={`h-2 w-2 rounded-full ${
+                    v ? PONTO_CONFIABILIDADE[v.confiabilidade] : m ? "bg-faint" : "bg-transparent"
                   }`}
-                  title={validado ? `${ano}: validado pela pesquisa` : `${ano}: sem validação ainda`}
-                >
-                  <span className={`tabular-nums text-xs font-semibold ${validado ? "text-foreground" : "text-faint"}`}>
-                    &apos;{String(ano).slice(2)}
-                  </span>
-                  <span className={`h-1.5 w-1.5 rounded-full ${validado ? "bg-acento" : "bg-stone-300"}`} />
-                </div>
-              );
-            })}
-          </div>
+                />
+                <span className="sr-only">{descricao}</span>
+              </Link>
+            );
+          })}
+        </nav>
 
-          {validacoes.length === 0 ? (
-            <p className="text-sm text-muted">
-              Município na amostra, mas sem comparação registrada ainda.
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {validacoes.map((v) => {
-                const metricasDoAno = metricas.find((m) => m.ano === v.ano);
-                return (
-                <div
-                  key={v.ano}
-                  className="rounded-2xl border border-border bg-surface p-5 shadow-sm"
-                >
-                  <div className="mb-4 flex items-start justify-between gap-3">
-                    <div>
-                      <span className="text-sm text-muted">{v.ano}</span>
-                      <p className="text-[11px] text-faint">
-                        Validado pela pesquisa · comparado ao MapBiomas Fogo {v.mapbiomasColecao}
-                      </p>
-                    </div>
-                    <SeloConfiabilidade nivel={v.confiabilidade} />
-                  </div>
+        <PainelDoAno
+          ano={anoSelecionado}
+          nomeMunicipio={municipio.nome}
+          naAmostra={municipio.naAmostra}
+          metricas={metricas.find((m) => m.ano === anoSelecionado) ?? null}
+          validacao={validacoes.find((v) => v.ano === anoSelecionado) ?? null}
+        />
+      </section>
 
-                  <CriteriosConfiabilidade
-                    confiabilidade={v.confiabilidade}
-                    recallPct={v.recallPct}
-                    pValor={v.pValor}
-                  />
+      <ConsultaSobDemanda codigoIbge={municipio.codigoIbge} anoInicial={anoConsulta} mesInicial={mesConsulta} />
 
-                  <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    <InfoTile
-                      rotulo="Recall"
-                      valor={formatPct(v.recallPct)}
-                      explicacao="Recall = área em comum entre os agrupamentos de focos e o MapBiomas ÷ área queimada do MapBiomas. Diz quanto da queima registrada pelo MapBiomas o método também pegou. Não é uma porcentagem de acerto: o método pode pegar tudo e ainda marcar área que não queimou."
-                    />
-                    <InfoTile
-                      rotulo="Interseção"
-                      valor={formatPct(v.interseccaoPct, 2)}
-                      explicacao="Interseção sobre união (índice de Jaccard) entre a área dos agrupamentos e a área queimada do MapBiomas: área em comum ÷ área coberta por pelo menos um dos dois. Fica baixa sempre que um dos dois é bem maior que o outro, mesmo com Recall alto."
-                    />
-                    <InfoTile
-                      rotulo="valor-p"
-                      valor={formatPValor(v.pValor)}
-                      explicacao={`Teste de permutação: a coincidência real entre agrupamentos e MapBiomas é comparada com ${v.nPermutacoes} posições sorteadas ao acaso, e o valor-p é a fração de sorteios que coincidiram tanto quanto ou mais que a real. Abaixo de 0,05, a coincidência dificilmente é acaso. Não mede a qualidade do método: só diz se a coincidência é maior que a esperada ao acaso.`}
-                    />
-                    <InfoTile
-                      rotulo="Área MapBiomas"
-                      valor={formatKm2(v.areaMapbiomasKm2)}
-                      explicacao={`Área mapeada como queimada pelo MapBiomas Fogo (${v.mapbiomasColecao}) dentro do município, em km², no mesmo recorte de tempo da comparação. É a referência independente usada nos dois critérios.`}
-                    />
-                  </div>
-
-                  <div className="mt-5 border-t border-border pt-4">
-                    <p className="mb-2 text-xs font-medium text-muted">
-                      Três áreas do mesmo recorte · {v.ano}
-                    </p>
-                    <BarraComparacao
-                      metodoKm2={metricasDoAno?.areaStDbscanKm2 ?? null}
-                      satelliteKm2={metricasDoAno?.areaDnbrKm2 ?? null}
-                      mapbiomasKm2={v.areaMapbiomasKm2}
-                    />
-                  </div>
-
-                  {v.validacaoTemporal && (
-                    <p className="mt-4 text-xs text-muted">
-                      {v.validacaoTemporal}
-                    </p>
-                  )}
-                </div>
-                );
-              })}
-            </div>
-          )}
-
-          <h2 className="pt-2 text-sm font-medium text-muted">
-            Focos de calor e agrupamentos
-          </h2>
-          <div className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-sm">
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs text-muted">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Período</th>
-                  <th className="px-4 py-3 font-medium">Focos de calor</th>
-                  <th className="px-4 py-3 font-medium">Agrupamentos</th>
-                  <th className="px-4 py-3 font-medium">Área (agrupamento)</th>
-                  <th className="px-4 py-3 font-medium">Área (leitura de satélite)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {metricas.map((m) => {
-                  const { periodo, origem } = origemDasMetricas(m.ano, municipio.naAmostra);
-                  return (
-                    <tr key={m.ano} className="border-t border-border">
-                      <td className="px-4 py-3">
-                        <span className="tabular-nums">{periodo}</span>
-                        <span className="block text-[11px] text-faint">{origem}</span>
-                      </td>
-                      <td className="px-4 py-3">{m.numFocosCalor ?? "—"}</td>
-                      <td className="px-4 py-3">{m.numAgrupamentos ?? "—"}</td>
-                      <td className="px-4 py-3">{formatKm2(m.areaStDbscanKm2)}</td>
-                      <td className="px-4 py-3">{formatKm2(m.areaDnbrKm2)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <p className="text-xs text-muted">
-            As linhas cobrem períodos diferentes: a da pesquisa é só agosto de 2024; as automáticas cobrem o ano
-            inteiro (ou até agora, no ano corrente). Todas usam o satélite de referência do INPE (
-            <Link href="/como-produzimos#limitacoes" className="underline">
-              detalhes
-            </Link>
-            ).
-          </p>
-
-          <details className="rounded-2xl border border-border bg-surface p-4 text-sm shadow-sm">
-            <summary className="cursor-pointer font-medium text-foreground">Detalhes técnicos</summary>
-            <div className="mt-3 space-y-3 text-xs text-muted">
-              <p>Parâmetros do agrupamento espaço-temporal (ST-DBSCAN) gravados para cada período:</p>
-              <table className="w-full">
-                <thead className="text-left">
-                  <tr>
-                    <th className="py-1 pr-3 font-medium">Período</th>
-                    <th className="py-1 pr-3 font-medium">Raio espacial</th>
-                    <th className="py-1 pr-3 font-medium">Janela de tempo</th>
-                    <th className="py-1 font-medium">Mínimo de focos</th>
+      <details className="rounded-2xl border border-border bg-surface p-4 text-sm shadow-sm">
+        <summary className="cursor-pointer font-medium text-foreground">Detalhes técnicos</summary>
+        <div className="mt-3 space-y-3 text-xs text-muted">
+          <p>Parâmetros do agrupamento espaço-temporal (ST-DBSCAN) gravados para cada período:</p>
+          <table className="w-full">
+            <thead className="text-left">
+              <tr>
+                <th className="py-1 pr-3 font-medium">Período</th>
+                <th className="py-1 pr-3 font-medium">Raio espacial</th>
+                <th className="py-1 pr-3 font-medium">Janela de tempo</th>
+                <th className="py-1 font-medium">Mínimo de focos</th>
+              </tr>
+            </thead>
+            <tbody className="tabular-nums">
+              {metricas
+                .filter((m) => m.numFocosCalor !== null)
+                .map((m) => (
+                  <tr key={m.ano}>
+                    <td className="py-1 pr-3">{origemDasMetricas(m.ano, municipio.naAmostra).periodo}</td>
+                    <td className="py-1 pr-3">{Number(m.epsSpaceKm).toLocaleString("pt-BR")} km</td>
+                    <td className="py-1 pr-3">{Number(m.epsTimeDays).toLocaleString("pt-BR")} dia(s)</td>
+                    <td className="py-1">{m.minSamples}</td>
                   </tr>
-                </thead>
-                <tbody className="tabular-nums">
-                  {metricas.map((m) => (
-                    <tr key={m.ano}>
-                      <td className="py-1 pr-3">{origemDasMetricas(m.ano, municipio.naAmostra).periodo}</td>
-                      <td className="py-1 pr-3">{Number(m.epsSpaceKm).toLocaleString("pt-BR")} km</td>
-                      <td className="py-1 pr-3">{Number(m.epsTimeDays).toLocaleString("pt-BR")} dia(s)</td>
-                      <td className="py-1">{m.minSamples}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {validacoes.map((v) => (
-                <p key={v.ano}>
-                  Validação {v.ano}: fonte <span className="tabular-nums">{v.fonte}</span> · MapBiomas Fogo{" "}
-                  {v.mapbiomasColecao} · {v.nPermutacoes} permutações · critério fixo Recall ≥ 50% e valor-p &lt; 0,05.
-                </p>
-              ))}
-              <p>
-                Código IBGE <span className="tabular-nums">{municipio.codigoIbge}</span> ·{" "}
-                <Link href="/como-produzimos#parametros" className="underline">
-                  metodologia completa
-                </Link>
-              </p>
-            </div>
-          </details>
-        </section>
-      )}
+                ))}
+            </tbody>
+          </table>
+          {validacoes.map((v) => (
+            <p key={v.ano}>
+              Comparação {v.ano}: {rotuloOrigemValidacao(v.fonte, v.ano)} · MapBiomas Fogo {v.mapbiomasColecao} ·{" "}
+              {v.nPermutacoes} permutações · critério fixo Recall ≥ 50% e valor-p &lt; 0,05.
+            </p>
+          ))}
+          <p>
+            Código IBGE <span className="tabular-nums">{municipio.codigoIbge}</span> ·{" "}
+            <Link href="/como-produzimos#parametros" className="underline">
+              metodologia completa
+            </Link>
+          </p>
+        </div>
+      </details>
     </div>
   );
 }

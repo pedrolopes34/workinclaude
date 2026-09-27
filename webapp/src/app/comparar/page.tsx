@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getMunicipioDetalhe, listarMunicipiosNoMapa, normalizarBusca } from "@/lib/queries";
-import { formatKm2, formatPct, formatPValor, origemDasMetricas } from "@/lib/format";
+import { formatKm2, formatPct, formatPValor, rotuloJanelaDnbr, rotuloOrigemValidacao } from "@/lib/format";
 import { Hero } from "@/components/Hero";
+import { BuscaMunicipio } from "@/components/BuscaMunicipio";
 import { SeloConfiabilidade } from "@/components/SeloConfiabilidade";
 import type { MunicipioDetalhe } from "@/lib/types";
 
@@ -43,41 +44,51 @@ export default async function CompararPage({
     (d): d is MunicipioDetalhe => d !== null
   );
 
+  // Os 645 têm os mesmos indicadores desde a seção 6.55: a confiabilidade mais
+  // recente (da pesquisa ou do cálculo automático, com a origem dita), os
+  // focos e agrupamentos dos dois últimos anos e a leitura de satélite.
+  const anoAtual = new Date().getFullYear();
+  const doAno = (d: MunicipioDetalhe, ano: number) => d.metricas.find((x) => x.ano === ano);
+  const ultima = (d: MunicipioDetalhe) => d.validacoes[0];
   const linhas: { rotulo: string; valor: (d: MunicipioDetalhe) => React.ReactNode }[] = [
     { rotulo: "Código IBGE", valor: (d) => <span className="tabular-nums">{d.municipio.codigoIbge}</span> },
     { rotulo: "Mesorregião", valor: (d) => d.municipio.mesorregiao ?? "—" },
     { rotulo: "Área do município", valor: (d) => formatKm2(d.municipio.areaKm2) },
     {
-      rotulo: "Dado disponível",
-      valor: (d) => (d.validacoes[0] ? `validado pela pesquisa (${d.validacoes[0].ano})` : "só cálculo automático"),
-    },
-    {
       rotulo: "Confiabilidade",
-      valor: (d) => (d.validacoes[0] ? <SeloConfiabilidade nivel={d.validacoes[0].confiabilidade} /> : "—"),
+      valor: (d) =>
+        ultima(d) ? (
+          <span className="flex flex-col items-start gap-1">
+            <SeloConfiabilidade nivel={ultima(d).confiabilidade} />
+            <span className="text-[11px] text-faint">{rotuloOrigemValidacao(ultima(d).fonte, ultima(d).ano)}</span>
+          </span>
+        ) : (
+          "—"
+        ),
     },
-    { rotulo: "Recall", valor: (d) => formatPct(d.validacoes[0]?.recallPct ?? null) },
-    { rotulo: "Interseção", valor: (d) => formatPct(d.validacoes[0]?.interseccaoPct ?? null, 2) },
-    { rotulo: "valor-p", valor: (d) => formatPValor(d.validacoes[0]?.pValor ?? null) },
-    { rotulo: "Área MapBiomas", valor: (d) => formatKm2(d.validacoes[0]?.areaMapbiomasKm2 ?? null) },
-  ];
-
-  // Métricas do mesmo recorte da validação (ago/2024 da pesquisa) — nunca
-  // misturadas com as automáticas de outro período (seção 6.51).
-  const metricaValidada = (d: MunicipioDetalhe) =>
-    d.validacoes[0] ? d.metricas.find((x) => x.ano === d.validacoes[0].ano) : undefined;
-  linhas.push(
+    { rotulo: "Recall", valor: (d) => formatPct(ultima(d)?.recallPct ?? null) },
+    { rotulo: "Interseção", valor: (d) => formatPct(ultima(d)?.interseccaoPct ?? null, 2) },
+    { rotulo: "valor-p", valor: (d) => formatPValor(ultima(d)?.pValor ?? null) },
+    { rotulo: "Área MapBiomas", valor: (d) => formatKm2(ultima(d)?.areaMapbiomasKm2 ?? null) },
+    { rotulo: `Focos de calor ${anoAtual - 1}`, valor: (d) => doAno(d, anoAtual - 1)?.numFocosCalor ?? "—" },
+    { rotulo: `Agrupamentos ${anoAtual - 1}`, valor: (d) => doAno(d, anoAtual - 1)?.numAgrupamentos ?? "—" },
+    { rotulo: `Focos de calor ${anoAtual} (até agora)`, valor: (d) => doAno(d, anoAtual)?.numFocosCalor ?? "—" },
+    { rotulo: `Agrupamentos ${anoAtual} (até agora)`, valor: (d) => doAno(d, anoAtual)?.numAgrupamentos ?? "—" },
     {
-      rotulo: "Período das métricas",
+      rotulo: "Leitura de satélite (mês mais recente)",
       valor: (d) => {
-        const mt = metricaValidada(d);
-        return mt ? origemDasMetricas(mt.ano, d.municipio.naAmostra).periodo : "—";
+        const m = d.metricas.find((x) => x.dnbrImagemUrl);
+        return m ? (
+          <span className="flex flex-col">
+            {formatKm2(m.areaDnbrKm2)}
+            <span className="text-[11px] text-faint">{rotuloJanelaDnbr([m.dnbrImagemUrl])}</span>
+          </span>
+        ) : (
+          "—"
+        );
       },
     },
-    { rotulo: "Focos de calor", valor: (d) => metricaValidada(d)?.numFocosCalor ?? "—" },
-    { rotulo: "Agrupamentos", valor: (d) => metricaValidada(d)?.numAgrupamentos ?? "—" },
-    { rotulo: "Área (agrupamento)", valor: (d) => formatKm2(metricaValidada(d)?.areaStDbscanKm2 ?? null) },
-    { rotulo: "Área (leitura de satélite)", valor: (d) => formatKm2(metricaValidada(d)?.areaDnbrKm2 ?? null) }
-  );
+  ];
 
   return (
     <div className="space-y-6">
@@ -87,32 +98,18 @@ export default async function CompararPage({
         descricao="Escolha até quatro municípios para ver os indicadores juntos. A ordem é a da sua escolha: aqui não há ranking nem vencedor."
       />
 
-      <form method="get" action="/comparar" className="flex flex-wrap items-end gap-2">
-        {escolhidos.length > 0 && <input type="hidden" name="m" value={escolhidos.join(",")} />}
-        <label className="flex min-w-56 flex-1 flex-col gap-1 text-xs text-muted">
-          Adicionar município (nome ou código IBGE)
-          <input
-            name="add"
-            list="lista-comparar"
-            autoComplete="off"
-            disabled={escolhidos.length >= MAXIMO}
-            placeholder={escolhidos.length >= MAXIMO ? "Máximo de 4 — remova um para trocar" : "ex.: Olímpia"}
-            className="rounded-full border border-border bg-surface px-4 py-2 text-sm text-foreground disabled:opacity-60"
-          />
-        </label>
-        <datalist id="lista-comparar">
-          {todos.map((x) => (
-            <option key={x.codigoIbge} value={x.nome} />
-          ))}
-        </datalist>
-        <button
-          type="submit"
-          disabled={escolhidos.length >= MAXIMO}
-          className="rounded-full bg-acento-botao px-4 py-2 text-[19px] font-bold text-white transition-colors hover:bg-acento-botao-hover disabled:opacity-50"
-        >
-          Adicionar
-        </button>
-      </form>
+      <BuscaMunicipio
+        id="comparar"
+        municipios={todos}
+        acao="/comparar"
+        nomeCampo="add"
+        destino={hrefComparacao([...escolhidos, "{codigo}"])}
+        camposOcultos={escolhidos.length > 0 ? { m: escolhidos.join(",") } : {}}
+        rotulo="Adicionar município à comparação (nome ou código IBGE)"
+        placeholder={escolhidos.length >= MAXIMO ? "Máximo de 4 — remova um para trocar" : "Adicionar município, ex.: Olímpia"}
+        textoBotao="Adicionar"
+        desabilitado={escolhidos.length >= MAXIMO}
+      />
 
       {naoAchou && (
         <p className="rounded-lg border border-border bg-surface px-3 py-2 text-xs text-foreground">
@@ -170,11 +167,9 @@ export default async function CompararPage({
       )}
 
       <p className="text-xs text-muted">
-        Só entram números validados pela pesquisa (agosto de 2024). Municípios fora da amostra aparecem com
-        &ldquo;—&rdquo; nesses campos: o cálculo automático deles ainda não passou pela conferência da
-        pesquisa (
-        <Link href="/como-produzimos#limitacoes" className="underline">
-          limitações
+        A confiabilidade é a do ano mais recente comparado ao MapBiomas; embaixo do selo, de onde ela vem (
+        <Link href="/como-produzimos#confiabilidade" className="underline">
+          como é calculada
         </Link>
         ). O link desta página reproduz a mesma comparação.
       </p>

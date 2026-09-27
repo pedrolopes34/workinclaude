@@ -1,11 +1,16 @@
 export type Confiabilidade = "Alta" | "Média" | "Baixa" | "Insuficiente";
 
+// Confiabilidade mostrada = a do ano mais recente comparado ao MapBiomas
+// (docs/DECISIONS.md seção 6.55): da pesquisa nos 63 da amostra, do cálculo
+// automático nos demais. null = ainda sem linha em validacao_mapbiomas.
 export interface MunicipioResumo {
   codigoIbge: string;
   nome: string;
   mesorregiao: string | null;
   naAmostra: boolean;
-  confiabilidade: Confiabilidade | null; // null = fora da amostra, nunca comparado
+  confiabilidade: Confiabilidade | null;
+  interseccaoPct: string | null;
+  fonte: FonteValidacao | null;
   ano: number | null;
 }
 
@@ -46,21 +51,33 @@ export interface ValidacaoMapbiomas {
 }
 
 // 'manual' = validado pela pesquisa (os 63 da amostra); 'automatico' =
-// pipeline (docs/DECISIONS.md seção 6.29). A interface só exibe 'manual'
-// por enquanto (seção 6.52).
+// pipeline (docs/DECISIONS.md seção 6.29). Desde a seção 6.55 a interface
+// mostra as duas, com a origem indicada.
 export type FonteValidacao = "manual" | "automatico";
 
-// Linha única por município (os 645), com a confiabilidade validada pela
-// pesquisa quando existe e os dados automáticos que cobrem todos — usada no
-// mapa (camadas, seção 6.54), na busca e na comparação.
+// Linha única por município (os 645) — usada no mapa, na busca e na
+// comparação. Confiabilidade como em MunicipioResumo.
 export interface MunicipioNoMapa {
   codigoIbge: string;
   nome: string;
   confiabilidade: Confiabilidade | null;
+  interseccaoPct: string | null;
+  anoConfiabilidade: number | null;
+  fonteConfiabilidade: FonteValidacao | null;
   focosAnoAnterior: number | null;
   focosAnoAtual: number | null;
   areaDnbrKm2: string | null;
   dnbrImagemUrl: string | null;
+}
+
+// Uma comparação com o MapBiomas por município × ano, pro mapa de
+// confiabilidade com seletor de ano (seção 6.55).
+export interface ConfiabilidadeNoAno {
+  codigoIbge: string;
+  ano: number;
+  confiabilidade: Confiabilidade;
+  interseccaoPct: string | null;
+  fonte: FonteValidacao;
 }
 
 export interface ResumoCobertura {
@@ -92,4 +109,18 @@ export interface ConsultaSobDemanda {
   areaDnbrKm2: string | null;
   dnbrImagemUrl: string | null;
   mensagemErro: string | null;
+}
+
+// Mosaico estadual da leitura de satélite de um mês (tabela mosaicos_dnbr,
+// pipeline/run_dnbr_estado.py — docs/DECISIONS.md seção 6.55). Os limites são
+// o retângulo que a imagem cobre, o mesmo do viewBox do mapa do site.
+export interface MosaicoDnbr {
+  ano: number;
+  mes: number;
+  imagemUrl: string;
+  oeste: number;
+  sul: number;
+  leste: number;
+  norte: number;
+  colecao: string;
 }

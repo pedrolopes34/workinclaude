@@ -7,9 +7,11 @@ import type { ConsultaSobDemanda } from "./types";
 // módulo é o único lugar que sabe como validar o período, checar limite de
 // taxa e disparar o workflow — a rota em app/api/consultas só orquestra.
 
-// 2018-2023 ainda não têm o histórico do INPE integrado (BDQueimadas, ver
-// docs/DECISIONS.md seção 7) — lançado só pra 2024 em diante por ora.
-export const PRIMEIRO_ANO_CONSULTA = 2024;
+// Desde 2018, a janela de anos do produto: o pipeline baixa o arquivo anual de
+// referência do INPE pros anos fechados (docs/DECISIONS.md seção 6.55). Antes
+// de dez/2018 o Sentinel-2 com correção atmosférica pode não ter cena no
+// Brasil — aí a consulta sai só com focos e agrupamentos, sem área dNBR.
+export const PRIMEIRO_ANO_CONSULTA = 2018;
 export const MAX_CONSULTAS_POR_HORA = 5;
 // Só reaproveita resultado calculado com o método atual: 2 = só o satélite de
 // referência do INPE, como a pesquisa (docs/DECISIONS.md seção 6.53). Os
@@ -34,7 +36,7 @@ export function validarPeriodo(
   if (!Number.isInteger(ano) || ano < PRIMEIRO_ANO_CONSULTA || ano > anoMax) {
     return {
       ok: false,
-      motivo: `Ano precisa estar entre ${PRIMEIRO_ANO_CONSULTA} e ${anoMax} — 2018–2023 ainda não têm o histórico do INPE integrado.`,
+      motivo: `Ano precisa estar entre ${PRIMEIRO_ANO_CONSULTA} e ${anoMax}.`,
     };
   }
   if (!Number.isInteger(mes) || mes < 1 || mes > 12) {
