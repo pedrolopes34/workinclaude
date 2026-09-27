@@ -30,6 +30,7 @@ from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
+from shapely.geometry import box
 
 from pipeline.ingest.inpe import (
     SATELITE_REFERENCIA,
@@ -153,16 +154,21 @@ def rodar_amostra(pasta_focos: Path) -> None:
         cod = m["codigo_ibge"]
         focos_pesq, agr_pesq, area_pesq = pesquisa[cod]
         do_municipio = agosto_ref[agosto_ref["codigo_ibge"] == cod]
+        # Mesmo foco listado mais de uma vez (mesma posição e horário) — o
+        # arquivo _ref_ da pesquisa pode não ter essas repetições (seção 6.53).
+        unicos = do_municipio.drop_duplicates(subset=["latitude", "longitude", "data_hora"])
+        agr_unicos, _, _ = areas_dos_agrupamentos(unicos, 4, box(0, 0, 0, 0))
         geom = buscar_geometria_municipio(cod)
         agr4, area4, rec4 = areas_dos_agrupamentos(do_municipio, 4, geom)
         agr2, area2, rec2 = areas_dos_agrupamentos(do_municipio, 2, geom)
         linhas.append(
             {"cod": cod, "nome": m["nome"], "focos_pesq": focos_pesq, "focos": len(do_municipio),
+             "focos_unicos": len(unicos), "agr_unicos": agr_unicos,
              "agr_pesq": agr_pesq, "agr4": agr4, "agr2": agr2, "area_pesq": area_pesq,
              "area4": area4, "rec4": rec4, "area2": area2, "rec2": rec2}
         )
         print(
-            f"{m['nome']:<28} focos {focos_pesq}->{len(do_municipio)} | agr {agr_pesq}->{agr4} (ms4) {agr2} (ms2) | "
+            f"{m['nome']:<28} focos {focos_pesq}->{len(do_municipio)} (únicos {len(unicos)}) | agr {agr_pesq}->{agr4} (ms4) {agr2} (ms2) | "
             f"área {area_pesq} -> {area4} / recortada {rec4} (ms4); {area2} / recortada {rec2} (ms2)"
         )
 
@@ -173,6 +179,13 @@ def rodar_amostra(pasta_focos: Path) -> None:
         "Amostra: focos ago2024 so AQUA_M-T",
         f"{int((dif_focos == 0).sum())} de {n} iguais | {int((dif_focos <= df['focos_pesq'].clip(lower=1) * 0.1).sum())} "
         f"a ate 10% | pesquisa soma {int(df['focos_pesq'].sum())}, AQUA soma {int(df['focos'].sum())}",
+    )
+    dif_unicos = (df["focos_unicos"] - df["focos_pesq"]).abs()
+    anotar(
+        "Amostra: focos unicos (sem repeticao)",
+        f"{int((dif_unicos == 0).sum())} de {n} iguais | {int((dif_unicos <= df['focos_pesq'].clip(lower=1) * 0.1).sum())} "
+        f"a ate 10% | soma {int(df['focos_unicos'].sum())} (pesquisa {int(df['focos_pesq'].sum())}) | "
+        f"agrupamentos iguais com focos unicos e min_samples=4: {int((df['agr_unicos'] == df['agr_pesq']).sum())} de {n}",
     )
     bate4 = df["agr4"] == df["agr_pesq"]
     bate2 = df["agr2"] == df["agr_pesq"]
