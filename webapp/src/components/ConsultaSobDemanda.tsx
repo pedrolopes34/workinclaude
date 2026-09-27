@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { InfoTile } from "./InfoTile";
+import { ImagemComFallback } from "./ImagemComFallback";
 import { formatKm2 } from "@/lib/format";
 import type { ConsultaSobDemanda as ConsultaSobDemandaResultado } from "@/lib/types";
 
@@ -213,12 +214,11 @@ export function ConsultaSobDemanda({ codigoIbge }: { codigoIbge: string }) {
             />
           </div>
           {consulta.dnbrImagemUrl && (
-            // eslint-disable-next-line @next/next/no-img-element -- URL vem do R2, mesmo padrão da página de município
-            <img
+            <ImagemComFallback
               src={consulta.dnbrImagemUrl}
               alt={`Mapa de severidade de queimada (dNBR) deste município em ${NOMES_MESES[mes - 1]}/${ano}`}
-              loading="lazy"
               className="h-auto w-full rounded-xl border border-border"
+              mensagemFallback="Não foi possível carregar o mapa desta consulta agora."
             />
           )}
         </div>

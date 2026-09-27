@@ -5,6 +5,7 @@ import { getMunicipioDetalhe } from "@/lib/queries";
 import { CONFIABILIDADE_STYLE, formatKm2, formatPct, formatPValor } from "@/lib/format";
 import { InfoTile } from "@/components/InfoTile";
 import { ConsultaSobDemanda } from "@/components/ConsultaSobDemanda";
+import { ImagemComFallback } from "@/components/ImagemComFallback";
 import type { MetricasAnuais } from "@/lib/types";
 
 const PRIMEIRO_ANO_VALIDACAO = 2018; // período inicial de validação da pesquisa (docs/DECISIONS.md)
@@ -82,12 +83,11 @@ function MapaDnbrAtual({
     <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
       {imagemUrl ? (
         <>
-          {/* eslint-disable-next-line @next/next/no-img-element -- URL vem do R2 (domínio dinâmico), plain <img> evita depender de next.config.ts saber o domínio de antemão */}
-          <img
+          <ImagemComFallback
             src={imagemUrl}
             alt={`Mapa de severidade de queimada (dNBR) de ${nomeMunicipio}, ${rotuloAno}, estilo QGIS: verde é baixa severidade (perto de 0,10), do amarelo ao vermelho é severidade alta (até 0,75).`}
-            loading="lazy"
             className="h-auto w-full"
+            mensagemFallback="Não foi possível carregar o mapa deste município agora — tente recarregar a página."
           />
           <div className="flex items-center gap-2 px-3 py-2">
             <span

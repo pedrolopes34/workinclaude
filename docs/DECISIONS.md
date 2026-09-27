@@ -2413,6 +2413,60 @@ mais forte que rodar pytest aqui, já que os imports condicionais
 
 **Status:** Fechado.
 
+### 6.48 Imagem dNBR quebrada no navegador — fallback visual implementado, causa raiz ainda depende do Pedro conferir o R2 (27/09/2026)
+
+**Contexto:** Pedro reportou (com print) que o mapa de Adamantina mostra o
+ícone padrão de imagem quebrada do navegador, com o texto do `alt`
+aparecendo no lugar — ou seja, o `<img>` está tentando carregar a URL do
+R2 e falhando de verdade, não é uma questão de "layout esconde a
+imagem". Não consigo reproduzir isso eu mesmo: este sandbox não alcança
+nem o R2 nem o site publicado (mesma restrição de rede de sempre).
+
+**Hipótese mais provável, por eliminação:** `R2_PUBLIC_URL_BASE` nunca foi
+validado de ponta a ponta. Toda a validação de sucesso do upload até
+aqui (seção 6.41) usa `boto3` **autenticado** com `R2_ACCESS_KEY_ID`/
+`R2_SECRET_ACCESS_KEY` contra o endpoint S3-compatível — isso prova que
+o arquivo chegou no bucket, mas nunca testou se o link **público**
+(`R2_PUBLIC_URL_BASE` + caminho) realmente abre sem autenticação. Buckets
+R2 são privados por padrão na Cloudflare — precisam ou do toggle "Public
+Development URL" habilitado nas configurações do bucket, ou um domínio
+próprio conectado com acesso público. Se isso nunca foi ligado, todo
+upload sempre funcionou (grava no bucket certo) e todo link sempre
+falhou (bucket não serve pra visitante anônimo) — exatamente o padrão
+observado agora.
+
+**Pedido ao Pedro (só ele consegue conferir, é configuração da conta
+Cloudflare dele):**
+1. Cloudflare Dashboard → R2 → o bucket (`queimadas-sp-dnbr`) →
+   Settings → checar se "Public Development URL" está **Enabled**. Se
+   estiver **Disabled**, esse é o problema inteiro — habilitar já
+   resolve pros 645 municípios de uma vez, sem precisar rodar o pipeline
+   de novo (a URL já gravada no banco passa a funcionar).
+2. Se já estiver habilitado, comparar a URL que aparece ali com o valor
+   exato salvo em `R2_PUBLIC_URL_BASE` (Vercel/GitHub secret) — têm que
+   bater exatamente (incluindo `https://` e sem barra dupla).
+3. Mais rápido ainda: abrir uma URL de imagem direto no navegador (ex.:
+   inspecionar o elemento quebrado, copiar o `src`) e ver o erro exato
+   (403 = bucket privado; 404 = domínio/caminho errado).
+
+**Implementado enquanto isso (independe da causa raiz, sempre vale a
+pena):** `components/ImagemComFallback.tsx` — client component novo que
+troca o ícone feio de imagem quebrada por um aviso discreto
+("Não foi possível carregar o mapa...") via `onError`, usado tanto no
+mapa da página de município quanto no resultado da consulta sob demanda
+(os 2 únicos lugares que renderizam imagem do R2). Corrige a aparência
+pra qualquer falha futura de imagem, independente da causa.
+
+**Testado de verdade, não só lido o código:** apontei manualmente
+`dnbr_imagem_url` de um município de teste pra uma URL propositalmente
+inexistente, rodei um teste real com Playwright (Chromium headless, já
+configurado no ambiente) contra o servidor local — confirmado: a tag
+`<img>` quebrada desaparece e a mensagem de fallback aparece no DOM
+renderizado de verdade. `npm run build`/`lint` limpos.
+
+**Status:** Fallback visual fechado. Causa raiz do R2 aberta, aguardando
+o Pedro conferir a configuração de acesso público do bucket.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)
