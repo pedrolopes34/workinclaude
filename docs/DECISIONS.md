@@ -2614,8 +2614,19 @@ branches e todo o histórico** (não só a `main` — tornar público expõe tud
   do site); afirmação corrigida lá. Escrever um README é texto público de
   apresentação do projeto, então fica pro Pedro pedir/revisar.
 
-**Status:** 1 e 2 feitos. 3 aguarda o Pedro decidir o destino das 2
-branches eleitorais e mudar a visibilidade. Depois disso: rodar o
+**Branches eleitorais — decisão do Pedro: apagar, com cópia.** Entregue
+a ele `copia_eleicoes_2022_sp.zip`: os arquivos das 2 branches mais um
+`git bundle` com o histórico completo, com restauração testada (clone do
+bundle devolve as 2 branches nos mesmos commits, `e3bc99f` e `e65e76a`,
+9 commits no total) e um `COMO_RESTAURAR.txt`. Os dados em si (CSV de
+~5 GB) nunca estiveram no repositório; ficam no Drive dele. A exclusão
+pelo `git push --delete` foi **recusada pelo proxy git desta sessão
+(HTTP 403)** — política da sessão, não falha de rede, então não insisti.
+O Pedro apaga pela interface do GitHub (página *Branches*, ícone de
+lixeira).
+
+**Status:** 1 e 2 feitos. 3 aguarda o Pedro apagar as 2 branches
+eleitorais e mudar a visibilidade. Depois disso: rodar o
 `diagnostico-imagens-r2.yml` (confirma o conteúdo do bucket) e testar a
 consulta sob demanda de ponta a ponta.
 
