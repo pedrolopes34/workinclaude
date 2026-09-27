@@ -86,7 +86,7 @@ export function BuscaMunicipio({
           abrirMunicipio(sugestoes[ativo].codigoIbge);
         }
       }}
-      className="relative flex scroll-mt-24 items-center gap-2 rounded-full border border-glass-border bg-glass p-2 pl-4 shadow-[inset_0_1px_0_var(--color-glass-hi)] backdrop-blur-xl"
+      className="relative z-10 flex scroll-mt-24 items-center gap-2 rounded-full border border-glass-border bg-glass p-2 pl-4 shadow-[inset_0_1px_0_var(--color-glass-hi)] backdrop-blur-xl"
     >
       <svg
         width="17"

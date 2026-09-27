@@ -3164,6 +3164,28 @@ anterior** (`mes_a_processar` + `janela_mes_especifico`, a mesma janela da
 consulta por mês e do mosaico), e grava no ano desse mês (em janeiro, o ano
 anterior).
 
+**Quem somos (27/09, pedido do Pedro):** foto dele (Drive
+`foto-pedro-painel`, 354×440, 38 KB em `webapp/public/equipe/pedro.jpg`),
+seção **Orientação** com a Profa. Dra. Ana Claudia de Jesus Golzio (texto
+resumido do Lattes que o Pedro mandou, link pro currículo; **sem foto
+dela** até ela autorizar — só as iniciais) e seção **Grupo de pesquisa** com
+o logo do SINACI (Sistemas Não-Clássicos Aplicados à Computação
+Inteligente, CNPq, coordenado por ela; 320×320, 21 KB em WebP). Saiu a nota
+"menção formal à orientação será incluída após autorização". As imagens
+chegaram pelo conector do Drive (base64), porque o sandbox não alcança o
+Drive direto.
+
+**Consulta #15 falhou (Americana, ago/2026):** o serviço de malhas do IBGE
+devolveu corpo vazio nas 3 tentativas (`JSONDecodeError`), enquanto 14 jobs
+de validação pediam geometria ao mesmo tempo. `common/ibge_malhas.py`: 5
+tentativas com espera de 2, 4, 8 e 16 s, corpo vazio conta como falha, cache
+na execução, e as rodadas em lote (validação, dNBR mensal) baixam a malha do
+**estado inteiro numa requisição só** (`carregar_malha_estadual`, com
+`intrarregiao=municipio`); se essa falhar, volta a pedir município por
+município. **/comparar:** a lista de sugestões ficava atrás do selo da
+tabela (o `backdrop-blur` do formulário cria um contexto de empilhamento);
+o formulário ganhou `z-10`, abaixo do cabeçalho fixo (`z-20`).
+
 **Malha do mapa:** 7 municípios do litoral (Bertioga, Cananéia,
 Caraguatatuba, Ilhabela, Peruíbe, São Sebastião, Ubatuba) vinham na malha
 do geodata-br com o anel de uma ilhota como exterior; o retângulo

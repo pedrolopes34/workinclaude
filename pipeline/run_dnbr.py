@@ -340,6 +340,10 @@ def main() -> None:
     else:
         print(f"Grupo {args.grupo}/{args.de_grupos}: {len(fatia)} municípios. Janelas: {janela_antes} -> {janela_depois}")
     print(f"Miniatura dNBR: {'ligada (R2 configurado)' if _r2_configurado() else 'desligada (sem R2_* no ambiente)'}")
+    if not args.municipio:
+        from pipeline.common.ibge_malhas import carregar_malha_estadual
+
+        print(f"Malha do IBGE: {carregar_malha_estadual()} municípios numa requisição só (seção 6.55)")
 
     # Conexao curta por municipio (nao 1 unica transacao pros ~320 municipios
     # do grupo, que rodam por horas — ver docs/DECISIONS.md secao 6.14):

@@ -370,6 +370,11 @@ def main() -> None:
     else:
         print(f"Grupo {args.grupo}/{args.de_grupos}: {len(municipios)} municípios, ano {args.ano}")
 
+    if not args.municipio:
+        from pipeline.common.ibge_malhas import carregar_malha_estadual
+
+        print(f"Malha do IBGE: {carregar_malha_estadual()} municípios numa requisição só (seção 6.55)")
+
     contagem = {"Alta": 0, "Média": 0, "Baixa": 0, "Insuficiente": 0, "erro": 0}
     for codigo_ibge, nome in municipios.itertuples(index=False):
         focos_municipio = focos_todos_anos[focos_todos_anos["codigo_ibge"] == codigo_ibge]
