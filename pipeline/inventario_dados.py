@@ -36,9 +36,15 @@ def valores_seed_2024(texto_sql: str) -> dict[str, tuple[int | None, int | None]
     return {cod: (_int(focos), _int(agr)) for cod, focos, agr in _LINHA_SEED.findall(texto_sql)}
 
 
+def _escapar(texto: str, propriedade: bool) -> str:
+    """Escape do formato de comando do Actions (`::notice title=...::msg`)."""
+    texto = texto.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+    return texto.replace(":", "%3A").replace(",", "%2C") if propriedade else texto
+
+
 def anotar(titulo: str, texto: str) -> None:
     print(f"{titulo}: {texto}")
-    print(f"::notice title={titulo}::{texto}")
+    print(f"::notice title={_escapar(titulo, True)}::{_escapar(texto, False)}")
 
 
 def main() -> None:
@@ -79,6 +85,40 @@ def main() -> None:
         anotar(
             "validacao_mapbiomas",
             " | ".join(f"{ano} {fonte} {conf}={n}" for ano, fonte, conf, n in cur.fetchall()),
+        )
+
+        # Distribuição pra escolher as faixas do mapa (seção 6.54): focos por
+        # município em cada ano automático e a área de leitura de satélite.
+        for ano in (2025, 2026):
+            cur.execute(
+                """
+                SELECT count(*), count(*) FILTER (WHERE num_focos_calor = 0),
+                       percentile_disc(ARRAY[0.5, 0.75, 0.9, 0.95, 0.99]) WITHIN GROUP (ORDER BY num_focos_calor),
+                       max(num_focos_calor), sum(num_focos_calor),
+                       count(*) FILTER (WHERE num_agrupamentos > 0)
+                FROM metricas_anuais WHERE ano = %(ano)s
+                """,
+                {"ano": ano},
+            )
+            n, zeros, pcts, maximo, soma, com_agr = cur.fetchone()
+            anotar(
+                f"Focos por municipio {ano}",
+                f"{n} linhas, {zeros} com zero, soma {soma}, p50/p75/p90/p95/p99 = {pcts}, max {maximo}, "
+                f"{com_agr} com agrupamento",
+            )
+        cur.execute(
+            """
+            SELECT count(area_dnbr_km2), count(*) FILTER (WHERE dnbr_imagem_url IS NOT NULL AND area_dnbr_km2 IS NULL),
+                   percentile_disc(ARRAY[0.25, 0.5, 0.75, 0.9, 0.99]) WITHIN GROUP (ORDER BY area_dnbr_km2),
+                   max(area_dnbr_km2), min(dnbr_imagem_url)
+            FROM metricas_anuais WHERE ano = 2026
+            """
+        )
+        n_area, sem_area, pcts, maximo, exemplo = cur.fetchone()
+        anotar(
+            "Area dNBR 2026 (km2)",
+            f"{n_area} com valor, {sem_area} com imagem mas sem area, p25/p50/p75/p90/p99 = {pcts}, max {maximo}, "
+            f"exemplo de chave {(exemplo or '').rsplit('/', 1)[-1]}",
         )
 
         cur.execute("SELECT to_regclass('consultas_sob_demanda') IS NOT NULL")
