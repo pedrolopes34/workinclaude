@@ -173,6 +173,23 @@ def main() -> None:
         for src in srcs[:1]:
             print(f"  src host={categoria_host(src)} | caminho={urlparse(src).path} | {testar_http(src)[1]}")
 
+    # Mapa estadual (docs/DECISIONS.md seção 6.54): a página vem do servidor e
+    # a geometria é um arquivo estático baixado pelo navegador.
+    for caminho in ("/mapa", "/mapa/sp.json", "/mapa/sp-leve.json"):
+        try:
+            resposta = requests.get(f"{SITE_PUBLICADO}{caminho}", timeout=30)
+        except Exception as e:
+            print(f"{caminho}: FALHOU: {type(e).__name__}")
+            continue
+        detalhe = ""
+        if caminho.endswith(".json") and resposta.ok:
+            try:
+                corpo = resposta.json()
+                detalhe = f" | municípios={len(corpo.get('municipios', {}))} áreas={len(corpo.get('areas_km2', {}))}"
+            except ValueError:
+                detalhe = " | NÃO é JSON"
+        print(f"{caminho}: HTTP {resposta.status_code} | {resposta.headers.get('content-type', '?')} | {len(resposta.content)} bytes{detalhe}")
+
     if not args.corrigir:
         print("\n(modo só leitura — rode com --corrigir pra reescrever as URLs gravadas)")
         return
