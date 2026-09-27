@@ -10,6 +10,7 @@ from pipeline.diagnosticar_focos_inpe import (
     areas_dos_agrupamentos,
     entradas_do_indice,
     focos_do_recorte_com_satelite,
+    normalizar_focos_ref,
     numeros_da_pesquisa,
     resumir_pasta,
     resumo_satelite_por_mes,
@@ -103,3 +104,21 @@ def test_resumir_pasta_mostra_pastas_e_ponta_dos_arquivos():
     texto = resumir_pasta("anual/EstadosBr_sat_ref/SP/", ["sub/"] + arquivos)
     assert texto.startswith("anual/EstadosBr_sat_ref/SP/ | 1 pastas: sub | 8 arquivos: ")
     assert "focos_br_sp_ref_2003.zip" in texto and "..." in texto and "focos_br_sp_ref_2010.zip" in texto
+
+
+def test_normalizar_focos_ref_aceita_os_dois_esquemas_do_inpe():
+    municipios = pd.DataFrame({"codigo_ibge": ["3539509"], "nome": ["Pitangueiras"]})
+    novo = pd.DataFrame(
+        {"lat": [-21.0], "lon": [-48.2], "data_hora_gmt": ["2024-08-05 16:00:00"],
+         "municipio": ["PITANGUEIRAS"], "satelite": ["AQUA_M-T"]}
+    )
+    antigo = pd.DataFrame(
+        {"latitude": [-21.0, -22.0], "longitude": [-48.2, -47.0], "data_pas": ["2024-08-05 16:00:00"] * 2,
+         "municipio": ["Pitangueiras", "Outra Cidade"]}
+    )
+    for bruto in (novo, antigo):
+        focos = normalizar_focos_ref(bruto, municipios)
+        assert list(focos.columns) == ["codigo_ibge", "latitude", "longitude", "data_hora", "satelite"]
+        assert focos["codigo_ibge"].tolist() == ["3539509"]
+        assert focos["satelite"].tolist() == ["AQUA_M-T"]
+        assert str(focos["data_hora"].iloc[0]) == "2024-08-05 16:00:00"

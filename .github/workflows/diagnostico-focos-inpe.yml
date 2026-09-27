@@ -7,8 +7,9 @@ name: Diagnóstico dos focos do INPE (por satélite)
 # O sandbox do Claude Code não alcança o INPE; este runner alcança.
 #
 # Dispara em push na branch de desenvolvimento (só quando este arquivo ou o
-# script mudam) e aceita disparo manual depois de mesclado. Em push, lista
-# as pastas do dataserver do INPE (seção 6.55) — é o diagnóstico em aberto.
+# script mudam) e aceita disparo manual depois de mesclado. Em push, roda
+# o diagnóstico em aberto: a amostra com o arquivo anual de referência de SP
+# (seção 6.55).
 
 on:
   push:
@@ -32,6 +33,9 @@ on:
         required: false
       listar_inpe:
         description: "true = lista as pastas do dataserver do INPE (onde ficam os arquivos anuais) — ignora os campos acima"
+        required: false
+      comparar_ref:
+        description: "true = amostra de ago/2024 com o arquivo anual de referência de SP (o da pesquisa) — ignora os campos acima"
         required: false
 
 jobs:
@@ -58,9 +62,12 @@ jobs:
           MES_INPUT: ${{ github.event.inputs.mes }}
           AMOSTRA_INPUT: ${{ github.event.inputs.amostra }}
           LISTAR_INPUT: ${{ github.event.inputs.listar_inpe }}
+          COMPARAR_REF_INPUT: ${{ github.event.inputs.comparar_ref }}
           EVENTO: ${{ github.event_name }}
         run: |
-          if [ "$LISTAR_INPUT" = "true" ] || [ "$EVENTO" = "push" ]; then
+          if [ "$COMPARAR_REF_INPUT" = "true" ] || [ "$EVENTO" = "push" ]; then
+            python -m pipeline.diagnosticar_focos_inpe --comparar-ref
+          elif [ "$LISTAR_INPUT" = "true" ]; then
             python -m pipeline.diagnosticar_focos_inpe --listar-inpe
           elif [ "$AMOSTRA_INPUT" = "true" ]; then
             python -m pipeline.diagnosticar_focos_inpe --amostra

@@ -147,16 +147,26 @@ def resumo_satelite_por_mes(focos: pd.DataFrame) -> str:
     return " | ".join(partes) or "sem focos"
 
 
-def rodar_amostra(pasta_focos: Path) -> None:
-    from pipeline.common.ibge_malhas import buscar_geometria_municipio
-
+def _amostra() -> tuple[pd.DataFrame, dict]:
     municipios = pd.read_csv(SEEDS / "municipios_sp.csv", dtype={"codigo_ibge": str})
     pesquisa = amostra_da_pesquisa((SEEDS.parent / "002_seed_metricas_anuais_2024.sql").read_text(encoding="utf-8"))
-    amostra = municipios[municipios["codigo_ibge"].isin(pesquisa)]
+    return municipios[municipios["codigo_ibge"].isin(pesquisa)], pesquisa
 
+
+def rodar_amostra(pasta_focos: Path) -> None:
+    amostra, _ = _amostra()
     focos = focos_sp_com_satelite(baixar_focos_ano(2024, pasta_focos), amostra)
     agosto_ref = focos[(focos["data_hora"].dt.month == 8) & (focos["satelite"] == SATELITE_REFERENCIA)]
+    comparar_amostra(agosto_ref, "Amostra")
 
+
+
+def comparar_amostra(agosto_ref: pd.DataFrame, prefixo: str) -> None:
+    """Focos de ago/2024 (já só do satélite de referência) contra os números
+    da pesquisa, município a município: focos, agrupamentos e área."""
+    from pipeline.common.ibge_malhas import buscar_geometria_municipio
+
+    amostra, pesquisa = _amostra()
     linhas = []
     for _, m in amostra.iterrows():
         cod = m["codigo_ibge"]
@@ -184,13 +194,13 @@ def rodar_amostra(pasta_focos: Path) -> None:
     n = len(df)
     dif_focos = (df["focos"] - df["focos_pesq"]).abs()
     anotar(
-        "Amostra: focos ago2024 so AQUA_M-T",
+        f"{prefixo}: focos ago2024 so AQUA_M-T",
         f"{int((dif_focos == 0).sum())} de {n} iguais | {int((dif_focos <= df['focos_pesq'].clip(lower=1) * 0.1).sum())} "
-        f"a ate 10% | pesquisa soma {int(df['focos_pesq'].sum())}, AQUA soma {int(df['focos'].sum())}",
+        f"a ate 10% | pesquisa soma {int(df['focos_pesq'].sum())}, aqui soma {int(df['focos'].sum())}",
     )
     dif_unicos = (df["focos_unicos"] - df["focos_pesq"]).abs()
     anotar(
-        "Amostra: focos unicos (sem repeticao)",
+        f"{prefixo}: focos unicos (sem repeticao)",
         f"{int((dif_unicos == 0).sum())} de {n} iguais | {int((dif_unicos <= df['focos_pesq'].clip(lower=1) * 0.1).sum())} "
         f"a ate 10% | soma {int(df['focos_unicos'].sum())} (pesquisa {int(df['focos_pesq'].sum())}) | "
         f"agrupamentos iguais com focos unicos e min_samples=4: {int((df['agr_unicos'] == df['agr_pesq']).sum())} de {n}",
@@ -198,7 +208,7 @@ def rodar_amostra(pasta_focos: Path) -> None:
     bate4 = df["agr4"] == df["agr_pesq"]
     bate2 = df["agr2"] == df["agr_pesq"]
     anotar(
-        "Amostra: agrupamentos",
+        f"{prefixo}: agrupamentos",
         f"iguais com min_samples=4: {int(bate4.sum())} de {n} | com 2: {int(bate2.sum())} | com um dos dois: {int((bate4 | bate2).sum())}",
     )
     com_area = df[df["area_pesq"].notna() & (df["area_pesq"] > 0)]
@@ -208,7 +218,7 @@ def rodar_amostra(pasta_focos: Path) -> None:
     razao_sem = area_sem / com_area["area_pesq"]
     razao_rec = area_rec / com_area["area_pesq"]
     anotar(
-        "Amostra: area dos agrupamentos",
+        f"{prefixo}: area dos agrupamentos",
         f"{len(com_area)} municipios com area | sem recorte: mediana {razao_sem.median():.2f}x da pesquisa, "
         f"{int(((razao_sem - 1).abs() <= 0.05).sum())} a ate 5% | recortada pelo municipio: mediana {razao_rec.median():.2f}x, "
         f"{int(((razao_rec - 1).abs() <= 0.05).sum())} a ate 5%",
@@ -281,6 +291,71 @@ def listar_inpe(max_nivel: int = 3, max_pastas: int = 60) -> list[str]:
     return resumo
 
 
+URL_REF_SP_ANUAL = RAIZ_INPE + "anual/EstadosBr_sat_ref/SP/focos_br_sp_ref_{ano}.zip"
+
+
+def normalizar_focos_ref(bruto: pd.DataFrame, municipios_df: pd.DataFrame) -> pd.DataFrame:
+    """Arquivo anual `_ref_` do INPE -> (codigo_ibge, latitude, longitude,
+    data_hora, satelite), casando o município pelo nome normalizado como o
+    pipeline. Aceita os dois esquemas de coluna que o INPE já usou
+    (lat/lon/data_hora_gmt e latitude/longitude/data_pas)."""
+    def coluna(*opcoes: str) -> str:
+        for c in opcoes:
+            if c in bruto.columns:
+                return c
+        raise KeyError(f"nenhuma de {opcoes} em {list(bruto.columns)}")
+
+    lat, lon = coluna("lat", "latitude"), coluna("lon", "longitude")
+    data = coluna("data_hora_gmt", "data_pas", "datahora", "data_hora")
+    focos = bruto.assign(municipio_padrao=bruto[coluna("municipio")].apply(padronizar_nome))
+    ibge = municipios_df.assign(municipio_padrao=municipios_df["nome"].apply(padronizar_nome))
+    focos = focos.merge(ibge[["codigo_ibge", "municipio_padrao"]], on="municipio_padrao", how="inner")
+    return pd.DataFrame(
+        {
+            "codigo_ibge": focos["codigo_ibge"],
+            "latitude": focos[lat],
+            "longitude": focos[lon],
+            "data_hora": pd.to_datetime(focos[data]),
+            "satelite": focos["satelite"] if "satelite" in focos.columns else SATELITE_REFERENCIA,
+        }
+    )
+
+
+def comparar_ref(pasta_focos: Path) -> None:
+    """O arquivo anual de referência de SP (o da pesquisa) contra os números
+    da pesquisa, e contra o que o pipeline baixa hoje (mensal, filtrado)."""
+    import requests
+
+    indice = requests.get(RAIZ_INPE + "mensal/Brasil/", timeout=60)
+    entradas = entradas_do_indice(indice.text)
+    zips = sorted(e for e in entradas if e.endswith(".zip"))
+    csvs = sorted(e for e in entradas if e.endswith(".csv"))
+    anotar(
+        "mensal/Brasil por formato",
+        f"zip: {len(zips)} ({zips[0] if zips else '-'} a {zips[-1] if zips else '-'}) | "
+        f"csv: {len(csvs)} ({csvs[0] if csvs else '-'} a {csvs[-1] if csvs else '-'})",
+    )
+
+    pasta_focos.mkdir(parents=True, exist_ok=True)
+    caminho = pasta_focos / "focos_br_sp_ref_2024.zip"
+    resposta = requests.get(URL_REF_SP_ANUAL.format(ano=2024), timeout=300)
+    resposta.raise_for_status()
+    caminho.write_bytes(resposta.content)
+    bruto = _ler_csv_focos(caminho)
+    anotar(
+        "SP ref 2024: arquivo",
+        f"{len(resposta.content) // 1024} KB | {len(bruto)} linhas | colunas {list(bruto.columns)} | "
+        f"primeira linha {bruto.iloc[0].to_dict()}",
+    )
+    if "satelite" in bruto.columns:
+        anotar("SP ref 2024: satelites", " | ".join(f"{k}={v}" for k, v in bruto["satelite"].value_counts().items()))
+
+    amostra, _ = _amostra()
+    focos = normalizar_focos_ref(bruto, amostra)
+    agosto = focos[focos["data_hora"].dt.month == 8]
+    comparar_amostra(agosto, "Arquivo ref SP")
+
+
 def _escapar(texto: str, propriedade: bool) -> str:
     """Escape do formato de comando do Actions (`::notice title=...::msg`)."""
     texto = texto.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
@@ -296,6 +371,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--amostra", action="store_true", help="Compara os 63 da pesquisa (seção 6.53)")
     parser.add_argument("--listar-inpe", action="store_true", help="Lista as pastas do dataserver do INPE (seção 6.55)")
+    parser.add_argument(
+        "--comparar-ref", action="store_true", help="Amostra de ago/2024 com o arquivo anual de referência de SP (seção 6.55)"
+    )
     parser.add_argument("--municipio", help="Código IBGE (7 dígitos)")
     parser.add_argument("--ano", type=int)
     parser.add_argument("--mes", type=int)
@@ -304,6 +382,9 @@ def main() -> None:
 
     if args.amostra:
         rodar_amostra(args.pasta_focos)
+        return
+    if args.comparar_ref:
+        comparar_ref(args.pasta_focos)
         return
     if args.listar_inpe:
         resumo = listar_inpe()
