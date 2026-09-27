@@ -99,21 +99,25 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
       criado (pip/`pipeline`, npm/`webapp`, github-actions, semanal) e
       "Dependabot alerts" confirmado ativo pelo Pedro em Settings → Code
       security (26/09/2026) — repositório é privado, então não veio ligado
-      por padrão, mas já estava ativo quando ele conferiu
+      por padrão, mas já estava ativo quando ele conferiu. Vai virar
+      público (`docs/DECISIONS.md` seção 6.50): aí *secret scanning* e
+      *push protection* também ficam disponíveis de graça. Varredura antes
+      de abrir (todas as branches e todo o histórico): nenhum segredo.
 - [ ] Política de retenção de dados de usuário (definir o que é coletado
       antes de escrever a política)
 
 ## Testes e operação
 
-- [~] Testes automatizados — 110 testes `pytest` cobrindo o núcleo do
+- [~] Testes automatizados — 118 testes `pytest` cobrindo o núcleo do
       `/pipeline` (ST-DBSCAN, fórmula de `min_samples` regredida contra os
       12 casos reais, ingestão INPE incluindo a concatenação mensal→anual,
       dNBR incluindo a janela histórica da consulta sob demanda, IoU/
       permutação/confiabilidade regredida contra os 5 exemplos
       documentados, validação de campo e coerção de tipo da auditoria
-      anual, proteção da amostra manual e diagnóstico de geometria da
-      validação MapBiomas), com CI/CD real (`.github/workflows/tests.yml`,
-      roda a cada push/PR que toque `pipeline/` ou `tests/`) — falta só
+      anual, proteção da amostra manual, diagnóstico de geometria da
+      validação MapBiomas e diagnóstico das imagens do R2), com CI/CD real
+      (`.github/workflows/tests.yml`, roda a cada push/PR que toque
+      `pipeline/` ou `tests/`) — falta só
       testes automatizados do `/webapp` (as rotas de consulta sob demanda,
       `docs/DECISIONS.md` seção 6.43, foram validadas manualmente contra
       Postgres real nesta sessão, não por suíte automatizada)
@@ -143,8 +147,11 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 ## Dados e atribuição
 
 - [x] Atribuição obrigatória das fontes de terceiros (INPE, MapBiomas,
-      Sentinel-2/Copernicus/ESA) — presente no rodapé do mockup (aparece em
-      toda tela, por ser global) e no README raiz do repositório
+      Sentinel-2/Copernicus/ESA) — presente no rodapé do site real
+      (`webapp/src/app/layout.tsx`, aparece em toda página). Correção
+      (27/09/2026, `docs/DECISIONS.md` seção 6.50): este item dizia que a
+      atribuição também estava "no README raiz do repositório", mas esse
+      README nunca existiu — só há README por pasta
 - [x] Imagens/rasters comprimidos em produção — **fechado 26/09/2026
       (`docs/DECISIONS.md` seções 6.40/6.41)**: `run_dnbr.py` gera uma
       miniatura PNG colorida (já leve por natureza — 800px via
@@ -163,7 +170,7 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 **Contagem atual:** 17 itens feitos, 11 parciais, 7 pendentes —
 atualizado em 27/09/2026: rate limiting deixou de ser `[ ]` e virou `[~]`
 (existe pra a rota nova de consulta sob demanda, ver abaixo); testes
-pytest subiram de 88 para 110.
+pytest subiram de 88 para 118.
 
 **Consulta sob demanda — município+ano+mês calculado ao vivo
 (`docs/DECISIONS.md` seção 6.43, 27/09/2026):** funcionalidade nova

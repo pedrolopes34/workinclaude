@@ -1,36 +1,29 @@
 name: Validação MapBiomas Fogo (IoU + permutação)
 
-# Mensal — não porque o MapBiomas Fogo atualiza todo mês (é anual, com
-# defasagem, docs/DECISIONS.md seção 1.1), mas porque não há forma
-# confirmada de checar antecipadamente se saiu coleção nova. UPSERT torna
-# isso idempotente: se nada mudou, reprocessa à toa (custo aceito por ora).
+# Só manual (docs/DECISIONS.md seção 6.50): o MapBiomas Fogo sai uma vez
+# por ano, com defasagem (seção 1.1) — a Coleção 4 só vai até 2024 (seção
+# 6.22). O cron mensal reprocessava o mesmo ano todo mês (~240 min de
+# Actions sem produzir nada novo) e ajudou a esgotar a cota (seção 6.49).
+# Disparar à mão quando sair coleção nova.
 # Processa o último ano completo (--ano padrão = ano corrente - 1),
-# dividido em 2 jobs por precaução de desempenho — 999 permutações por
-# município nunca foram medidas em escala nesta sessão.
+# dividido em 2 jobs (~2h no total pros 645, seção 6.35).
 #
 # Precisa dos secrets do repositório:
 #   - DATABASE_URL, GEE_SERVICE_ACCOUNT_KEY (mesmos de ingest-inpe.yml e
 #     process-sentinel-dnbr.yml)
 #
-# ATENÇÃO — pendências não resolvidas (docs/DECISIONS.md seção 6.15/6.21):
-# mecânica do teste de permutação é uma reconstrução não confirmada contra
-# o notebook oficial, e o asset do MapBiomas Fogo no Earth Engine
-# (pipeline/validacao/mapbiomas_gee.py) foi revisado com evidência mais
-# forte (seção 6.21) mas ainda não confirmado contra a fonte primária, nem
-# executado de verdade com sucesso. Não habilitar de verdade (cron) antes
-# de confirmar — o workflow_dispatch manual é pra isso.
+# Pendência ainda aberta (seções 6.15/6.35): a mecânica do teste de
+# permutação produz distribuição plausível, mas não foi conferida contra o
+# notebook oficial da pesquisa.
 #
-# Bug confirmado (seção 6.25/6.28): a rodada automática ainda devolve
-# Baixa/IoU=0%/p=1.0 pra todo município. Ela já JÁ SOBRESCREVEU duas vezes
-# os 63 municípios validados manualmente na pesquisa original (incidente
-# real, seção 6.29) — por isso validacao_mapbiomas tem a coluna `fonte`
-# ('manual' nunca é sobrescrita pelo pipeline) e este workflow tem o input
-# `restaurar_amostra_manual` pra reaplicar o seed oficial se acontecer de
-# novo.
+# Histórico: o bug "sempre Baixa/IoU=0%/p=1.0" (seções 6.25/6.28) era de
+# projeção e foi corrigido (seção 6.31). Antes disso, a rodada bugada
+# sobrescreveu os 63 municípios validados manualmente (seção 6.29) — por
+# isso validacao_mapbiomas tem a coluna `fonte` ('manual' nunca é
+# sobrescrita pelo pipeline) e este workflow tem o input
+# `restaurar_amostra_manual` pra reaplicar o seed oficial se preciso.
 
 on:
-  schedule:
-    - cron: "0 11 5 * *" # dia 5 de cada mes, 11:00 UTC (depois do dNBR do dia 1)
   workflow_dispatch:
     inputs:
       ano:

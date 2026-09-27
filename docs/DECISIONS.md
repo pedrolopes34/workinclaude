@@ -95,13 +95,16 @@ privacidade).
 
 ### 2.3 Stack de infraestrutura
 **Decisão:** GitHub Actions como orquestrador (repositório público por
-ora); Neon para Postgres + PostGIS (preferido a Supabase por suspender só
-o compute em inatividade); Cloudflare R2 para rasters; Vercel ou Netlify
-para o webapp.
+ora — na prática ficou privado; em 27/09/2026 o Pedro decidiu torná-lo
+público pra liberar os minutos do Actions, seção 6.50); Neon para
+Postgres + PostGIS (preferido a Supabase por suspender só o compute em
+inatividade); Cloudflare R2 para rasters; Vercel ou Netlify para o
+webapp.
 
 ### 2.4 Quatro workflows do GitHub Actions
 `ingest-inpe.yml` (diário) · `process-sentinel-dnbr.yml` (mensal, ver 2.1)
-· `check-mapbiomas.yml` (mensal, verifica nova coleção) ·
+· `check-mapbiomas.yml` (mensal, verifica nova coleção — **só manual
+desde 27/09/2026**, seção 6.50) ·
 `audit-anual.yml` (manual, 1×/ano, executado por Pedro).
 
 ### 2.5 Pipeline automático, controle manual vira auditoria anual
@@ -788,7 +791,8 @@ provável), ficou possível terminar `run_validacao_mapbiomas.py` e
    — não existe forma confirmada de checar antecipadamente se saiu coleção
    nova, então o job roda todo mês e confia no `UPSERT` (idempotente: sem
    coleção nova, reprocessa à toa, mas não corrompe nada). Reavaliar se o
-   custo computacional incomodar.
+   custo computacional incomodar. *(Reavaliado em 27/09/2026: incomodou —
+   virou só manual, seção 6.50.)*
 3. **`--grupo`/`--de-grupos` (mesmo mecanismo do dNBR) por precaução** — o
    custo de 999 permutações × ~645 municípios nunca foi medido em escala
    nesta sessão (cada permutação faz rotação+translação+intersecção de
@@ -2537,6 +2541,83 @@ restante é o conteúdo do bucket (conferir a aba Objects na Cloudflare).
    incomodar". Proposta: tirar do cron mensal (manual quando sair coleção
    nova). Também: o modo `--municipio` do `process-sentinel-dnbr.yml` roda
    duplicado (as 2 entradas da matrix executam o mesmo município).
+
+*(Decididas pelo Pedro no mesmo dia, ver seção 6.50: (1) repositório
+público; (2) validação MapBiomas só manual. O `--municipio` duplicado
+segue sem decisão.)*
+
+### 6.50 Conserto do mapa na `main`, MapBiomas só manual e varredura antes de tornar o repositório público (27/09/2026)
+
+**Contexto:** respostas do Pedro às 3 perguntas pendentes da seção 6.49.
+
+**1. Merge na `main` (autorizado):** fast-forward de `f37fc10` pra
+`3c2ea49`, levando `d560714` (fallback visual da imagem), `05b5026`
+(diagnóstico do R2) e `3c2ea49` (URL remontada na leitura + consulta
+travada vira erro). A Vercel publica a partir da `main` pela
+infraestrutura dela, sem depender do Actions. O `tests.yml` da `main`
+falhou em 4s (run `36327126574`) — cota, não código: os 118 testes
+passam localmente.
+
+**2. `check-mapbiomas.yml` só manual:** bloco `schedule` removido, fica só
+o `workflow_dispatch`. Motivo: o MapBiomas Fogo sai uma vez por ano com
+defasagem (seção 1.1) e a Coleção 4 só vai até 2024 (seção 6.22) — o cron
+do dia 5 reprocessava o mesmo ano todo mês (≈ 240 min de Actions sem
+produzir nada novo). Disparar à mão quando sair coleção nova. Não tem a
+ver com o bug antigo "sempre Baixa" (corrigido nas seções 6.31/6.35); o
+comentário do topo do workflow, que ainda dizia que o bug existia, foi
+atualizado junto.
+
+**3. Repositório público — decisão do Pedro** (opção (a) da seção 6.49:
+minutos ilimitados do Actions em repositório público). Quem muda a
+visibilidade é o Pedro (Settings → General → Danger Zone → Change
+visibility); esta sessão não tem essa permissão. Antes, varri **todas as
+branches e todo o histórico** (não só a `main` — tornar público expõe tudo):
+
+- **Segredos: nenhum.** Busca por padrões (chave privada, JSON de service
+  account, `postgres://usuário:senha@`, tokens do GitHub/AWS/Google,
+  chaves do R2) mais o `detect-secrets` sobre as 11.447 linhas únicas já
+  adicionadas no histórico: 3 achados, os 3 falsos positivos (fixture de
+  teste `abc123def456`, o placeholder `postgres:senha@localhost` do
+  `.env.example` e texto da documentação). O diagnóstico antigo do R2
+  (seção 6.41) só imprimia metadados, e o Actions mascara secrets nos logs.
+- **Dados pessoais:** só os do próprio Pedro (os 2 e-mails, Lattes e
+  LinkedIn), que já estão na página pública "Quem somos". Nenhum nome de
+  terceiro (a orientadora e os 2 homenageados do nome do produto, seção 7,
+  não aparecem). `.claude/settings.local.json` expõe caminhos locais do
+  Windows (`C:\Users\Pedro\...`) — sem segredo; deixado como está, porque
+  tirar do versionamento apagaria o arquivo local do Pedro no próximo
+  `git pull`.
+- **Achado que precisa de decisão antes:** o repositório tem 4 branches de outros
+  contextos, com histórico sem relação com a `main`:
+  `claude/sao-paulo-electoral-data-extraction-8nl2ax` e
+  `claude/sp-election-analysis-2026-iddb4o` (**outro projeto**: extração da
+  votação por seção do TSE 2022 pra projeção das eleições de 2026) e
+  `claude/affectionate-wozniak-g8uh2r` / `claude/roteiro-fase-3-fase-4-ifq8vy`
+  (anotações da pesquisa, com os PRs #1 e #2 abertos). As 2 eleitorais não
+  têm PR: apagar a branch antes de tornar público tira do ar. As 2 de
+  pesquisa têm PR: o conteúdo fica público mesmo apagando a branch (o
+  GitHub mantém o PR; só o suporte deles remove).
+- **O que também fica público:** os logs de todas as execuções do Actions,
+  e todas as anotações internas do `docs/` e do `CONTEXTO_PROJETO.md`,
+  incluindo o histórico — por exemplo, a nota da seção 7 sobre manter o
+  mínimo de vínculo formal com a UNESP nesta fase.
+- **Licença:** sem arquivo `LICENSE`, público ≠ código aberto — todos os
+  direitos ficam reservados por padrão: fora ver e fazer *fork* dentro do
+  próprio GitHub (termos de uso da plataforma), ninguém pode reutilizar o
+  código sem autorização. Licença e consulta ao NIT continuam
+  deliberadamente adiadas (seção 7), coerente com isso.
+- **Ganho extra:** em repositório público, o *secret scanning* e o
+  *push protection* do GitHub ficam disponíveis de graça.
+- **Sem README na raiz:** quem abrir o repositório público vê só a lista
+  de pastas. O CHECKLIST dizia que a atribuição das fontes estava "no
+  README raiz" — esse arquivo nunca existiu (a atribuição está no rodapé
+  do site); afirmação corrigida lá. Escrever um README é texto público de
+  apresentação do projeto, então fica pro Pedro pedir/revisar.
+
+**Status:** 1 e 2 feitos. 3 aguarda o Pedro decidir o destino das 2
+branches eleitorais e mudar a visibilidade. Depois disso: rodar o
+`diagnostico-imagens-r2.yml` (confirma o conteúdo do bucket) e testar a
+consulta sob demanda de ponta a ponta.
 
 ---
 

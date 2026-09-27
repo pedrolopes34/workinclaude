@@ -52,7 +52,7 @@ tem evidência forte mas ainda não confirmação real (URL mensal do INPE).
 | `tests.yml` | a cada push/PR em `pipeline/`/`tests/` | nada — já roda de verdade |
 | `ingest-inpe.yml` | diário | `secrets.DATABASE_URL`; 1ª tentativa deu 404 (URL "anual" não existe); trocado por download mensal+concatenação, evidência forte mas não confirmado rodando de verdade ainda (seção 6.18) |
 | `process-sentinel-dnbr.yml` | mensal, 2 jobs paralelos (seção 2.1) | `secrets.DATABASE_URL`, `secrets.GEE_SERVICE_ACCOUNT_KEY`; janela mês-a-mês é decisão nova não confirmada (seção 6.14) |
-| `check-mapbiomas.yml` | mensal, 2 jobs paralelos (seção 6.16) | mesmos secrets do dNBR; herda as 3 pendências da seção 6.15 |
+| `check-mapbiomas.yml` | manual, quando sair coleção nova do MapBiomas Fogo (seção 6.50); 2 jobs paralelos | mesmos secrets do dNBR; das 3 pendências da seção 6.15 só resta conferir a mecânica da permutação contra o notebook oficial (seção 6.35) |
 | `audit-anual.yml` | manual, 1×/ano, executado pelo Pedro | `secrets.DATABASE_URL`; sem pendência externa — só depende de o Pedro decidir o que auditar |
 
 ## O que ainda falta antes de habilitar de verdade
