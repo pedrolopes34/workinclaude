@@ -1,7 +1,7 @@
 # Ingestao (INPE + IBGE) e banco
 requests>=2.31
 pandas>=2.2
-psycopg[binary]>=3.1
+psycopg[binary]>=3.3.6
 python-dotenv>=1.0
 
 # ST-DBSCAN (agrupamento espaco-temporal)
