@@ -27,16 +27,15 @@ export function formatPValor(value: string | number | null): string {
   });
 }
 
-// Alta/verde = confiavel; Media/mostarda e Baixa/terracota reaproveitam a
-// paleta de alerta ja fechada (CLAUDE.md); Insuficiente = neutro, nao e alerta.
-export const CONFIABILIDADE_STYLE: Record<
-  Confiabilidade,
-  { bg: string; text: string; label: string }
-> = {
-  Alta: { bg: "bg-verde", text: "text-white", label: "Alta" },
-  Média: { bg: "bg-mostarda", text: "text-stone-900", label: "Média" },
-  Baixa: { bg: "bg-terracota", text: "text-white", label: "Baixa" },
-  Insuficiente: { bg: "bg-stone-200", text: "text-stone-600", label: "Insuficiente" },
+// Paleta dos selos (CLAUDE.md, docs/DECISIONS.md seção 6.55): sem vermelho —
+// Baixa areia, Média verde claro, Alta verde. Insuficiente não tem cor (só
+// contorno): não é "pior que Baixa", é falta de agrupamento pra comparar.
+// Texto escuro fixo (não o --foreground, que clareia no tema escuro).
+export const CONFIABILIDADE_STYLE: Record<Confiabilidade, { classe: string; label: string }> = {
+  Alta: { classe: "border border-verde bg-verde text-white", label: "Alta" },
+  Média: { classe: "border border-verde-claro bg-verde-claro text-stone-900", label: "Média" },
+  Baixa: { classe: "border border-areia-borda bg-areia text-stone-900", label: "Baixa" },
+  Insuficiente: { classe: "border border-dashed border-faint bg-transparent text-muted", label: "Insuficiente" },
 };
 
 // Regra fixa da confiabilidade (CLAUDE.md) em linguagem simples — usada no

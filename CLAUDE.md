@@ -54,17 +54,22 @@ software é a extensão pública dessa pesquisa.
   fixo: Alta = Recall≥50% **e** p<0,05; Média = só um passa; Baixa =
   nenhum passa mas há agrupamento; Insuficiente = nenhum agrupamento
   formado no ano.
-- **Selos de confiabilidade (não mudam nunca):** verde `#5B9E4D` = Alta,
-  mostarda `#D9A441` = Média, terracota `#C1442D` = Baixa — só nesse uso
-  funcional, nunca como cor decorativa comum.
+- **Selos de confiabilidade — sem vermelho** (trocados a pedido explícito
+  do Pedro em 27/09/2026, `docs/DECISIONS.md` seção 6.55: vermelho/amarelo/
+  verde tinha dupla leitura): verde `#5B9E4D` = Alta, verde claro `#96D274`
+  = Média, areia `#F8E6B5` (com contorno `#C9B271`) = Baixa; Insuficiente
+  não tem cor (selo só com contorno tracejado, hachura no mapa). Só nesse
+  uso funcional (selos e mapa de confiabilidade), nunca como cor
+  decorativa comum. Não mudar de novo sem aprovação explícita do Pedro.
 - **Estética geral da interface (restyle 25/09/2026, ver
-  `docs/DECISIONS.md` seção 6.8):** visual inspirado nos diálogos do
-  Claude — fundo creme quente, cards bem arredondados, paleta neutra
-  quente (`stone`, não `zinc`). Cor de ação/links: argila quente
-  (`--color-acento`, `#C17A4E`), não mais o azul `#3C7DA6` (token mantido
-  no código por histórico, mas não usado). Fontes: Public Sans como voz
-  principal; IBM Plex Mono só em valores numéricos (código IBGE, recall,
-  p-valor), não mais em rótulos/cabeçalhos.
+  `docs/DECISIONS.md` seções 6.8 e 6.33):** visual inspirado nos diálogos
+  do Claude — fundo creme quente, cards bem arredondados, paleta neutra
+  quente (`stone`, não `zinc`). Cor de ação/links: azul (`--color-acento`
+  `#3C7DA6`; botões `#38759C`), de volta depois que o Pedro comparou com a
+  argila `#C17A4E` (seção 6.33). **Fonte: Inter em toda a página** —
+  títulos, texto e números (números com `tabular-nums`) — a pedido do
+  Pedro em 27/09/2026 (seção 6.55), no lugar de Public Sans + IBM Plex
+  Mono + Jost.
 - `/webapp` lê direto do banco/storage — **nunca** passa pela `/api`
   internamente. A API é componente separado, para acesso externo futuro.
 - Pipeline **100% automático**, sem gate manual de aprovação; o controle

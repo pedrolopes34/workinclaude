@@ -40,7 +40,7 @@ async function ListaMunicipios({ termo, nivel }: { termo?: string; nivel?: Confi
   return (
     <section className="space-y-3" aria-live="polite">
       <h2 className="text-sm font-medium text-muted">
-        {titulo} <span className="font-mono text-faint">({municipios.length})</span>
+        {titulo} <span className="tabular-nums text-faint">({municipios.length})</span>
       </h2>
       {municipios.length === 0 ? (
         <p className="rounded-2xl border border-border bg-surface px-4 py-6 text-sm text-muted">
@@ -59,7 +59,7 @@ async function ListaMunicipios({ termo, nivel }: { termo?: string; nivel?: Confi
                 <div className="min-w-0">
                   <p className="font-medium text-foreground">{m.nome}</p>
                   <p className="text-xs text-muted">
-                    <span className="font-mono">{m.codigoIbge}</span>
+                    <span className="tabular-nums">{m.codigoIbge}</span>
                     {m.mesorregiao && <> · {m.mesorregiao}</>}
                   </p>
                 </div>
@@ -126,19 +126,19 @@ export default async function Home({
       <nav aria-label="Atalhos" className="flex flex-wrap gap-2">
         <Link
           href="/mapa"
-          className="rounded-full bg-acento-botao px-4 py-2 text-[19px] font-bold text-white transition-colors hover:bg-acento-botao-hover"
+          className="inline-flex items-center rounded-full border border-acento-botao bg-acento-botao px-5 py-2.5 text-[15px] font-semibold text-white transition-colors hover:bg-acento-botao-hover"
         >
           Explorar mapa
         </Link>
         <a
           href="#busca"
-          className="rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold text-foreground hover:border-acento/40"
+          className="inline-flex items-center rounded-full border border-border bg-surface px-5 py-2.5 text-[15px] font-semibold text-foreground transition-colors hover:border-acento/40"
         >
           Buscar município
         </a>
         <Link
           href="/como-produzimos"
-          className="rounded-full border border-border bg-surface px-4 py-2 text-sm font-semibold text-foreground hover:border-acento/40"
+          className="inline-flex items-center rounded-full border border-border bg-surface px-5 py-2.5 text-[15px] font-semibold text-foreground transition-colors hover:border-acento/40"
         >
           Como funciona?
         </Link>
@@ -148,15 +148,15 @@ export default async function Home({
         <div className="space-y-3 rounded-2xl border border-border bg-surface p-5 shadow-sm">
           <h2 className="text-sm font-medium text-muted">Cobertura hoje</h2>
           <p className="flex flex-wrap items-baseline gap-2">
-            <span className="font-mono text-4xl font-bold tracking-tight text-acento">{cobertura.naAmostra}</span>
+            <span className="tabular-nums text-4xl font-bold tracking-tight text-acento">{cobertura.naAmostra}</span>
             <span className="text-sm text-muted">de {cobertura.total} municípios validados pela pesquisa</span>
           </p>
           <p className="flex flex-wrap items-baseline gap-2">
-            <span className="font-mono text-2xl font-semibold text-foreground">{cobertura.comMapaDnbr}</span>
+            <span className="tabular-nums text-2xl font-semibold text-foreground">{cobertura.comMapaDnbr}</span>
             <span className="text-sm text-muted">com mapa de leitura de satélite (dNBR) automático</span>
           </p>
           <p className="text-xs text-faint">
-            Última atualização dos dados: <span className="font-mono">{formatData(cobertura.ultimaAtualizacao)}</span>.
+            Última atualização dos dados: <span className="tabular-nums">{formatData(cobertura.ultimaAtualizacao)}</span>.
             Fontes: INPE, Sentinel-2/ESA e MapBiomas Fogo (<Link href="/como-produzimos#fontes" className="underline">detalhes</Link>).
           </p>
         </div>
@@ -243,7 +243,7 @@ export default async function Home({
                 aria-current={nivel === n ? "true" : undefined}
                 className={`rounded-full border px-3 py-1 text-xs font-semibold ${nivel === n ? "border-foreground bg-foreground text-background" : "border-border bg-surface text-muted hover:text-foreground"}`}
               >
-                {n} <span className="font-mono">{contagem[n]}</span>
+                {n} <span className="tabular-nums">{contagem[n]}</span>
               </Link>
             ))}
           </nav>

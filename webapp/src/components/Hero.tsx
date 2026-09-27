@@ -21,15 +21,15 @@ export function Hero({
         aria-hidden="true"
       >
         <circle cx="100" cy="100" r="90" fill="none" stroke="var(--color-acento)" strokeWidth="1" opacity="0.35" />
-        <circle cx="100" cy="100" r="62" fill="none" stroke="var(--color-verde)" strokeWidth="1" opacity="0.4" />
-        <circle cx="100" cy="100" r="34" fill="none" stroke="var(--color-mostarda)" strokeWidth="1" opacity="0.45" />
+        <circle cx="100" cy="100" r="62" fill="none" stroke="var(--orb-a)" strokeWidth="1" opacity="0.5" />
+        <circle cx="100" cy="100" r="34" fill="none" stroke="var(--orb-b)" strokeWidth="1" opacity="0.5" />
       </svg>
       <div className="relative max-w-xl rounded-3xl border border-glass-border bg-glass p-6 shadow-[inset_0_1px_0_var(--color-glass-hi)] backdrop-blur-xl sm:p-7">
-        <span className="mb-3 inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-wide text-acento-texto">
+        <span className="mb-3 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-acento-texto">
           <span className="h-1.5 w-1.5 rounded-full bg-acento" />
           {eyebrow}
         </span>
-        <h1 className="font-display text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl">
+        <h1 className="text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl">
           {titulo}
         </h1>
         <p className="mt-3 max-w-[52ch] text-[15px] leading-relaxed text-muted">

@@ -27,12 +27,12 @@ export function InfoTile({
           onClick={() => setAberto((v) => !v)}
           aria-expanded={aberto}
           aria-label={`O que é ${rotulo}`}
-          className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border border-border font-mono text-[11px] leading-none text-faint hover:border-acento hover:text-acento-texto"
+          className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border border-border tabular-nums text-[11px] leading-none text-faint hover:border-acento hover:text-acento-texto"
         >
           {aberto ? "–" : "?"}
         </button>
       </div>
-      <div className="mt-1.5 font-mono text-2xl font-semibold tracking-tight text-foreground">
+      <div className="mt-1.5 tabular-nums text-2xl font-semibold tracking-tight text-foreground">
         {valor}
       </div>
       {aberto && (

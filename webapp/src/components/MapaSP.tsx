@@ -55,14 +55,14 @@ const AMOSTRA_ESCALA = [
 ];
 const PREENCHIMENTO_CONFIABILIDADE: Record<Confiabilidade, string> = {
   Alta: "fill-verde",
-  Média: "fill-mostarda",
-  Baixa: "fill-terracota",
+  Média: "fill-verde-claro",
+  Baixa: "fill-areia",
   Insuficiente: "fill-stone-400",
 };
 const AMOSTRA_CONFIABILIDADE: Record<Confiabilidade, string> = {
   Alta: "bg-verde",
-  Média: "bg-mostarda",
-  Baixa: "bg-terracota",
+  Média: "bg-verde-claro",
+  Baixa: "bg-areia border-areia-borda",
   Insuficiente: "bg-stone-400",
 };
 const SEM_DADO = "fill-[var(--border)]";
@@ -276,13 +276,13 @@ export function MapaSP({
           {legenda.map((l) => (
             <li key={l.rotulo} className="flex items-center gap-1.5">
               <span className={`h-3 w-3 rounded-sm border border-border ${l.amostra}`} aria-hidden="true" />
-              {l.rotulo} <span className="font-mono text-faint">({l.n})</span>
+              {l.rotulo} <span className="tabular-nums text-faint">({l.n})</span>
             </li>
           ))}
           {semDado > 0 && (
             <li className="flex items-center gap-1.5">
               <span className="h-3 w-3 rounded-sm border border-border bg-[var(--border)]" aria-hidden="true" />
-              sem dado <span className="font-mono text-faint">({semDado})</span>
+              sem dado <span className="tabular-nums text-faint">({semDado})</span>
             </li>
           )}
         </ul>
@@ -294,7 +294,7 @@ export function MapaSP({
             role="img"
             aria-label={descricaoAcessivel}
             className={`flex w-full items-center justify-center rounded-xl bg-background text-xs text-faint ${falhou ? "" : "animate-pulse"}`}
-            style={{ aspectRatio: "1000 / 662" }}
+            style={{ aspectRatio: "1000 / 669" }}
           >
             {falhou ? "Não foi possível carregar o mapa agora." : null}
           </div>

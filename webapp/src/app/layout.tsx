@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Jost, Public_Sans } from "next/font/google";
+import { Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import Link from "next/link";
 import Script from "next/script";
@@ -7,27 +7,13 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
-const publicSans = Public_Sans({
-  variable: "--font-public-sans",
+// Uma fonte só em toda a página, a pedido do Pedro (docs/DECISIONS.md seção
+// 6.55): Inter, que também existe no Google Docs/Gemini, no lugar de Public
+// Sans (texto), IBM Plex Mono (números) e Jost (títulos). Números usam
+// `tabular-nums` pra continuarem alinhados em coluna.
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
-});
-
-const ibmPlexMono = IBM_Plex_Mono({
-  variable: "--font-ibm-plex-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-});
-
-// Fonte de título (h1) — substituta livre (Google Fonts, OFL) pro
-// AvantGarde Std Bold que o Pedro queria: arquivo corrompido, sem
-// conserto viável (docs/DECISIONS.md seção 6.34/6.36). Jost é geométrica,
-// mesma linhagem estética de Futura/Avant Garde (inspirada na Kabel,
-// década de 1920) — mais próxima disso do que Poppins, a outra opção
-// cogitada. Só peso Bold, mesma regra de antes: nunca em texto corrido.
-const jost = Jost({
-  variable: "--font-jost",
-  subsets: ["latin"],
-  weight: "700",
 });
 
 const DESCRICAO =
@@ -66,7 +52,7 @@ export default function RootLayout({
   // funcionando certo (mesmo padrão recomendado pela next-themes).
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <body className={`${publicSans.variable} ${ibmPlexMono.variable} ${jost.variable} antialiased flex min-h-screen flex-col`}>
+      <body className={`${inter.variable} antialiased flex min-h-screen flex-col`}>
         {/* Aplica o tema salvo antes da hidratação — sem isso, a página
             sempre nasce clara e "pisca" pro escuro um instante depois
             quando o visitante tinha escolhido escuro (docs/DECISIONS.md

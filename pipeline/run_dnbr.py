@@ -109,11 +109,12 @@ def _diagnostico_seguro(nome: str, valor: str) -> str:
     return f"{nome}: tamanho={len(valor)} espaco_interno={tem_espaco_interno} primeiro_char={primeiro} ultimo_char={ultimo}"
 
 
-def _subir_miniatura_r2(png_bytes: bytes, codigo_ibge: str, ano: int, mes: int, *, debug: bool = False) -> str | None:
-    """Sobe o PNG pro Cloudflare R2 (API compativel com S3, boto3) e devolve
-    a URL publica — None se os secrets R2_* nao estiverem configurados
-    (docs/DECISIONS.md secao 6.40), pra nunca quebrar a rodada por causa da
-    miniatura opcional."""
+def subir_r2(conteudo: bytes, caminho: str, tipo: str, *, debug: bool = False) -> str | None:
+    """Sobe um arquivo pro Cloudflare R2 (API compativel com S3, boto3) e
+    devolve a URL publica — None se os secrets R2_* nao estiverem
+    configurados (docs/DECISIONS.md secao 6.40), pra nunca quebrar a rodada
+    por causa de uma imagem opcional. Usada pelas miniaturas municipais e
+    pelo mosaico estadual (run_dnbr_estado.py, secao 6.55)."""
     if not _r2_configurado():
         return None
 
@@ -126,7 +127,6 @@ def _subir_miniatura_r2(png_bytes: bytes, codigo_ibge: str, ano: int, mes: int, 
         print(f"[DEBUG] {_diagnostico_seguro('R2_ACCOUNT_ID (limpo)', conta)}")
         print(f"[DEBUG] endpoint calculado: tamanho={len(endpoint)} {_diagnostico_seguro('endpoint', endpoint)}")
 
-    caminho = f"dnbr/{codigo_ibge}-{ano}-{mes:02d}.png"
     cliente = boto3.client(
         "s3",
         endpoint_url=endpoint,
@@ -135,12 +135,17 @@ def _subir_miniatura_r2(png_bytes: bytes, codigo_ibge: str, ano: int, mes: int, 
         region_name="auto",
     )
     cliente.upload_fileobj(
-        BytesIO(png_bytes),
+        BytesIO(conteudo),
         _env_r2("R2_BUCKET_NAME"),
         caminho,
-        ExtraArgs={"ContentType": "image/png"},
+        ExtraArgs={"ContentType": tipo},
     )
     return f"{_env_r2('R2_PUBLIC_URL_BASE').rstrip('/')}/{caminho}"
+
+
+def _subir_miniatura_r2(png_bytes: bytes, codigo_ibge: str, ano: int, mes: int, *, debug: bool = False) -> str | None:
+    """Miniatura municipal: `dnbr/<codigo>-<ano>-<mes>.png` (secao 6.40)."""
+    return subir_r2(png_bytes, f"dnbr/{codigo_ibge}-{ano}-{mes:02d}.png", "image/png", debug=debug)
 
 
 def inicializar_gee() -> None:

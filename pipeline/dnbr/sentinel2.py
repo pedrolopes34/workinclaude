@@ -54,8 +54,17 @@ def _cobertura_valida_pct(imagem_binaria_valida: ee.Image, area: ee.Geometry, sc
     return 0.0 if fracao is None else float(fracao) * 100
 
 
+COLECAO_SR = "COPERNICUS/S2_SR_HARMONIZED"
+# Reflectância no topo da atmosfera (L1C): reserva do mosaico estadual pros
+# meses sem SR no Brasil (antes de dez/2018) — docs/DECISIONS.md seção 6.55.
+COLECAO_L1C = "COPERNICUS/S2_HARMONIZED"
+
+
 def calcular_dnbr(
-    area_exportacao: ee.Geometry, janela_antes: tuple[str, str], janela_depois: tuple[str, str]
+    area_exportacao: ee.Geometry,
+    janela_antes: tuple[str, str],
+    janela_depois: tuple[str, str],
+    colecao: str = COLECAO_SR,
 ) -> ResultadoDnbr:
     """dNBR = NBR(antes) - NBR(depois), NBR = normalizedDifference(B8, B12),
     sobre a mediana das cenas Sentinel-2 SR harmonizadas de cada janela.
@@ -69,13 +78,13 @@ def calcular_dnbr(
     """
     for limite_nuvem in NIVEIS_NUVEM_FALLBACK:
         colecao_antes = (
-            ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+            ee.ImageCollection(colecao)
             .filterBounds(area_exportacao)
             .filterDate(*janela_antes)
             .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", limite_nuvem))
         )
         colecao_depois = (
-            ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+            ee.ImageCollection(colecao)
             .filterBounds(area_exportacao)
             .filterDate(*janela_depois)
             .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", limite_nuvem))

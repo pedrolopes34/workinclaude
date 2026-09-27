@@ -2940,6 +2940,18 @@ validações automáticas depende de decisão do Pedro. A diferença de contagem
 de focos (+17%) não é repetição de foco; falta comparar com o arquivo
 `_ref_` original da pesquisa.
 
+**Resultado da validação MapBiomas 2024 (run `36340162162`, terminou às
+19:15 UTC, inventário run `36355082637`):** os 2 jobs terminaram com
+sucesso e **nenhum `[ERRO]`** nos logs. Dos 582 municípios fora da amostra,
+255 ganharam classificação automática (**Alta 65, Média 96, Baixa 94**) e
+327 ficaram sem agrupamento no ano (Insuficiente pela regra; a linha
+automática antiga foi apagada). A amostra da pesquisa continua intacta
+(manual: Alta 10, Média 25, Baixa 17, Insuficiente 11). **Mas o log mostrou
+um problema antigo:** `[AVISO] 2018…2023 indisponível no INPE` — o histórico
+não baixava, então o teto histórico do ST-DBSCAN era zero e o min_samples
+saía 4 pra todo município com 4 focos ou mais. Resolvido e reprocessado na
+seção 6.55.
+
 ### 6.54 Mapa com os 645 municípios cobertos: camadas de dado real (27/09/2026)
 
 **Pedido do Pedro:** "exibir o mapa com todos os municípios cobertos com
@@ -2989,6 +3001,91 @@ tipagem; Playwright com dado sintético no Postgres local (os 645 com focos e
 dNBR): camada padrão, troca de camada mudando título e URL, link com
 `?camada=focos-atual` abrindo na camada certa, dica ao passar o mouse, claro,
 escuro e 390 px sem rolagem horizontal, axe WCAG A/AA sem violação.
+
+
+### 6.55 Cores sem vermelho, fonte Inter, arquivo anual do INPE e confiabilidade dos 645 (27/09/2026)
+
+**Pedidos do Pedro** (mensagens e imagem anotada de 27/09): selos sem
+vermelho ("Baixa confiança é amarelo claro quase areia. Média confiança é
+verde claro. Alta confiança é verde comum"); fonte **Inter** em toda a
+página; botões do topo com o mesmo espaçamento de letra; foco nos 645 (não
+nos 63); mapa de confiabilidade de **todos** os municípios, ao lado de um
+mapa estadual de dNBR mensal, "para todos os meses de todos os anos"; lista
+agrupada por nível com a Interseção; CSV completo; anos clicáveis na página
+do município; tirar linhas zeradas e notas internas das páginas públicas.
+
+**Limite combinado com o Pedro:** nenhum número é alterado nem apresentado
+como validado pela pesquisa sem ter sido. A confiabilidade dos 582 fora da
+amostra é o **cálculo automático com a mesma regra** (fonte `automatico`),
+e a interface diz a origem de forma discreta ("pesquisa" ou "cálculo
+automático"), sem aviso alarmante.
+
+**Paleta dos selos** (`globals.css`, `format.ts`, `CLAUDE.md` atualizado):
+verde `#5B9E4D` = Alta (igual), verde claro `#96D274` = Média, areia
+`#F8E6B5` = Baixa; Insuficiente sem cor (selo com contorno tracejado). Os
+tons de verde claro e areia foram ajustados a partir dos que o Pedro
+descreveu (`#A9D08E`/`#E9DDAA` davam ΔE 10 em visão normal — pouco pra
+distinguir) até passar no validador de paleta: visão normal ΔE 16,3 e
+daltonismo (protan) ΔE 10,6 no pior par; L monotônico e ΔL ≥ 0,06 como
+escala ordinal. Dois avisos aceitos de propósito: (1) o areia fica a 1,24:1
+do fundo branco, então selo e amostra de legenda levam contorno `#C9B271`;
+(2) a escala vai do amarelo ao verde (50° de matiz), não é de um tom só —
+escolha explícita do Pedro, do tipo "amarelo-verde" consagrado. Texto dos
+selos: branco no verde (3,26:1, sempre 19px em negrito), escuro nos outros
+(8,9:1 e 12,8:1). O gradiente decorativo do Hero deixou de usar as cores
+dos selos.
+
+**Fonte:** Inter (`next/font/google`, pesos 100–900) no lugar de Public Sans
+(texto), IBM Plex Mono (números) e Jost (títulos). Números com
+`tabular-nums` pra alinhar em coluna. Conferido no navegador (Playwright):
+`body`, `h1` e números com `font-family: Inter`, e Inter é a única fonte
+carregada. **Botões do topo** da página inicial: os três com 15px, peso 600,
+mesma altura e espaçamento; o fundo do botão principal desceu um tom
+(`--color-acento-botao` `#3C7DA6` → `#38759C`, 5,0:1 com branco) pra passar
+em texto de 15px.
+
+**INPE — arquivo anual de referência (resolve a pendência 2 de
+`pipeline/ingest/inpe.py`):** a listagem das pastas do dataserver
+(`diagnosticar_focos_inpe.py --listar-inpe`, run `36355333609`) mostrou que
+**existe** produto anual do satélite de referência:
+`anual/EstadosBr_sat_ref/SP/focos_br_sp_ref_AAAA.zip` (2003–2024 — o arquivo
+da pesquisa) e `anual/Brasil_sat_ref/focos_br_ref_AAAA.zip` (até 2025). A
+tentativa da seção 6.18 errou o caminho. O mensal (`mensal/Brasil/`) só
+guarda de jan/2023 em diante, com 2023 em `.zip` (12 arquivos) e 2024+ em
+`.csv` — por isso 2018–2022 davam 404 e 2023 também (o pipeline só pedia
+`.csv`).
+- **Comparação com a pesquisa** (`--comparar-ref`, run `36355482306`): o
+  anual de SP de 2024 (8.712 focos, colunas `id_bdq, foco_id, lat, lon,
+  data_pas, pais, estado, municipio, bioma`, sem coluna de satélite) dá, nos
+  63 de ago/2024, **exatamente os mesmos 1.847 focos** do mensal filtrado
+  pelo AQUA_M-T, e os mesmos 62 de 63 agrupamentos. O arquivo do Drive do
+  Pedro (`focos_br_sp_ref_2024.zip`, 350.427 bytes) tem o mesmo tamanho do
+  atual do servidor. Então os +17% de focos (1.847 contra 1.574) **não vêm
+  do arquivo nem do satélite**: vêm de algum passo de processamento da
+  pesquisa que não está no código portado. Segue em aberto (seção 7), sem
+  efeito nos agrupamentos.
+- **Pipeline (commit `09f1f07`):** `baixar_focos_ano` usa o anual de
+  referência (SP, depois Brasil) nos anos fechados, gravado no mesmo cache
+  `focos_anual_br_AAAA.csv` no esquema do mensal (`data_pas` →
+  `data_hora_gmt`, `satelite` = AQUA_M-T); o mensal (`.csv` ou `.zip`) fica
+  só pro ano corrente. A ingestão **nunca sobrescreve as linhas de 2024 dos
+  63** (números da pesquisa, ago/2024). A validação grava **Insuficiente
+  explícito** (métricas NULL, como as 11 da pesquisa) em vez de apagar a
+  linha — "sem linha" passa a querer dizer só "ainda não calculado" — e
+  imprime um resumo por grupo como anotação do Actions.
+- **Reprocessamento disparado** (22:40 UTC, código da branch): ingestão de
+  2018 a 2026 (9 runs, todos concluídos com sucesso) e validação MapBiomas
+  de 2018 a 2024 (7 runs, a Coleção 4 vai até 2024). Resultado registrado
+  abaixo quando terminar.
+
+**Malha do mapa:** 7 municípios do litoral (Bertioga, Cananéia,
+Caraguatatuba, Ilhabela, Peruíbe, São Sebastião, Ubatuba) vinham na malha
+do geodata-br com o anel de uma ilhota como exterior; o retângulo
+envolvente do estado ficava 7 km curto e a ponta sul de Cananéia saía do
+desenho. `gerar_mapa_sp.py` aplica `make_valid` (viewBox 1000×669, antes
+662; áreas iguais) e passa a gravar os limites do retângulo (`limites`) e o
+contorno do estado (`geodata/sp_contorno.geojson`), usado pelo mosaico
+estadual de dNBR.
 
 ---
 

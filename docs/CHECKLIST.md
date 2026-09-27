@@ -56,6 +56,11 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 
 ## UX e acessibilidade
 
+- [x] Identidade visual dos selos e tipografia — selos sem vermelho (Baixa
+      areia, Média verde claro, Alta verde, Insuficiente só contorno),
+      validados no validador de paleta (visão normal ΔE 16,3; daltonismo
+      ΔE 10,6); fonte Inter em toda a página, conferida no navegador;
+      botões do topo alinhados (27/09/2026, `docs/DECISIONS.md` seção 6.55)
 - [x] Texto alternativo em todas as imagens — mapas dNBR com `alt` que
       descreve a escala real (corrigido em 27/09/2026 junto da legenda),
       mapa de SP com `aria-label` que resume as contagens, imagem Open

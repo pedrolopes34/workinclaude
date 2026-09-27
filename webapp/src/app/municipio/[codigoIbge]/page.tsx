@@ -61,7 +61,7 @@ function BarraComparacao({
                 style={{ width: `${(paraNumero(v.valor) / max) * 100}%` }}
               />
             </div>
-            <span className="w-20 shrink-0 text-right font-mono text-xs font-semibold text-foreground">
+            <span className="w-20 shrink-0 text-right tabular-nums text-xs font-semibold text-foreground">
               {formatKm2(v.valor)}
             </span>
           </div>
@@ -204,13 +204,13 @@ export default async function MunicipioPage({
       </div>
 
       <header className="space-y-2">
-        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
           {municipio.nome} <span className="text-lg font-normal text-muted">· SP</span>
         </h1>
         <dl className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted">
           <div>
             <dt className="inline">código IBGE </dt>
-            <dd className="inline font-mono">{municipio.codigoIbge}</dd>
+            <dd className="inline tabular-nums">{municipio.codigoIbge}</dd>
           </div>
           {municipio.mesorregiao && (
             <div>
@@ -270,7 +270,7 @@ export default async function MunicipioPage({
                   }`}
                   title={validado ? `${ano}: validado pela pesquisa` : `${ano}: sem validação ainda`}
                 >
-                  <span className={`font-mono text-xs font-semibold ${validado ? "text-foreground" : "text-faint"}`}>
+                  <span className={`tabular-nums text-xs font-semibold ${validado ? "text-foreground" : "text-faint"}`}>
                     &apos;{String(ano).slice(2)}
                   </span>
                   <span className={`h-1.5 w-1.5 rounded-full ${validado ? "bg-acento" : "bg-stone-300"}`} />
@@ -373,7 +373,7 @@ export default async function MunicipioPage({
                   return (
                     <tr key={m.ano} className="border-t border-border">
                       <td className="px-4 py-3">
-                        <span className="font-mono">{periodo}</span>
+                        <span className="tabular-nums">{periodo}</span>
                         <span className="block text-[11px] text-faint">{origem}</span>
                       </td>
                       <td className="px-4 py-3">{m.numFocosCalor ?? "—"}</td>
@@ -408,7 +408,7 @@ export default async function MunicipioPage({
                     <th className="py-1 font-medium">Mínimo de focos</th>
                   </tr>
                 </thead>
-                <tbody className="font-mono">
+                <tbody className="tabular-nums">
                   {metricas.map((m) => (
                     <tr key={m.ano}>
                       <td className="py-1 pr-3">{origemDasMetricas(m.ano, municipio.naAmostra).periodo}</td>
@@ -421,12 +421,12 @@ export default async function MunicipioPage({
               </table>
               {validacoes.map((v) => (
                 <p key={v.ano}>
-                  Validação {v.ano}: fonte <span className="font-mono">{v.fonte}</span> · MapBiomas Fogo{" "}
+                  Validação {v.ano}: fonte <span className="tabular-nums">{v.fonte}</span> · MapBiomas Fogo{" "}
                   {v.mapbiomasColecao} · {v.nPermutacoes} permutações · critério fixo Recall ≥ 50% e valor-p &lt; 0,05.
                 </p>
               ))}
               <p>
-                Código IBGE <span className="font-mono">{municipio.codigoIbge}</span> ·{" "}
+                Código IBGE <span className="tabular-nums">{municipio.codigoIbge}</span> ·{" "}
                 <Link href="/como-produzimos#parametros" className="underline">
                   metodologia completa
                 </Link>

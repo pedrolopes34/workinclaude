@@ -6,20 +6,25 @@
   --surface: #ffffff; /* cards/bolhas destacam um tom acima do fundo */
   --border: #e7ded0;
 
-  /* Paleta funcional do projeto (CLAUDE.md) — verde/mostarda/terracota SÓ
-     nos selos de confiabilidade (Alta/Média/Baixa), nunca decorativos.
-     Não mudam neste restyle (docs/DECISIONS.md seção 7). */
+  /* Selos de confiabilidade (CLAUDE.md) — SÓ nesse uso, nunca decorativos.
+     Sem vermelho desde a seção 6.55 (pedido do Pedro: vermelho/amarelo/verde
+     tem dupla leitura): Baixa areia, Média verde claro, Alta verde. Escala
+     ordinal passada no validador de paleta (L monotônico, ΔL ≥ 0,06; visão
+     normal ΔE 16,3 e daltonismo ΔE 10,6 no pior par). O areia é quase da cor
+     do fundo, então selo e amostra de legenda levam contorno (areia-borda).
+     Insuficiente não tem cor: selo só com contorno e hachura no mapa. Os
+     mesmos valores valem no tema escuro (o texto do selo é fixo). */
   --color-verde: #5b9e4d;
-  --color-mostarda: #d9a441;
-  --color-terracota: #c1442d;
+  --color-verde-claro: #96d274;
+  --color-areia: #f8e6b5;
+  --color-areia-borda: #c9b271;
 
   /* Acento de UI geral (botões, links, foco) — azul do mockup "Painel
      Queimadas SP" (claude.ai), revertido de volta depois que o Pedro
      comparou os dois visuais (docs/DECISIONS.md seção 7/6.33). A argila
      quente do restyle anterior fica só de histórico nesse comentário —
      mesmo #c17a4e que substituiu este azul antes, agora substituído de
-     volta. Deliberadamente diferente do terracota de alerta abaixo pra
-     não confundir "ação" com "confiabilidade baixa". */
+     volta. */
   --color-acento: #3c7da6;
   --color-acento-hover: #316788;
   /* Fixo nos dois temas (não usa o valor mais claro do modo escuro,
@@ -27,8 +32,10 @@
      cima. O --color-acento normal, mais claro no escuro pra funcionar
      como TEXTO sobre fundo escuro, dava só 2,6:1 de contraste com texto
      branco por cima quando usado como fundo de botão — falha real
-     achada nesta sessão em `/404` e nos outros CTAs. */
-  --color-acento-botao: #3c7da6;
+     achada nesta sessão em `/404` e nos outros CTAs. Um tom abaixo do
+     --color-acento (#38759c, 5,0:1 com branco) desde a seção 6.55, pra os
+     botões do topo caberem em 15px sem precisar do "texto grande". */
+  --color-acento-botao: #38759c;
   --color-acento-botao-hover: #316788;
   /* Só pra texto pequeno/peso normal (links em listas, "eyebrow" do Hero)
      sobre fundo branco — mesmo azul, levemente mais escuro pra fechar o
@@ -61,7 +68,7 @@
      seção 6.54. Um tom só (azul), claro → escuro, validada com o validador de
      paleta (ordinal: L monotônico, ΔL ≥ 0,06, faixa mais clara ≥ 2:1 sobre a
      superfície). --mapa-0 é o "zero", que pode sumir no fundo de propósito.
-     Longe de verde/mostarda/terracota, que são só dos selos (CLAUDE.md). */
+     Longe do verde/verde claro/areia, que são só dos selos (CLAUDE.md). */
   --mapa-0: #cde2fb;
   --mapa-1: #86b6ef;
   --mapa-2: #3987e5;
@@ -76,8 +83,9 @@
   --color-surface: var(--surface);
   --color-border: var(--border);
   --color-verde: var(--color-verde);
-  --color-mostarda: var(--color-mostarda);
-  --color-terracota: var(--color-terracota);
+  --color-verde-claro: var(--color-verde-claro);
+  --color-areia: var(--color-areia);
+  --color-areia-borda: var(--color-areia-borda);
   --color-acento: var(--color-acento);
   --color-acento-hover: var(--color-acento-hover);
   --color-acento-botao: var(--color-acento-botao);
@@ -88,15 +96,8 @@
   --color-glass: var(--glass);
   --color-glass-border: var(--glass-border);
   --color-glass-hi: var(--glass-hi);
-  --font-sans: var(--font-public-sans);
-  --font-mono: var(--font-ibm-plex-mono);
-  /* Usada só em títulos de página (h1). AvantGarde Std Bold que o Pedro
-     queria tinha arquivo corrompido, sem conserto viável (seção 6.34) —
-     Jost (Google Fonts, geométrica, mesma linhagem de Futura/Avant Garde)
-     entrou como substituta pela decisão dele na seção 6.36. Fallback pro
-     Public Sans continua aqui pro flash antes do webfont carregar
-     (`display:"swap"`) não cair no serif padrão do navegador. */
-  --font-display: var(--font-jost), var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
+  /* Inter em toda a página (seção 6.55) — títulos, texto e números. */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
 /* Escuro automático (preferência do sistema) — só quando não houver
@@ -158,7 +159,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
 /* Orbs decorativos do hero — só CSS, sem imagem. Paradas se o visitante

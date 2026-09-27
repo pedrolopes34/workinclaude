@@ -24,7 +24,7 @@ function Criterio({
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="text-xs font-medium text-muted">{titulo}</span>
         <span className="text-xs text-foreground">
-          <span className="font-mono font-semibold">{valor}</span>
+          <span className="tabular-nums font-semibold">{valor}</span>
           {passou !== null && (
             <span className="ml-2 font-semibold">{passou ? "✓ passou" : "✗ não passou"}</span>
           )}

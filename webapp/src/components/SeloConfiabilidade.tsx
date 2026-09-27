@@ -4,15 +4,16 @@ import type { Confiabilidade } from "@/lib/types";
 // Selo de confiabilidade com a regra que o define sempre à mão: dica ao
 // passar o mouse ou focar pelo teclado, e o texto completo pra leitor de
 // tela (docs/DECISIONS.md seção 6.52). Cores dos selos são as protegidas
-// do CLAUDE.md — este é o único uso delas.
+// do CLAUDE.md (seção 6.55: sem vermelho) — este é o único uso delas, junto
+// com o mapa de confiabilidade.
 //
 // `focavel=false` quando o selo está dentro de um link (lista de busca):
 // elemento focável dentro de <a> é HTML inválido, então ali fica só o
 // `title` e o texto pra leitor de tela.
 //
 // Sempre 19px em negrito: é o "texto grande" do WCAG que deixa o branco
-// sobre o verde passar sem mexer nos hex protegidos (seção 6.32). Uma versão
-// menor (14px) reprovou no teste de contraste (seção 6.52).
+// sobre o verde (3,26:1) passar sem mexer nos hex protegidos (seção 6.32).
+// Uma versão menor (14px) reprovou no teste de contraste (seção 6.52).
 export function SeloConfiabilidade({
   nivel,
   focavel = true,
@@ -24,7 +25,7 @@ export function SeloConfiabilidade({
   const regra = REGRA_CONFIABILIDADE[nivel];
   const selo = (
     <span
-      className={`inline-flex rounded-full px-3 py-1 text-[19px] font-bold ${estilo.bg} ${estilo.text}`}
+      className={`inline-flex rounded-full px-3 py-0.5 text-[19px] font-bold ${estilo.classe}`}
     >
       {estilo.label}
     </span>

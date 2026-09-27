@@ -117,7 +117,7 @@ export default function ComoProduzimosPage() {
         <div className="grid gap-4 sm:grid-cols-2">
           {PASSOS.map((passo, i) => (
             <div key={passo.titulo} className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-acento-botao font-mono text-xs font-semibold text-white">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-acento-botao tabular-nums text-xs font-semibold text-white">
                 {i + 1}
               </span>
               <h3 className="mt-3 text-sm font-semibold text-foreground">{passo.titulo}</h3>

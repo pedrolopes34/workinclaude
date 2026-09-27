@@ -34,7 +34,7 @@ export default function QuemSomosPage() {
       <section className="space-y-4">
         <h2 className="text-sm font-medium text-muted">Responsável pelo projeto</h2>
         <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
-          <h3 className="font-display text-xl font-bold text-foreground">Pedro Lopes de Oliveira</h3>
+          <h3 className="text-xl font-bold text-foreground">Pedro Lopes de Oliveira</h3>
           <p className="mt-1 text-sm text-muted">
             Graduando em Engenharia de Biossistemas · UNESP — Faculdade de Ciências e Engenharia
             (Tupã-SP)
@@ -79,12 +79,12 @@ export default function QuemSomosPage() {
                     href={c.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-mono text-sm text-acento-texto hover:underline"
+                    className="tabular-nums text-sm text-acento-texto hover:underline"
                   >
                     {c.valor}
                   </a>
                 ) : (
-                  <p className="font-mono text-sm text-muted">{c.valor}</p>
+                  <p className="tabular-nums text-sm text-muted">{c.valor}</p>
                 )}
               </div>
             </div>

@@ -44,7 +44,7 @@ export default async function CompararPage({
   );
 
   const linhas: { rotulo: string; valor: (d: MunicipioDetalhe) => React.ReactNode }[] = [
-    { rotulo: "Código IBGE", valor: (d) => <span className="font-mono">{d.municipio.codigoIbge}</span> },
+    { rotulo: "Código IBGE", valor: (d) => <span className="tabular-nums">{d.municipio.codigoIbge}</span> },
     { rotulo: "Mesorregião", valor: (d) => d.municipio.mesorregiao ?? "—" },
     { rotulo: "Área do município", valor: (d) => formatKm2(d.municipio.areaKm2) },
     {
