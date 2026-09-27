@@ -2882,9 +2882,15 @@ AQUA_M-T:
   min_samples de cada município.
 - **Focos:** 18 de 63 iguais, 32 a até 10%; soma 1.847 contra 1.574 da
   pesquisa (+17%). Nunca menos que a pesquisa, e vários exatamente o dobro
-  (Alumínio 8→16, Amparo 10→20, Pedregulho 13→26): suspeita de o produto
-  mensal do INPE listar o mesmo foco mais de uma vez. Medição dos repetidos
-  em andamento (mesmo diagnóstico, run `36340196156`).
+  (Alumínio 8→16, Amparo 10→20, Pedregulho 13→26). A suspeita de o produto
+  mensal do INPE listar o mesmo foco mais de uma vez **não se confirmou**
+  (run `36340196156`): tirando repetições de posição e horário, a soma
+  continua 1.847 — não há foco repetido. A causa segue em aberto (a pesquisa
+  pode ter baixado o arquivo antes de o INPE completar o mês, ou cruzado os
+  focos com o município de outro jeito); o jeito de fechar é comparar com o
+  arquivo original da pesquisa, `focos_br_sp_ref_2024.csv`. Como os
+  agrupamentos batem (62 de 63), a diferença afeta a contagem de focos, não
+  o resultado do método.
 - **Hipótese do recorte da área pelo município (seção 6.51): refutada.**
   Sem recorte, mediana 1,10× a área da pesquisa (18 a até 5%); recortada,
   0,93× (12 a até 5%). Pitangueiras (432,9 ≈ 430,9 km²) foi coincidência.
@@ -2931,7 +2937,8 @@ validação automática compara o ano inteiro com o MapBiomas anual (decisão
 de desenho, seções 1.1/6.13), e a pesquisa comparou agosto. Por isso a
 interface continua mostrando selo só onde a pesquisa validou; exibir as
 validações automáticas depende de decisão do Pedro. A diferença de contagem
-de focos (+17%) está em apuração.
+de focos (+17%) não é repetição de foco; falta comparar com o arquivo
+`_ref_` original da pesquisa.
 
 ### 6.54 Mapa com os 645 municípios cobertos: camadas de dado real (27/09/2026)
 

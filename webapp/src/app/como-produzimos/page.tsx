@@ -187,8 +187,9 @@ export default function ComoProduzimosPage() {
             municípios da pesquisa, os agrupamentos de agosto de 2024 agora batem em 62 deles.
           </p>
           <p className="mt-2 text-muted">
-            O que ainda difere: a contagem de focos que o INPE publica hoje é um pouco maior que a da pesquisa (em
-            apuração), e a validação automática compara o ano inteiro com o MapBiomas, enquanto a da pesquisa
+            O que ainda difere: a contagem de focos que o INPE publica hoje é cerca de 17% maior que a da pesquisa
+            nesses 63 municípios (não é foco repetido; a causa está sendo conferida contra o arquivo original da
+            pesquisa), e a validação automática compara o ano inteiro com o MapBiomas, enquanto a da pesquisa
             compara agosto. Por isso o selo de confiabilidade continua aparecendo só onde a pesquisa validou.
           </p>
         </div>
