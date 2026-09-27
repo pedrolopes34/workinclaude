@@ -18,7 +18,11 @@ name: Ingestão INPE + ST-DBSCAN
 on:
   schedule:
     - cron: "0 9 * * *" # 09:00 UTC = 06:00 em São Paulo (horário de verão à parte)
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      ano:
+        description: "Ano alvo pra reprocessar (ex.: 2025, pra rodar histórico) — vazio usa o ano corrente (padrão do cron diário)."
+        required: false
 
 jobs:
   ingest:
@@ -50,7 +54,15 @@ jobs:
       - name: Rodar ingestão + ST-DBSCAN
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ANO_INPUT: ${{ github.event.inputs.ano }}
         run: |
-          python -m pipeline.run_ingest_stdbscan \
-            --pasta-focos focos_cache \
-            --baixar-faltantes
+          if [ -n "$ANO_INPUT" ]; then
+            python -m pipeline.run_ingest_stdbscan \
+              --pasta-focos focos_cache \
+              --baixar-faltantes \
+              --ano "$ANO_INPUT"
+          else
+            python -m pipeline.run_ingest_stdbscan \
+              --pasta-focos focos_cache \
+              --baixar-faltantes
+          fi
