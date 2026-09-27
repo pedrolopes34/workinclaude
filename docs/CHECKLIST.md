@@ -118,7 +118,10 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
       `docs/DECISIONS.md` seção 6.43, foram validadas manualmente contra
       Postgres real nesta sessão, não por suíte automatizada)
 - [ ] Ambiente de staging separado de produção
-- [ ] Monitoramento de erros em produção
+- [ ] Monitoramento de erros em produção — incidente real que mostra a
+      falta (27/09/2026, `docs/DECISIONS.md` seção 6.49): a cota do GitHub
+      Actions esgotou, todo job passou a falhar sem runner e o cron diário
+      nem foi criado — ninguém foi avisado; só apareceu investigando o mapa
 - [ ] Backup do banco espacial (Neon) e dos GeoTIFFs (Cloudflare R2)
 - [~] Analytics — **decidido**: Vercel Analytics (ver `docs/DECISIONS.md`,
       2.2); `@vercel/analytics` já instalado e no `layout.tsx` do webapp;

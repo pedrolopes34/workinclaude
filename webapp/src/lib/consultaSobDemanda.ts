@@ -1,4 +1,5 @@
 import { sql } from "./db";
+import { urlPublicaDnbr } from "./imagensR2";
 import type { ConsultaSobDemanda } from "./types";
 
 // Consulta ad-hoc de 1 município x 1 mês, calculada ao vivo via GitHub
@@ -103,7 +104,7 @@ export async function buscarConsultaConcluida(
     ORDER BY criado_em DESC
     LIMIT 1
   `;
-  return linha ?? null;
+  return linha ? { ...linha, dnbrImagemUrl: urlPublicaDnbr(linha.dnbrImagemUrl) } : null;
 }
 
 export async function buscarConsultaPorId(id: number): Promise<ConsultaSobDemanda | null> {
@@ -112,7 +113,22 @@ export async function buscarConsultaPorId(id: number): Promise<ConsultaSobDemand
     FROM consultas_sob_demanda
     WHERE id = ${id}
   `;
-  return linha ?? null;
+  return linha ? { ...linha, dnbrImagemUrl: urlPublicaDnbr(linha.dnbrImagemUrl) } : null;
+}
+
+// Se o runner do Actions nunca pegar o job (ex.: cota de minutos esgotada, seção
+// 6.49), ninguém marca a linha — sem isto ela fica "pendente" pra sempre.
+// Os 8 min precisam ficar abaixo da janela de polling de ConsultaSobDemanda.tsx.
+export async function expirarSeTravada(id: number): Promise<void> {
+  await sql`
+    UPDATE consultas_sob_demanda
+    SET status = 'erro',
+        mensagem_erro = 'O cálculo não chegou a terminar — o servidor de processamento pode estar indisponível agora. Tente de novo mais tarde.',
+        concluido_em = now()
+    WHERE id = ${id}
+      AND status IN ('pendente', 'processando')
+      AND criado_em < now() - interval '8 minutes'
+  `;
 }
 
 export async function contarConsultasRecentes(ip: string): Promise<number> {

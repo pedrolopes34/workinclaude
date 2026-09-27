@@ -16,7 +16,8 @@ const NOMES_MESES = [
 // histórico do INPE integrado (docs/DECISIONS.md seção 7).
 const PRIMEIRO_ANO = 2024;
 const INTERVALO_POLLING_MS = 6000;
-const LIMITE_TENTATIVAS_POLLING = 60; // ~6min — GitHub Actions costuma levar 1-4min
+// ~9min: acima dos 8min em que o servidor marca a consulta travada como erro (expirarSeTravada).
+const LIMITE_TENTATIVAS_POLLING = 90;
 
 function mesEstaDisponivel(ano: number, mes: number, hoje: Date): boolean {
   const anoAtual = hoje.getFullYear();
@@ -57,7 +58,7 @@ export function ConsultaSobDemanda({ codigoIbge }: { codigoIbge: string }) {
       tentativasRef.current += 1;
       if (tentativasRef.current > LIMITE_TENTATIVAS_POLLING) {
         clearInterval(intervalo);
-        setErro("Isso está demorando mais do que o esperado — volte a esta página em alguns minutos.");
+        setErro("Isso está demorando mais do que o esperado. Tente de novo mais tarde.");
         return;
       }
       try {

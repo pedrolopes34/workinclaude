@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { sql } from "./db";
+import { urlPublicaDnbr } from "./imagensR2";
 import type {
   Municipio,
   MunicipioResumo,
@@ -69,12 +70,13 @@ export const getMunicipioDetalhe = cache(async function getMunicipioDetalhe(
 
   if (!municipio) return null;
 
-  const metricas = await sql<MetricasAnuais[]>`
+  const linhasMetricas = await sql<MetricasAnuais[]>`
     SELECT ano, num_focos_calor, num_agrupamentos, area_st_dbscan_km2, area_dnbr_km2, dnbr_imagem_url
     FROM metricas_anuais
     WHERE codigo_ibge = ${codigoIbge}
     ORDER BY ano DESC
   `;
+  const metricas = linhasMetricas.map((m) => ({ ...m, dnbrImagemUrl: urlPublicaDnbr(m.dnbrImagemUrl) }));
 
   const validacoes = await sql<ValidacaoMapbiomas[]>`
     SELECT ano, area_mapbiomas_km2, interseccao_pct, p_valor, recall_pct,

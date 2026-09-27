@@ -2467,6 +2467,77 @@ renderizado de verdade. `npm run build`/`lint` limpos.
 **Status:** Fallback visual fechado. Causa raiz do R2 aberta, aguardando
 o Pedro conferir a configuração de acesso público do bucket.
 
+### 6.49 Cota do GitHub Actions esgotada + mapa consertado sem depender do banco (27/09/2026)
+
+**Contexto:** mesmo depois de habilitar a "Public Development URL" do bucket
+e atualizar `R2_PUBLIC_URL_BASE` (seção 6.48), o mapa continuava quebrado.
+Pra parar de depender do Pedro repassar cada dado, criei
+`pipeline/diagnosticar_imagens_r2.py` + `diagnostico-imagens-r2.yml` (roda
+no runner do Actions, que alcança Neon, R2 e o site — este sandbox não
+alcança nenhum dos três; testado localmente de ponta a ponta antes de subir).
+
+**Achado maior que o mapa: o GitHub Actions parou de rodar qualquer job.**
+O diagnóstico falhou em 2s, sem runner, sem log. Olhando pra trás: todo job
+desde ~13:20 UTC de 27/09 falhou assim (testes, as 3 consultas sob demanda
+que o Pedro tentou, o diagnóstico), e o cron diário de ingestão das 09:00
+nem chegou a ser criado. Repositório **privado**, conta GitHub Free =
+2.000 min/mês. Somando a duração real dos jobs de setembro (matrix de 2
+jobs conta em dobro): validação MapBiomas ≈ 890 min, dNBR ≈ 1.300 min (a
+rodada de 645 municípios de 26-27/09 sozinha = 531 min; uma rodada completa
+anterior, run `36272777892`, ≈ 450 min), ingestão + testes ≈ 100 min —
+**≈ 2.300 min**. A cota estourou durante a rodada grande (job em execução
+termina; job novo não começa). Os jobs do Dependabot continuaram rodando
+(não contam na cota) — consistente com o diagnóstico.
+
+**Erro de processo meu:** no merge de `f37fc10` eu disse "CI rodando pra
+confirmar" e nunca voltei pra conferir — os testes já estavam falhando
+(pela cota, não pelo código) e só vi 1h depois. Regra: não afirmar que CI
+passou sem ler o resultado.
+
+**Mapa — corrigido sem depender do Actions nem de SQL manual:** o site
+não confia mais na base gravada em `dnbr_imagem_url`; remonta a URL como
+`R2_BASE_PUBLICA + /dnbr/<arquivo>.png` na leitura
+(`webapp/src/lib/imagensR2.ts`, aplicado em `queries.ts` e
+`consultaSobDemanda.ts`, ou seja, em todo consumidor). A chave do objeto
+nunca muda; a base é que estava errada. Bônus: trocar de domínio no futuro
+(a Cloudflare recomenda domínio próprio pra produção) vira uma linha de
+código, sem reescrever o banco. Base fixa no código, não em variável de
+ambiente da Vercel, de propósito: é pública, e cada passo manual de
+configuração foi fonte de erro neste projeto (seções 6.41, 6.48).
+
+**Consulta sob demanda travada — corrigido:** se o runner nunca pega o job,
+ninguém marcava a linha e ela ficava `pendente` pra sempre (spinner eterno
+pro visitante). `expirarSeTravada()` marca como `erro` (mensagem neutra)
+qualquer consulta pendente/processando há mais de 8 min, chamada no polling;
+a janela do cliente subiu de 6 pra 9 min pra receber essa resposta.
+
+**Testado (servidor Next.js local + Postgres local, `curl`):** URL gravada
+com a base errada (endpoint S3 privado) sai renderizada com a base pública
+certa; consulta travada há 20 min vira `erro`; consulta recém-criada
+continua `pendente`; resultado de consulta (direto e reaproveitado) também
+sai normalizado. Lint/build limpos.
+
+**Ainda não confirmado:** que o objeto está de fato no bucket público
+(sandbox não alcança o R2 e o Actions está parado). Como o upload deu certo
+(sem exceção) e o bucket habilitado é o único da conta, é o mais provável.
+Se mesmo após o deploy aparecer "Não foi possível carregar o mapa", a causa
+restante é o conteúdo do bucket (conferir a aba Objects na Cloudflare).
+
+**Decisões pendentes do Pedro (conta/billing, não código):**
+1. Como devolver minutos ao Actions: (a) repositório público — minutos
+   ilimitados, mas expõe código e dados de pesquisa; licença e consulta ao
+   NIT estão deliberadamente adiadas (seção 7), então é decisão dele; a
+   seção 2.3 originalmente previa "repositório público por ora";
+   (b) orçamento de gasto (pago por minuto além da cota); (c) GitHub Pro
+   via Student Developer Pack (3.000 min/mês); (d) esperar a cota renovar
+   no próximo ciclo de cobrança.
+2. Consumo recorrente: a validação MapBiomas roda todo mês reprocessando
+   o mesmo 2024 (Coleção 4 só vai até 2024 — seção 6.22), ≈ 240 min/mês sem
+   produzir nada novo. A seção 6.16 já dizia "reavaliar se o custo
+   incomodar". Proposta: tirar do cron mensal (manual quando sair coleção
+   nova). Também: o modo `--municipio` do `process-sentinel-dnbr.yml` roda
+   duplicado (as 2 entradas da matrix executam o mesmo município).
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)

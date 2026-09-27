@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { buscarConsultaPorId } from "@/lib/consultaSobDemanda";
+import { buscarConsultaPorId, expirarSeTravada } from "@/lib/consultaSobDemanda";
 
 // GET /api/consultas/[id] — polling do resultado de uma consulta sob
 // demanda (docs/DECISIONS.md seção 6.43). O cliente chama isso a cada
@@ -14,6 +14,7 @@ export async function GET(
     return NextResponse.json({ erro: "id inválido." }, { status: 400 });
   }
 
+  await expirarSeTravada(idNumerico);
   const consulta = await buscarConsultaPorId(idNumerico);
   if (!consulta) {
     return NextResponse.json({ erro: "Consulta não encontrada." }, { status: 404 });
