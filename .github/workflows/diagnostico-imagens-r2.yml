@@ -1,0 +1,59 @@
+name: Diagnóstico das imagens dNBR (R2)
+
+# Ferramenta de operação (docs/DECISIONS.md seção 6.49): o sandbox do Claude
+# Code não alcança Neon, R2 nem o site publicado; este runner alcança os
+# três. Por padrão só lê e imprime o diagnóstico — `--corrigir` reescreve
+# as URLs gravadas no banco pra `base pública atual + chave do objeto`, e só
+# se essa combinação responder 200 com imagem de verdade.
+#
+# Dispara em push na branch de desenvolvimento (só quando este arquivo ou o
+# script mudam) — push de branch do próprio repositório tem acesso aos
+# secrets, então dá pra diagnosticar sem mesclar nada em main. Depois de
+# mesclado, também aceita disparo manual.
+
+on:
+  push:
+    branches: [claude/software-2-cqnuui]
+    paths:
+      - .github/workflows/diagnostico-imagens-r2.yml
+      - pipeline/diagnosticar_imagens_r2.py
+  workflow_dispatch:
+    inputs:
+      corrigir:
+        description: "true = reescreve as URLs gravadas no banco (só se a base pública atual responder de verdade)"
+        required: false
+
+jobs:
+  diagnostico:
+    runs-on: ubuntu-latest
+    env:
+      # Liga a correção em runs disparados por push (só editar e commitar).
+      CORRIGIR_NO_PUSH: "false"
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: pipeline/requirements-consulta.txt
+
+      - name: Instalar dependências
+        run: pip install -r pipeline/requirements-consulta.txt
+
+      - name: Diagnosticar (e corrigir, se pedido)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_PUBLIC_URL_BASE: ${{ secrets.R2_PUBLIC_URL_BASE }}
+          CORRIGIR_INPUT: ${{ github.event.inputs.corrigir }}
+        run: |
+          if [ "$CORRIGIR_INPUT" = "true" ] || [ "$CORRIGIR_NO_PUSH" = "true" ]; then
+            python -m pipeline.diagnosticar_imagens_r2 --corrigir
+          else
+            python -m pipeline.diagnosticar_imagens_r2
+          fi
