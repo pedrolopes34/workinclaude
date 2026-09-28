@@ -1,0 +1,45 @@
+name: Testes do webapp
+
+# docs/DECISIONS.md seção 6.56: lint, tipagem e testes (Vitest) do /webapp a
+# cada push ou PR que toque webapp/. O build fica com a Vercel, que já faz um
+# a cada push (e precisa do banco, que este runner não tem).
+
+on:
+  push:
+    paths:
+      - "webapp/**"
+      - ".github/workflows/webapp.yml"
+  pull_request:
+    paths:
+      - "webapp/**"
+
+jobs:
+  webapp:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: webapp
+    env:
+      # O Playwright é só pra auditoria local de acessibilidade; aqui não
+      # precisa baixar navegador.
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tipagem
+        run: npm run typecheck
+
+      - name: Testes
+        run: npm test
