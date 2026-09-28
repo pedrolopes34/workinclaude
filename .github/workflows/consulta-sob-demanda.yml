@@ -31,6 +31,9 @@ on:
 jobs:
   consulta:
     runs-on: ubuntu-latest
+    env:
+      # Log com o horário real de cada linha (tentativas ao IBGE, etapas).
+      PYTHONUNBUFFERED: "1"
     steps:
       - uses: actions/checkout@v4
 

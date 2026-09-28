@@ -3245,7 +3245,14 @@ rodada em lote que já pediu a malha e falhou, o IBGE fora do ar não vira
 645 downloads pesados). O log passa a mostrar o que o IBGE devolveu
 (status, tipo e o começo do corpo); a mensagem de erro gravada, que o
 visitante vê, fica curta ("IBGE devolveu resposta que nao e JSON (HTTP
-200, text/html)").
+200, text/html)"). **Refeita de novo (run `36418564274`): concluída** —
+Americana em ago/2026, 0 focos, 0 agrupamentos, leitura de satélite de
+9,7 km² (22 cenas antes, 14 depois, cobertura 99,2%), miniatura no R2.
+Dessa vez o endpoint do município respondeu de primeira (nenhuma linha
+`[IBGE]` no log): a falha é **intermitente**, e a saída pela malha do
+estado fica como proteção. O workflow da consulta ganhou
+`PYTHONUNBUFFERED` (os outros já tinham): sem ele, o log saía todo de uma
+vez no fim, com o mesmo horário em todas as linhas.
 
 **Malha do mapa:** 7 municípios do litoral (Bertioga, Cananéia,
 Caraguatatuba, Ilhabela, Peruíbe, São Sebastião, Ubatuba) vinham na malha
