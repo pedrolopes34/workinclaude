@@ -33,11 +33,16 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 - [~] Página de agradecimento — conteúdo e visual prontos no mockup
       (`#obrigado`), já com o aviso de pesquisa em andamento; hoje não há
       formulário real que a dispare
-- [~] Página de Política de Privacidade — conteúdo fechado (analytics já
-      decidido: Vercel Analytics, sem cookies); falta só a data de
-      publicação e revisão antes de virar oficial
-- [~] Página de Termos de Uso — rascunho redigido
-      (`docs/legal/termos-de-uso.md`), mesmo aviso de revisão pendente
+- [~] Página de Política de Privacidade — rascunho em
+      `docs/legal/politica-privacidade.md` (analytics: Vercel Analytics, sem
+      cookies). Atualizado em 28/09/2026 (seção 6.56): passou a dizer que a
+      consulta por mês guarda o IP de quem pede, só pro limite de 5/hora.
+      Falta o prazo de guarda do IP (decisão do Pedro), a revisão e a data
+      de publicação
+- [~] Página de Termos de Uso — rascunho redigido em 28/09/2026
+      (`docs/legal/termos-de-uso.md`). Correção (seção 6.56): este item
+      dizia que o rascunho existia desde o planejamento, mas o arquivo nunca
+      tinha sido criado. Falta revisão, licença (TBD) e data de publicação
 - [x] Banner de cookies — **não se aplica**: Vercel Analytics (decidido
       abaixo) não usa cookies nem dado pessoal identificável
 - [x] Endereço de contato real — endereço institucional (UNESP FCE Tupã)
@@ -131,12 +136,22 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
       público em 27/09/2026 (`docs/DECISIONS.md` seção 6.50): *secret
       scanning* e *push protection* ficam disponíveis de graça. Varredura
       antes de abrir (todas as branches e todo o histórico): nenhum segredo.
-- [ ] Política de retenção de dados de usuário (definir o que é coletado
-      antes de escrever a política)
+- [~] Política de retenção de dados de usuário — o que é coletado está
+      definido (28/09/2026, seção 6.56): só o IP de quem pede a consulta
+      por mês (limite de 5/hora; não sai na API, no CSV nem vai pro GitHub)
+      e métricas de visita agregadas, sem identificação. Falta o Pedro
+      decidir o prazo de guarda do IP (proposta: 7 dias); a limpeza
+      automática entra depois disso — hoje ele fica guardado sem prazo
 
 ## Testes e operação
 
-- [~] Testes automatizados — 132 testes `pytest` cobrindo o núcleo do
+- [x] Testes automatizados — **webapp coberto em 28/09/2026 (seção
+      6.56):** 39 testes Vitest (formatação, selos, origem dos números,
+      mapas, URLs do R2, as rotas de `/api/consultas` com banco simulado e o
+      CSV), no CI (`.github/workflows/webapp.yml`: lint, tipagem, testes;
+      o build é da Vercel). A interface em si segue conferida pela auditoria
+      Playwright/axe, não por suíte automatizada. Pipeline: 185 testes
+      `pytest` (eram 132 abaixo) cobrindo o núcleo do
       `/pipeline` (ST-DBSCAN, fórmula de `min_samples` regredida contra os
       12 casos reais, ingestão INPE incluindo a concatenação mensal→anual,
       dNBR incluindo a janela histórica da consulta sob demanda, IoU/
@@ -146,20 +161,32 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
       validação MapBiomas, diagnóstico das imagens do R2 e dos focos por
       satélite, inventário dos dados), com CI/CD real
       (`.github/workflows/tests.yml`, roda a cada push/PR que toque
-      `pipeline/` ou `tests/`) — falta só
-      testes automatizados do `/webapp` (as rotas de consulta sob demanda,
-      `docs/DECISIONS.md` seção 6.43, foram validadas manualmente contra
-      Postgres real nesta sessão, não por suíte automatizada)
-- [ ] Ambiente de staging separado de produção
-- [ ] Monitoramento de erros em produção — incidente real que mostra a
-      falta (27/09/2026, `docs/DECISIONS.md` seção 6.49): a cota do GitHub
-      Actions esgotou, todo job passou a falhar sem runner e o cron diário
-      nem foi criado — ninguém foi avisado; só apareceu investigando o mapa
-- [ ] Backup do banco espacial (Neon) e dos GeoTIFFs (Cloudflare R2)
+      `pipeline/` ou `tests/`)
+- [ ] Ambiente de staging separado de produção — a Vercel já publica uma
+      prévia a cada push na branch de desenvolvimento, mas ela lê o mesmo
+      banco de produção; staging de verdade precisa de um banco separado
+      (ex.: um branch do Neon), criado na conta do Pedro
+- [~] Monitoramento de erros em produção — **verificação diária de saúde
+      desde 28/09/2026** (`saude-diaria.yml`, seção 6.56): ingestão dos
+      focos, mapa do estado, miniaturas do mês, consultas paradas ou com
+      erro, última execução de cada workflow, páginas, sitemap, CSV e
+      imagens; se algo falha, abre uma issue mencionando o Pedro (e-mail do
+      GitHub) e fecha sozinha quando volta ao normal. Nasceu do incidente
+      de 27/09 (seção 6.49: a cota do Actions esgotou e ninguém foi
+      avisado). Falta um aviso que não dependa do próprio GitHub Actions
+      (monitor externo de disponibilidade) e rastreio de erro em tempo real
+      no site — os dois exigem conta do Pedro
+- [ ] Backup do banco espacial (Neon) e dos GeoTIFFs (Cloudflare R2) —
+      quase tudo se refaz rodando o pipeline de novo (fontes públicas +
+      seeds da pesquisa no repositório); o que não se refaz são as
+      auditorias anuais e o histórico das consultas. Proposta: cópia
+      semanal do banco pra um bucket privado (o atual é público), que o
+      Pedro precisa criar
 - [~] Analytics — **decidido**: Vercel Analytics (ver `docs/DECISIONS.md`,
-      2.2); `@vercel/analytics` já instalado e no `layout.tsx` do webapp;
-      site já publicado (seção 6.37) — falta só confirmar se o Pedro
-      habilitou a aba Analytics no painel do projeto na Vercel
+      2.2); `@vercel/analytics` já instalado e no `layout.tsx` do webapp.
+      **Conferido em 28/09/2026 (seção 6.56): ainda desligado** — o script
+      de métricas responde 404. Falta o Pedro ativar em Vercel → projeto →
+      Analytics; a verificação diária mostra quando passar a funcionar
 
 ## Documentação e citação
 
@@ -182,9 +209,12 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
       (27/09/2026, `docs/DECISIONS.md` seção 6.50): este item dizia que a
       atribuição também estava "no README raiz do repositório", mas esse
       README nunca existiu — só há README por pasta
-- [x] Exportação dos dados em CSV — `/dados/municipios.csv`: os 645
-      municípios com o dado validado pela pesquisa e coluna de origem
-      (RFC 4180, UTF-8 com BOM), botão na página inicial (seção 6.52)
+- [x] Exportação dos dados em CSV — `/dados/municipios.csv`: uma linha
+      por município × ano (2018 em diante, os 645), com focos,
+      agrupamentos, áreas, parâmetros do agrupamento, confiabilidade e a
+      comparação com o MapBiomas, e colunas de origem (pesquisa ou cálculo
+      automático) — RFC 4180, UTF-8 com BOM, botão na página inicial
+      (seções 6.52 e 6.55; coberto por teste desde a 6.56)
 - [x] Imagens/rasters comprimidos em produção — **fechado 26/09/2026
       (`docs/DECISIONS.md` seções 6.40/6.41)**: `run_dnbr.py` gera uma
       miniatura PNG colorida (já leve por natureza — 400px desde a seção
@@ -203,8 +233,12 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 
 ---
 
-**Contagem atual:** 26 itens feitos, 8 parciais, 6 pendentes —
-atualizado em 28/09/2026 (`docs/DECISIONS.md` seção 6.55): backfill do mapa
+**Contagem atual:** 27 itens feitos, 9 parciais, 4 pendentes —
+atualizado em 28/09/2026 à tarde (`docs/DECISIONS.md` seção 6.56):
+testes automatizados do webapp no CI (feito), verificação diária de saúde
+com alerta por issue (monitoramento parcial), o que é coletado definido
+(retenção parcial), rascunho dos Termos de Uso escrito de fato, Vercel
+Analytics conferido (desligado). De manhã (seção 6.55): backfill do mapa
 do estado completo (104 meses) e confiabilidade 2018–2024 dos 645 no ar,
 sitemap com os 645, "Quem somos" com foto, orientação e grupo; 151 testes
 pytest. Em 27/09/2026 à noite entraram

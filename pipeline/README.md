@@ -35,6 +35,7 @@ cp .env.example .env   # aponta pro Postgres local — ver /pipeline/db/README.m
 | `run_dnbr.py` | CLI que orquestra o dNBR pra um grupo de municípios e grava `area_dnbr_km2` — compara o último mês completo com o anterior (seção 6.55), cálculo síncrono via `reduceRegion` (sem exportar GeoTIFF). Também gera `dnbr_imagem_url` (miniatura PNG colorida via `getThumbURL` + Cloudflare R2, seção 6.40) quando os secrets `R2_*` existem — opcional, nunca bloqueia a gravação de `area_dnbr_km2` | Parcial — só a lógica pura (`mes_a_processar`, `janela_mes_especifico`, `_r2_configurado`) é testada; o cálculo em si precisa de GEE |
 | `run_dnbr_estado.py` | Mosaico estadual da leitura de satélite por mês (seção 6.55): mesmo cálculo e paleta das miniaturas, numa imagem só do estado, no retângulo do mapa do site; WebP no R2 + `mosaicos_dnbr` | Parcial — funções puras testadas; rodado de verdade pra ago/2024 |
 | `run_validacao_mapbiomas.py` | CLI que reconstrói o ST-DBSCAN (pra obter a geometria), compara contra o MapBiomas e grava em `validacao_mapbiomas` | Parcial — só as partes que orquestra são testadas isoladamente |
+| `verificar_saude.py` | Verificação diária de saúde (seção 6.56): ingestão dos focos, mapa do estado, miniaturas do mês, consultas, última execução de cada workflow na main e o site no ar; com `--alertar`, abre/comenta/fecha a issue "Alerta do painel" | Sim — regras e o fluxo da issue com o GitHub simulado (30 testes); SQL conferido no Postgres local e 1ª rodada real em produção |
 | `run_audit_anual.py` | CLI da auditoria manual anual — grava em `auditorias_anuais` (avança `ano_ativo`), com correção pontual opcional de um campo de `metricas_anuais`/`validacao_mapbiomas` (lista fixa em `CAMPOS_CORRIGIVEIS`) | Parcial — validação de campo e coerção de tipo testadas; escrita real precisa de `DATABASE_URL` |
 
 Rodar os testes: `pytest` na raiz do repositório (usa `pytest.ini`), ou
@@ -51,10 +52,12 @@ tem evidência forte mas ainda não confirmação real (URL mensal do INPE).
 | Workflow | Cadência | Precisa de |
 |---|---|---|
 | `tests.yml` | a cada push/PR em `pipeline/`/`tests/` | nada — já roda de verdade |
-| `ingest-inpe.yml` | diário | `secrets.DATABASE_URL`; anual de referência nos anos fechados, mensal no ano corrente (seção 6.55) |
+| `ingest-inpe.yml` | diário, 09:17 UTC | `secrets.DATABASE_URL`; anual de referência nos anos fechados, mensal no ano corrente (seção 6.55) |
 | `process-sentinel-dnbr.yml` | mensal, 2 jobs paralelos (seção 2.1) | `secrets.DATABASE_URL`, `secrets.GEE_SERVICE_ACCOUNT_KEY`; processa o último mês completo (antes a janela saía vazia no dia 1, seção 6.55) |
 | `dnbr-estado.yml` | mensal (dia 1) + manual por mês ou lote por ano | mesmos secrets do dNBR, com o R2 obrigatório (seção 6.55) |
 | `check-mapbiomas.yml` | manual, quando sair coleção nova do MapBiomas Fogo (seção 6.50); 2 jobs paralelos | mesmos secrets do dNBR; das 3 pendências da seção 6.15 só resta conferir a mecânica da permutação contra o notebook oficial (seção 6.35) |
+| `saude-diaria.yml` | diário, 20:41 UTC + manual | `secrets.DATABASE_URL` e o `GITHUB_TOKEN` automático (lê execuções, abre issue de alerta só na main — seção 6.56) |
+| `webapp.yml` | a cada push/PR em `webapp/` | nada — lint, tipagem e testes Vitest do webapp (seção 6.56) |
 | `audit-anual.yml` | manual, 1×/ano, executado pelo Pedro | `secrets.DATABASE_URL`; sem pendência externa — só depende de o Pedro decidir o que auditar |
 
 ## O que ainda falta antes de habilitar de verdade

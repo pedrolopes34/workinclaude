@@ -13,17 +13,26 @@ raiz do repositório).
 
 ## O que já existe
 
-- `/` — busca de município (mostra a amostra validada quando sem busca; a
-  busca cobre os 645).
-- `/municipio/[codigoIbge]` — detalhe: métricas anuais (focos/agrupamentos)
-  e, quando o município está na amostra, a comparação contra o MapBiomas
-  Fogo por ano (Recall, Interseção, valor-p, confiabilidade).
+- `/` — os 645 municípios: mapas do estado (leitura de satélite do mês e
+  confiabilidade do ano), busca por nome ou código IBGE, lista agrupada por
+  nível de confiabilidade e o CSV completo.
+- `/mapa` — os dois mapas do estado lado a lado (mês e ano na URL) e o mapa
+  de focos por município.
+- `/municipio/[codigoIbge]` — ano a ano desde 2018 (focos, agrupamentos,
+  leitura de satélite, comparação com o MapBiomas Fogo) e a consulta por mês.
+- `/comparar`, `/como-produzimos`, `/quem-somos`, `/dados/municipios.csv`.
 
-## O que falta (ver `docs/CHECKLIST.md`)
+## Testes
 
-Páginas institucionais ("Como produzimos", "Quem somos"), estados de
-carregamento/erro dedicados, mapa interativo (depende da malha do IBGE em
-`/geodata` — ainda não importada), SEO por página, testes.
+- `npm test` — Vitest (lógica de `src/lib`, rotas de `/api/consultas` e o
+  CSV, com o banco simulado; `docs/DECISIONS.md` seção 6.56).
+- `npm run lint` e `npm run typecheck`.
+- No CI: `.github/workflows/webapp.yml` a cada push/PR em `webapp/`. O
+  build é da Vercel (precisa do banco).
+
+## O que falta
+
+Ver `docs/CHECKLIST.md`.
 
 ## Decisões relevantes
 

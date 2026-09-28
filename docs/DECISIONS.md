@@ -3270,6 +3270,102 @@ confiabilidade ano a ano desde 2018 e leitura de satélite —, então entram
 os 645 (mesma prioridade), em linha com o pedido do Pedro de focar nos 645.
 Nenhuma página tinha `noindex`, então não há outra trava a tirar.
 
+### 6.56 Verificação diária de saúde, testes do webapp e rascunhos legais (28/09/2026)
+
+**Pedido do Pedro** (28/09, manhã): "Pode continuar seu trabalho. E me dê
+uma check-list atualizada." Avancei os itens do CHECKLIST que não dependem
+de decisão dele.
+
+**Monitoramento — verificação diária de saúde** (`pipeline/verificar_saude.py`,
+`.github/workflows/saude-diaria.yml`, 20:41 UTC todo dia). Confere o que o
+visitante veria de errado:
+- focos do INPE: todas as linhas do ano corrente atualizadas nas últimas
+  36 h (`min(atualizado_em)` — a ingestão regrava as 645 a cada rodada,
+  inclusive as zeradas; 36 h deixa passar uma rodada atrasada, não um dia
+  inteiro sem rodar);
+- mapa do estado: mosaico do último mês completo (tolerância até o dia 2,
+  porque a rodada do dia 1 atrasa);
+- miniaturas municipais: alguma com a chave do último mês completo ou de um
+  mais novo (a rodada manual de 27/09, com o código antigo, gravou
+  `-2026-09`; a de 1º/10 regrava tudo); poucas é só atenção (nuvem);
+- consultas por mês: nenhuma parada ou com erro nas últimas 24 h;
+- execuções na main: a **mais recente** de cada workflow não falhou (falha
+  já refeita com sucesso não é alerta; consultas e Dependabot ficam fora —
+  as consultas já são vistas pelo banco);
+- site: 6 páginas, sitemap com os 645, CSV e uma imagem do mapa do estado;
+- como atenção (sem alerta): o arquivo do INPE do mês parado há mais de
+  72 h (é a fonte, não o pipeline) e o Vercel Analytics desligado.
+
+Qualquer falha deixa o workflow vermelho e, **só na main**, abre uma issue
+"Alerta do painel" mencionando o dono do repositório (o GitHub manda
+e-mail). Uma issue aberta por vez; comenta só quando o conjunto de falhas
+muda (sem spam diário) e se fecha sozinha quando tudo volta ao normal.
+Por que issue e não o e-mail de "workflow falhou": o GitHub avisa falha de
+execução agendada a quem editou a linha do cron por último, e aqui os
+commits chegam pelo aplicativo — não há garantia de que o aviso chegue ao
+Pedro; a menção na issue chega. Limite conhecido: se o próprio Actions
+parar, a verificação para junto — um monitor externo de disponibilidade
+seria o passo seguinte (exige conta do Pedro). 30 testes pytest (regras e
+o fluxo da issue com o GitHub simulado); SQL conferido contra o Postgres
+local.
+
+**1ª rodada real** (run `36419971378`, na branch, sem mexer em issue):
+ingestão ok (27/09 22:41 UTC), mapa do estado ok (104 meses, até 2026-08),
+miniaturas ok (645 de 645, 2026-09), site ok (9 endereços), execuções ok (7
+workflows), arquivo do INPE ok (atualizado 28/09 11:56 UTC). Dois achados:
+(1) **Vercel Analytics desligado** — o script de métricas
+(`/_vercel/insights/script.js`, o mesmo que o `@vercel/analytics` 2.0
+carrega) responde 404, ou seja, a aba Analytics não foi ativada no painel
+da Vercel (pendência do CHECKLIST respondida: falta o Pedro ativar);
+(2) consultas #1–#4 com erro de disparo e #5–#8 paradas em "pendente",
+todas de 27/09 entre 13:15 e 14:18 UTC — o incidente da cota (seção 6.49).
+Saem da janela de 24 h às 14:18 UTC de 28/09; a primeira rodada agendada
+na main (20:41 UTC) já não as vê. Por isso não disparei a verificação na
+main antes: abriria um alerta de algo já resolvido.
+
+**Crons fora da hora cheia:** só houve 2 execuções agendadas da ingestão
+diária desde o início — 26/09 às 13:35 UTC (4,5 h atrasada, sucesso) e
+27/09 às 14:31 UTC (falha: o job nem começou, log 404 — o incidente da
+cota). A documentação do GitHub diz que a hora cheia é quando mais atrasa
+ou descarta cron. Ingestão 09:00 → 09:17 UTC; dNBR municipal (dia 1)
+10:00 → 10:23; mosaico do estado (dia 1) 13:00 → 13:37.
+
+**Testes automatizados do webapp** (Vitest 3.2.7, devDependency — 92
+pacotes novos no lockfile, nenhuma versão existente mudou): 39 testes em
+`webapp/src/**/*.test.ts` — formatação brasileira (Interseção em %, km²,
+valor-p, data no fuso de SP), selos sem vermelho e a regra dos 4 níveis,
+origem de cada número, janela da leitura de satélite, mapas, URL pública
+do R2, período válido da consulta por mês, as rotas GET/POST de
+`/api/consultas` com banco e disparo simulados (reaproveitamento, limite de
+5/hora, falha no disparo) e o CSV (BOM, CRLF, origem, escape RFC 4180).
+Workflow `webapp.yml` (lint, tipagem, testes; o build segue com a Vercel,
+que precisa do banco) — 1ª execução `36420515245` verde. Os testes ficam ao
+lado das rotas em `src/app` e não viram rota (conferido com build local).
+Achado no caminho: `Response.text()` engole o BOM do CSV (decodificação
+UTF-8 padrão), então o teste confere os bytes.
+
+**Rascunhos legais** (`docs/legal/`): a Política de Privacidade não dizia
+que a consulta por mês guarda o **IP** de quem pede (`ip_solicitante`, só
+pro limite de 5 por hora) — IP é dado pessoal na LGPD. Agora diz, junto com
+o que o IP **não** é: não sai na API pública (as colunas lidas não o
+incluem), nem no CSV, nem vai pro GitHub Actions (o disparo leva só
+município, ano e mês). Prazo de guarda: `[A DEFINIR]`, com proposta de 7
+dias — **não implementei a limpeza**: apagar dado de produção não tem
+volta, e o prazo é decisão do Pedro. Os **Termos de Uso** nunca existiram
+no repositório, apesar de o CHECKLIST dizer "rascunho redigido
+(`docs/legal/termos-de-uso.md`)" desde o planejamento; rascunho escrito
+agora (o que o painel é e não é — não é alerta: em incêndio, 193/199 —,
+sem garantia, uso dos dados, licença TBD, regras da consulta por mês).
+
+**CHECKLIST corrigido e recontado:** testes automatizados `[x]` (185 pytest
++ 39 Vitest, os dois no CI); monitoramento `[~]`; retenção `[~]` (o que é
+coletado está definido, falta o prazo); item do CSV descrevia o formato
+antigo; Termos de Uso descrito como realmente está. **27 feitos, 9
+parciais, 4 pendentes.** O README do webapp e o `CHANGELOG.md` tinham
+parado no começo do projeto (o README ainda listava mapa, páginas
+institucionais e testes como "o que falta"); os dois e o README do
+pipeline foram atualizados.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)
