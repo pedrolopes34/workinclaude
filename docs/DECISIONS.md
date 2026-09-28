@@ -3073,10 +3073,31 @@ guarda de jan/2023 em diante, com 2023 em `.zip` (12 arquivos) e 2024+ em
   explícito** (métricas NULL, como as 11 da pesquisa) em vez de apagar a
   linha — "sem linha" passa a querer dizer só "ainda não calculado" — e
   imprime um resumo por grupo como anotação do Actions.
-- **Reprocessamento disparado** (22:40 UTC, código da branch): ingestão de
-  2018 a 2026 (9 runs, todos concluídos com sucesso) e validação MapBiomas
-  de 2018 a 2024 (7 runs, a Coleção 4 vai até 2024). Resultado registrado
-  abaixo quando terminar.
+- **Reprocessamento** (27/09, 22:40 UTC, código da branch): ingestão de
+  2018 a 2026 (9 runs) e validação MapBiomas de 2018 a 2024 (7 runs
+  `36356101538` a `36356108934`, a Coleção 4 vai até 2024), **todos
+  concluídos com sucesso e 0 erro**. Cada ano leu os 6 anos anteriores de
+  focos como histórico (ex.: 2024 leu 2018–2024; 2018 leu 2012–2018) — o
+  que faltava na rodada da seção 6.53. Resultado (inventário, run
+  `36416953281`, 28/09):
+
+  | Ano | Alta | Média | Baixa | Insuficiente | Linhas |
+  |---|---|---|---|---|---|
+  | 2018 | 66 | 73 | 142 | 364 | 645 |
+  | 2019 | 44 | 80 | 153 | 368 | 645 |
+  | 2020 | 77 | 117 | 174 | 277 | 645 |
+  | 2021 | 66 | 116 | 198 | 265 | 645 |
+  | 2022 | 26 | 36 | 138 | 445 | 645 |
+  | 2023 | 28 | 36 | 135 | 446 | 645 |
+  | 2024, cálculo automático | 77 | 129 | 142 | 234 | 582 |
+  | 2024, pesquisa (ago/2024) | 10 | 25 | 17 | 11 | 63 |
+
+  As 63 linhas da pesquisa em 2024 continuam **iguais ao seed** (63 de 63,
+  fonte `manual` intacta); a página inicial mostra 2024 com as duas origens
+  somadas (87 Alta, 154 Média, 159 Baixa, 245 Insuficiente). `metricas_anuais`
+  tem 645 linhas em cada ano de 2018 a 2026. 2020, 2021 e 2024 têm bem
+  mais Alta/Média; em 2022 e 2023, ~69% dos municípios ficam Insuficiente
+  (nenhum agrupamento formado no ano).
 
 **Mosaico estadual de dNBR** (`pipeline/run_dnbr_estado.py`,
 `.github/workflows/dnbr-estado.yml`, commits `272bb19`/`6b782aa`): o mapa do
@@ -3097,6 +3118,20 @@ WebP de 381 KB; o resumo impresso no log (o sandbox não alcança o R2) deu
 95,1% sem sinal, 2,4% amarelo, 2,1% laranja, 0,4% vermelho, imagem em 43% do
 retângulo (a área de SP), e o desenho em texto reproduz o contorno do estado.
 O workflow roda todo dia 1 (mês que fechou), por mês ou em lote por ano.
+**Backfill (run `36357881208`, um job por ano, 27/09 23:12 → 28/09 00:10
+UTC): 104 de 104 meses** (jan/2018 a ago/2026), 0 erro, 0 mês sem imagem
+válida; 9 meses de 2018 (jan–set) no nível 1C, o resto com correção
+atmosférica. Conferência do site publicado: `diagnosticar_imagens_r2.py`
+passou a contar os meses de mosaico que o `/mapa` entrega (seção "5b"),
+contra o banco, e a testar uma imagem de exemplo. **Run `36417406238`
+(28/09, 11:44 UTC):** banco 104, bucket 104 objetos em `dnbr-estado/`,
+`/mapa` com **104 meses (2018-01 a 2026-08)**, imagem de exemplo HTTP 200
+`image/webp` (310 KB), página inicial com "104 meses no mapa". A primeira
+visita ao `/mapa` ainda recebeu a versão guardada no meio do backfill (48
+meses): a página é regenerada no máximo a cada hora (`revalidate = 3600`)
+e a regeneração só acontece quando alguém visita — a visita seguinte, 20 s
+depois, já veio completa. Vale também pro mês novo do dia 1: aparece na
+primeira visita depois da rodada (no pior caso, uma visita atrasada).
 
 **Interface** (tudo conferido com dado sintético no Postgres local — o
 sandbox não alcança o Neon nem o R2):
@@ -3195,6 +3230,13 @@ desenho. `gerar_mapa_sp.py` aplica `make_valid` (viewBox 1000×669, antes
 contorno do estado (`geodata/sp_contorno.geojson`), usado pelo mosaico
 estadual de dNBR.
 
+**Sitemap com os 645 (28/09):** o `sitemap.xml` só listava os 63 da
+amostra porque os outros 582 "mostravam não comparado/validado, sem valor
+de indexação". Isso deixou de valer — todo município tem agora focos e
+confiabilidade ano a ano desde 2018 e leitura de satélite —, então entram
+os 645 (mesma prioridade), em linha com o pedido do Pedro de focar nos 645.
+Nenhuma página tinha `noindex`, então não há outra trava a tirar.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)
@@ -3215,8 +3257,11 @@ estadual de dNBR.
   Presidente Prudente); próximo passo definido é validação visual por
   rank de recall antes de expandir.
 - **Página "Material didático"** — ainda não discutida.
-- **Orientadora formal do PIBIC** — nome só entra na página "Quem somos"
-  após autorização dela; por ora, só o nome de Pedro aparece.
+- **Foto da orientadora** (Profa. Dra. Ana Claudia de Jesus Golzio) — só
+  entra na página "Quem somos" depois que ela autorizar (Pedro, 27/09: "foto
+  dela por enquanto não, deixa ela autorizar"). Nome, resumo do Lattes e o
+  grupo SINACI já estão na página (seção 6.55); no lugar da foto, as
+  iniciais.
 - **Redesenho da interface gráfica (25/09/2026):** Pedro decidiu migrar a
   estética visual atual (dashboard "instrumento de precisão", IBM Plex Mono
   + Public Sans, paleta verde/azul — seção 5) para algo mais próximo do

@@ -19,8 +19,9 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
       até o nome/logo do produto ser decidido (`docs/DECISIONS.md` seção 7)
 - [x] `robots.txt` — `src/app/robots.ts`
 - [x] `sitemap.xml` — `src/app/sitemap.ts`, inclui a home, `/mapa`,
-      `/comparar` e os 63 municípios da amostra (os outros 582 ainda não
-      têm conteúdo próprio pra valer indexação). Corrigido em 27/09/2026:
+      `/comparar` e os **645 municípios** (28/09/2026: todos passaram a ter
+      conteúdo próprio — confiabilidade e focos ano a ano desde 2018 e
+      leitura de satélite; antes, só os 63 da amostra). Corrigido em 27/09/2026:
       sem a variável `NEXT_PUBLIC_SITE_URL`, sitemap e robots saíam com
       `example.com`; agora caem no endereço real (`src/lib/site.ts`)
 
@@ -44,10 +45,11 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
       (`/quem-somos`), junto com e-mail pessoal, e-mail institucional,
       Lattes e LinkedIn — portado do mockup pro produto de verdade nesta
       sessão (`docs/DECISIONS.md` seção 7)
-- [x] Página "Quem somos" — perfil do Pedro, contato completo (e-mails,
-      Lattes, LinkedIn, endereço institucional); nome da orientadora
-      deliberadamente omitido até autorização dela (`docs/DECISIONS.md`
-      seção 7). Rota real: `/quem-somos`
+- [x] Página "Quem somos" — perfil e foto do Pedro, contato completo
+      (e-mails, Lattes, LinkedIn, endereço institucional), seção
+      Orientação (Profa. Dra. Ana Claudia de Jesus Golzio, resumo do Lattes;
+      **foto dela só depois que ela autorizar**) e grupo SINACI com o logo
+      (27/09/2026, `docs/DECISIONS.md` seção 6.55). Rota real: `/quem-somos`
 - [x] Página "Como produzimos" — passo a passo do método, tabela de
       parâmetros tirada do código, regra dos 4 níveis (corrigida em
       27/09/2026: dizia "Recall ≥ 50% **ou** p < 0,05"), limitações
@@ -63,7 +65,11 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
       botões do topo alinhados (27/09/2026, `docs/DECISIONS.md` seção 6.55)
 - [x] Mapas do estado lado a lado — leitura de satélite (dNBR) mês a mês,
       com limites municipais liga/desliga, e confiabilidade dos 645 por ano;
-      mapa de focos com a mesma escala nos dois temas (seção 6.55)
+      mapa de focos com a mesma escala nos dois temas (seção 6.55).
+      **No ar: 104 de 104 meses** (jan/2018 a ago/2026, 0 erro) e
+      confiabilidade de 2018 a 2024 calculada pros 645 (0 erro; as 63 linhas
+      da pesquisa em 2024 intactas), conferidos no site publicado em
+      28/09/2026
 - [x] Busca com sugestões próprias até o último município (o `<datalist>`
       do Chrome parava no 521º) e lista agrupada por nível de confiabilidade
 - [x] Página do município ano a ano — anos clicáveis, painel por ano sem
@@ -198,7 +204,10 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 ---
 
 **Contagem atual:** 26 itens feitos, 8 parciais, 6 pendentes —
-atualizado em 27/09/2026 à noite (`docs/DECISIONS.md` seção 6.55): entraram
+atualizado em 28/09/2026 (`docs/DECISIONS.md` seção 6.55): backfill do mapa
+do estado completo (104 meses) e confiabilidade 2018–2024 dos 645 no ar,
+sitemap com os 645, "Quem somos" com foto, orientação e grupo; 151 testes
+pytest. Em 27/09/2026 à noite entraram
 a identidade visual dos selos e a fonte Inter, os mapas do estado lado a
 lado, a busca até o último município com a lista por nível, e a página do
 município ano a ano. Os testes pytest subiram de 132 para 145 (download

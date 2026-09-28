@@ -3,10 +3,11 @@ import { SITE_URL } from "@/lib/site";
 import { sql } from "@/lib/db";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // So os municipios da amostra tem conteudo proprio de verdade (os outros
-  // 582 mostram "nao comparado/validado", sem valor de indexacao ainda).
+  // Os 645: desde 28/09/2026 todo município tem conteúdo próprio (focos e
+  // confiabilidade ano a ano desde 2018, leitura de satélite) — antes só os
+  // 63 da amostra entravam (docs/DECISIONS.md seção 6.55).
   const municipios = await sql<{ codigoIbge: string }[]>`
-    SELECT codigo_ibge FROM municipios WHERE na_amostra ORDER BY codigo_ibge
+    SELECT codigo_ibge FROM municipios ORDER BY codigo_ibge
   `;
 
   return [
