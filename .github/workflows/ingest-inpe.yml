@@ -17,7 +17,9 @@ name: Ingestão INPE + ST-DBSCAN
 
 on:
   schedule:
-    - cron: "0 9 * * *" # 09:00 UTC = 06:00 em São Paulo (horário de verão à parte)
+    # 09:17 UTC = 06:17 em São Paulo. Fora da hora cheia: é nela que o GitHub
+    # mais atrasa ou descarta cron (docs/DECISIONS.md seção 6.56).
+    - cron: "17 9 * * *"
   workflow_dispatch:
     inputs:
       ano:

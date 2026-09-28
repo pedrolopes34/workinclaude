@@ -1,0 +1,59 @@
+name: Verificação diária de saúde
+
+# docs/DECISIONS.md seção 6.56 — nasceu do incidente da seção 6.49 (a cota
+# do Actions esgotou, o cron parou e ninguém ficou sabendo). Confere todo
+# dia se os focos do INPE, o mapa do estado, as miniaturas mensais, as
+# consultas por mês, as execuções da main e o site estão em dia
+# (pipeline/verificar_saude.py). Se algo falhar, o workflow fica vermelho e
+# abre (ou atualiza) uma issue "Alerta do painel" mencionando o dono do
+# repositório — o GitHub manda e-mail —, que se fecha sozinha quando tudo
+# volta ao normal. Só leitura no banco.
+#
+# Horário: 20:41 UTC (17:41 em SP), depois da ingestão diária mesmo com os
+# atrasos de várias horas do cron do GitHub, e fora da hora cheia. Em push
+# na branch de desenvolvimento roda só a verificação, sem mexer em issue.
+
+on:
+  schedule:
+    - cron: "41 20 * * *"
+  workflow_dispatch:
+  push:
+    branches: [claude/software-2-cqnuui]
+    paths:
+      - .github/workflows/saude-diaria.yml
+      - pipeline/verificar_saude.py
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: pipeline/requirements-consulta.txt
+
+      - name: Instalar dependências
+        run: pip install -r pipeline/requirements-consulta.txt
+
+      - name: Verificar
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ALERTA_MENCAO: ${{ github.repository_owner }}
+          ALERTAR: ${{ github.ref == 'refs/heads/main' }}
+        run: |
+          if [ "$ALERTAR" = "true" ]; then
+            python -m pipeline.verificar_saude --alertar
+          else
+            python -m pipeline.verificar_saude
+          fi

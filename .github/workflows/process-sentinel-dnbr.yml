@@ -16,7 +16,7 @@ name: dNBR mensal (Sentinel-2/GEE)
 
 on:
   schedule:
-    - cron: "0 10 1 * *" # dia 1 de cada mês, 10:00 UTC
+    - cron: "23 10 1 * *" # dia 1 de cada mês, 10:23 UTC (fora da hora cheia, seção 6.56)
   workflow_dispatch:
     inputs:
       municipio:
