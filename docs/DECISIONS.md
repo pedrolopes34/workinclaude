@@ -3232,6 +3232,20 @@ números de área de cada município continuam só do produto com correção
 atmosférica, como na pesquisa (usar 1C nos números seria mudança de
 método, pra decidir com o Pedro); (3) a descrição do input `ano` do
 workflow dizia "2024–atual".
+**Consulta #15 refeita com essa correção (28/09, run `36418022135`)
+falhou de novo:** as 5 tentativas do endpoint de **um** município
+(`/malhas/municipios/3501608`) voltaram com HTTP de sucesso e um corpo que
+**não é JSON** (não vazio — o erro é no primeiro caractere), sem nenhuma
+outra rodada concorrendo. A malha do **estado** (mesmo serviço, mesma
+`qualidade=maxima`) respondeu nos 14 jobs de validação. Então
+`buscar_geometria_municipio` passou a sair da malha do estado quando o
+pedido do município falha — é o mesmo polígono oficial que as validações
+usam, sem mudança de método — tentando-a **uma vez por execução** (numa
+rodada em lote que já pediu a malha e falhou, o IBGE fora do ar não vira
+645 downloads pesados). O log passa a mostrar o que o IBGE devolveu
+(status, tipo e o começo do corpo); a mensagem de erro gravada, que o
+visitante vê, fica curta ("IBGE devolveu resposta que nao e JSON (HTTP
+200, text/html)").
 
 **Malha do mapa:** 7 municípios do litoral (Bertioga, Cananéia,
 Caraguatatuba, Ilhabela, Peruíbe, São Sebastião, Ubatuba) vinham na malha

@@ -21,6 +21,14 @@ jobs de validacao pediam geometria ao mesmo tempo. Agora sao 5 tentativas
 (validacao, dNBR mensal) baixam a malha do ESTADO inteiro numa requisicao
 so (`carregar_malha_estadual`), em vez de uma por municipio; se essa falhar,
 cada municipio volta a ser pedido sozinho.
+
+28/09: refeita com o codigo acima, a consulta #15 falhou de novo — as 5
+tentativas do endpoint de UM municipio voltaram HTTP de sucesso com um corpo
+que nao e JSON, enquanto a malha do ESTADO (mesmo servico, mesma qualidade)
+respondia nas validacoes. Agora, se o pedido de um municipio falhar, ele sai
+da malha do estado (uma vez por execucao — numa rodada em lote com o IBGE
+fora do ar, nao repete o download pesado pra cada municipio), e o log mostra
+o que o IBGE devolveu (status, tipo e o comeco do corpo).
 """
 
 import time
@@ -41,6 +49,8 @@ URL_MALHA_ESTADO_POR_MUNICIPIO = (
 
 # codigo_ibge -> geometria ja baixada nesta execucao
 _CACHE: dict[str, BaseGeometry] = {}
+# Se a malha do estado ja foi pedida nesta execucao (com ou sem sucesso).
+_MALHA_ESTADUAL_TENTADA = False
 
 
 def _baixar_geojson(url: str, timeout_s: int, tentativas: int) -> dict:
@@ -53,7 +63,19 @@ def _baixar_geojson(url: str, timeout_s: int, tentativas: int) -> dict:
             resposta.raise_for_status()
             if not resposta.content.strip():
                 raise requests.exceptions.RequestException("IBGE devolveu resposta vazia")
-            return resposta.json()
+            try:
+                return resposta.json()
+            except ValueError:
+                tipo = resposta.headers.get("content-type", "?")
+                # Trecho so no log (dado publico do IBGE); a excecao fica curta
+                # porque vira a mensagem de erro mostrada ao visitante.
+                print(
+                    f"[IBGE] tentativa {tentativa + 1}/{tentativas}: HTTP {resposta.status_code}, {tipo}, "
+                    f"{len(resposta.content)} bytes, comeca com {resposta.text[:150]!r}"
+                )
+                raise requests.exceptions.RequestException(
+                    f"IBGE devolveu resposta que nao e JSON (HTTP {resposta.status_code}, {tipo})"
+                ) from None
         except (requests.exceptions.RequestException, ValueError) as e:
             erro = e
             if tentativa < tentativas - 1:
@@ -74,6 +96,8 @@ def carregar_malha_estadual(timeout_s: int = 180, tentativas: int = 5) -> int:
     """Baixa a malha de todos os municipios de SP numa requisicao e guarda no
     cache. Devolve quantos municipios entraram; 0 se falhou (nao e fatal:
     `buscar_geometria_municipio` volta a pedir municipio por municipio)."""
+    global _MALHA_ESTADUAL_TENTADA
+    _MALHA_ESTADUAL_TENTADA = True
     try:
         geojson = _baixar_geojson(URL_MALHA_ESTADO_POR_MUNICIPIO, timeout_s, tentativas)
     except Exception as e:
@@ -94,10 +118,19 @@ def buscar_geometria_municipio(codigo_ibge: str, timeout_s: int = 60, tentativas
     (WGS84/SIRGAS2000 — as duas coincidem na pratica para este uso, ver
     pipeline/stdbscan/core.py). Usa o cache (malha estadual ja baixada, ou o
     mesmo municipio pedido antes nesta execucao); senao pede so ele, com
-    backoff — levanta o último erro se todas as tentativas falharem."""
+    backoff; se todas falharem, tenta pela malha do estado (uma vez por
+    execucao) e, sem ela, levanta o ultimo erro."""
     if codigo_ibge in _CACHE:
         return _CACHE[codigo_ibge]
-    geojson = _baixar_geojson(URL_MALHA_MUNICIPIO.format(codigo_ibge=codigo_ibge), timeout_s, tentativas)
+    try:
+        geojson = _baixar_geojson(URL_MALHA_MUNICIPIO.format(codigo_ibge=codigo_ibge), timeout_s, tentativas)
+    except Exception as erro:
+        if not _MALHA_ESTADUAL_TENTADA:
+            print(f"[AVISO] malha do municipio {codigo_ibge} indisponivel ({erro}); tentando pela malha do estado")
+            carregar_malha_estadual()
+            if codigo_ibge in _CACHE:
+                return _CACHE[codigo_ibge]
+        raise
     features = geojson.get("features", [])
     if not features:
         raise ValueError(f"IBGE nao retornou geometria para codigo_ibge={codigo_ibge}")
