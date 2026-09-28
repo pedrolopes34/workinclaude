@@ -225,10 +225,12 @@ nova). Tabela `consultas_sob_demanda` nunca sobrescreve `metricas_anuais`.
 Validado de ponta a ponta contra Postgres real nesta sessão (primeira vez
 que um Postgres+PostGIS local foi montado aqui) — achou e corrigiu 3 bugs
 reais (id BIGSERIAL virando string no JSON, formato de resposta
-inconsistente, `.gitignore` bloqueando `.env.example`). Falta só o Pedro
-criar o `GITHUB_DISPATCH_TOKEN` (fine-grained PAT do GitHub) pra
-funcionar em produção — sem ele, a funcionalidade falha graciosamente
-(mensagem de erro clara, nunca quebra o resto do site).
+inconsistente, `.gitignore` bloqueando `.env.example`). **Em produção**
+(o `GITHUB_DISPATCH_TOKEN` já está configurado — as consultas saem do
+próprio site). A #15 (Americana, ago/2026) falhou duas vezes pelo serviço
+de malhas do IBGE, que devolvia resposta inválida pro pedido de um
+município; foi refeita e **concluída em 28/09/2026**, e desde então esse
+pedido cai na malha do estado quando o IBGE falha (seção 6.55).
 
 atualizado em 26/09/2026: site publicado em produção
 (`workinclaude.vercel.app`, seção 6.37 — HTTPS fecha sozinho), proteção
