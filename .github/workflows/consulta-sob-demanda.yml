@@ -22,7 +22,7 @@ on:
         description: "Código IBGE (7 dígitos)"
         required: true
       ano:
-        description: "Ano (2024–atual — 2018-2023 ainda não integrado, ver docs/DECISIONS.md seção 7)"
+        description: "Ano (2018–atual, docs/DECISIONS.md seção 6.55)"
         required: true
       mes:
         description: "Mês (1-12), precisa já ter terminado por completo"

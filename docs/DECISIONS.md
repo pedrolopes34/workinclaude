@@ -3220,6 +3220,18 @@ na execução, e as rodadas em lote (validação, dNBR mensal) baixam a malha do
 município. **/comparar:** a lista de sugestões ficava atrás do selo da
 tabela (o `backdrop-blur` do formulário cria um contexto de empilhamento);
 o formulário ganhou `z-10`, abaixo do cabeçalho fixo (`z-20`).
+Ajustes de 28/09 na consulta: (1) gravar o resultado limpa `mensagem_erro`
+— refazer uma consulta que falhou (ou que o /webapp expirou e depois
+terminou) deixava a linha "concluída" carregando o erro antigo (a
+interface não mostrava, mas o dado ficava incoerente); (2) a explicação da
+leitura de satélite na consulta diz que, nos meses até setembro de 2018, a
+falta de valor vem de o Sentinel-2 com correção atmosférica ainda não
+cobrir SP (não de nuvem) — o mosaico do estado usou o nível 1C em jan–set
+de 2018 justamente por isso. A consulta municipal **não** ganhou o 1C: os
+números de área de cada município continuam só do produto com correção
+atmosférica, como na pesquisa (usar 1C nos números seria mudança de
+método, pra decidir com o Pedro); (3) a descrição do input `ano` do
+workflow dizia "2024–atual".
 
 **Malha do mapa:** 7 municípios do litoral (Bertioga, Cananéia,
 Caraguatatuba, Ilhabela, Peruíbe, São Sebastião, Ubatuba) vinham na malha

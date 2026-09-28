@@ -341,7 +341,7 @@ export function ConsultaSobDemanda({
             <InfoTile
               rotulo="Área (satélite)"
               valor={formatKm2(consulta.areaDnbrKm2)}
-              explicacao="Área dentro do município com dNBR de pelo menos 0,10 (Sentinel-2), comparando o mês anterior com o mês escolhido. Fica sem valor quando a imagem disponível tinha nuvem demais sobre o município."
+              explicacao="Área dentro do município com dNBR de pelo menos 0,10 (Sentinel-2), comparando o mês anterior com o mês escolhido. Fica sem valor quando a imagem disponível tinha nuvem demais sobre o município — ou, nos meses até setembro de 2018, porque o Sentinel-2 com correção atmosférica ainda não cobria São Paulo."
             />
           </div>
           <p className="text-[11px] leading-relaxed text-faint">

@@ -91,6 +91,7 @@ def test_gravar_resultado_inclui_todos_os_campos():
     _gravar_resultado(conn, 42, resultado)
     query, params = _cursor_mock(conn).execute.call_args[0]
     assert "status = 'concluido'" in query
+    assert "mensagem_erro = NULL" in query
     assert params == {"id": 42, **resultado, "versao_metodo": VERSAO_METODO}
 
 

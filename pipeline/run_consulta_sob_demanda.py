@@ -141,6 +141,9 @@ def _gravar_resultado(conn, consulta_id: int, resultado: dict) -> None:
                 area_dnbr_km2 = %(area_dnbr_km2)s,
                 dnbr_imagem_url = %(dnbr_imagem_url)s,
                 versao_metodo = %(versao_metodo)s,
+                -- limpa o erro de uma tentativa anterior (expirada pelo
+                -- /webapp ou refeita depois de uma falha)
+                mensagem_erro = NULL,
                 concluido_em = now()
             WHERE id = %(id)s
             """,
