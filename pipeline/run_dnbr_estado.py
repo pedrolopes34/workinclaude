@@ -30,7 +30,7 @@ migrações idempotentes do pipeline).
 
 import argparse
 import json
-from datetime import date, timedelta
+from datetime import date
 from io import BytesIO
 from pathlib import Path
 

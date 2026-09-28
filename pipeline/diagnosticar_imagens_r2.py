@@ -13,7 +13,8 @@ lá (`diagnostico-imagens-r2.yml`) e imprime tudo que importa num só log:
    consultas_sob_demanda): quantas URLs, com que host;
 3. o que existe de fato no bucket (chaves reais);
 4. se a URL gravada e a URL "base atual + chave" respondem da internet;
-5. o que o site publicado renderiza no `src` da imagem.
+5. o que o site publicado renderiza no `src` da imagem — e quantos meses do
+   mapa do estado (mosaicos, `dnbr-estado/`) o /mapa entrega, contra o banco.
 
 `--corrigir` reescreve cada URL gravada como `base atual + chave do objeto`,
 mas só depois de confirmar que essa combinação responde 200 com imagem de
@@ -23,6 +24,7 @@ verdade — nunca troca uma URL quebrada por outra quebrada.
 import argparse
 import os
 import re
+import time
 from collections import Counter
 from urllib.parse import urlparse
 
@@ -35,6 +37,9 @@ from pipeline.run_dnbr import _diagnostico_seguro, _endpoint_r2, _env_r2
 SITE_PUBLICADO = "https://workinclaude.vercel.app"
 MUNICIPIOS_AMOSTRA = {"3500105": "Adamantina", "3533908": "Olímpia", "3539509": "Pitangueiras"}
 TABELAS_COM_IMAGEM = ("metricas_anuais", "consultas_sob_demanda")
+# Mosaicos do estado (run_dnbr_estado.py::chave_r2): `dnbr-estado/AAAA-MM.webp`.
+PADRAO_MES_MOSAICO = re.compile(r"dnbr-estado/(\d{4}-\d{2})\.webp")
+PADRAO_URL_MOSAICO = re.compile(r"https?://[^\"'\\\s]+?/dnbr-estado/\d{4}-\d{2}\.webp")
 
 
 def categoria_host(url: str) -> str:
@@ -63,6 +68,19 @@ def testar_http(url: str) -> tuple[bool, str]:
     tipo = resposta.headers.get("content-type", "?")
     ok = resposta.status_code == 200 and tipo.startswith("image/")
     return ok, f"HTTP {resposta.status_code} | {tipo} | {len(resposta.content)} bytes"
+
+
+def meses_de_mosaico_na_pagina(html: str) -> list[str]:
+    """Meses ("AAAA-MM") de mosaico do estado que a página publicada entrega ao
+    navegador. As URLs vão no payload do React Server Components, dentro de
+    strings com aspas escapadas — por isso a busca é pelo trecho da chave, não
+    por JSON."""
+    return sorted(set(PADRAO_MES_MOSAICO.findall(html)))
+
+
+def url_de_mosaico_na_pagina(html: str) -> str | None:
+    achado = PADRAO_URL_MOSAICO.search(html)
+    return achado.group(0) if achado else None
 
 
 def _tabela_existe(cur, tabela: str) -> bool:
@@ -124,11 +142,15 @@ def main() -> None:
         print(f"FALHOU ao listar o bucket: {type(e).__name__}: {e}")
         chaves = set()
     chaves_dnbr = sorted(k for k in chaves if k.startswith("dnbr/"))
-    print(f"total de objetos: {len(chaves)} | com prefixo dnbr/: {len(chaves_dnbr)}")
+    chaves_estado = sorted(k for k in chaves if k.startswith("dnbr-estado/"))
+    print(
+        f"total de objetos: {len(chaves)} | com prefixo dnbr/: {len(chaves_dnbr)}"
+        f" | com prefixo dnbr-estado/: {len(chaves_estado)}"
+    )
     print(f"exemplos: {chaves_dnbr[:3]} ... {chaves_dnbr[-3:]}")
-    outras = sorted(chaves - set(chaves_dnbr))[:5]
+    outras = sorted(chaves - set(chaves_dnbr) - set(chaves_estado))[:5]
     if outras:
-        print(f"objetos FORA de dnbr/ (inesperado): {outras}")
+        print(f"objetos FORA de dnbr/ e dnbr-estado/ (inesperado): {outras}")
 
     print("\n=== 3. URLs gravadas no banco ===")
     with get_connection() as conn:
@@ -189,6 +211,41 @@ def main() -> None:
             except ValueError:
                 detalhe = " | NÃO é JSON"
         print(f"{caminho}: HTTP {resposta.status_code} | {resposta.headers.get('content-type', '?')} | {len(resposta.content)} bytes{detalhe}")
+
+    # Mapa do estado mês a mês (docs/DECISIONS.md seção 6.55). O /mapa é
+    # regenerado no máximo a cada hora (revalidate = 3600): a primeira visita
+    # depois disso ainda recebe a versão guardada e dispara a nova — por isso
+    # a segunda tentativa quando a página vem com menos meses que o banco.
+    print("\n=== 5b. Mapa do estado mês a mês (mosaicos) ===")
+    with get_connection() as conn, conn.cursor() as cur:
+        no_banco = 0
+        if _tabela_existe(cur, "mosaicos_dnbr"):
+            cur.execute("SELECT count(*) FROM mosaicos_dnbr")
+            no_banco = cur.fetchone()[0]
+    print(f"no banco: {no_banco} meses | no bucket: {len(chaves_estado)} objetos em dnbr-estado/")
+    html_mapa = ""
+    for tentativa in (1, 2):
+        try:
+            resposta = requests.get(f"{SITE_PUBLICADO}/mapa", timeout=30)
+        except Exception as e:
+            print(f"/mapa (tentativa {tentativa}): FALHOU: {type(e).__name__}")
+            continue
+        html_mapa = resposta.text
+        meses = meses_de_mosaico_na_pagina(html_mapa)
+        faixa = f" | de {meses[0]} a {meses[-1]}" if meses else ""
+        print(f"/mapa (tentativa {tentativa}): HTTP {resposta.status_code} | {len(meses)} meses na página{faixa}")
+        if len(meses) >= no_banco:
+            break
+        time.sleep(20)
+    url_exemplo = url_de_mosaico_na_pagina(html_mapa)
+    if url_exemplo:
+        print(f"imagem de exemplo ({urlparse(url_exemplo).path}): {testar_http(url_exemplo)[1]}")
+    try:
+        inicio = requests.get(SITE_PUBLICADO, timeout=30)
+        contagem = re.search(r"(\d+) meses no mapa", inicio.text)
+        print(f"/: HTTP {inicio.status_code} | texto da página inicial: {contagem.group(0) if contagem else 'sem contagem de meses'}")
+    except Exception as e:
+        print(f"/: FALHOU: {type(e).__name__}")
 
     if not args.corrigir:
         print("\n(modo só leitura — rode com --corrigir pra reescrever as URLs gravadas)")
