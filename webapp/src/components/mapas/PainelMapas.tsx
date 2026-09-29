@@ -9,9 +9,10 @@ import { chaveMes } from "@/lib/meses";
 // Os dois mapas do estado lado a lado (docs/DECISIONS.md seção 6.55, pedido
 // do Pedro: "espelhar dNBR × confiabilidade"): a leitura de satélite de um
 // mês à esquerda e a confiabilidade de um ano à direita. Mês e ano ficam na
-// URL (?mes=AAAA-MM&ano=AAAA), pra um link abrir a mesma visão; trocar o mês
-// leva a confiabilidade pro mesmo ano quando ele existe. Precisa de
-// <Suspense> em volta (useSearchParams numa página pré-renderizada).
+// URL (?mes=AAAA-MM&ano=AAAA), pra um link abrir a mesma visão. Os dois são
+// independentes (seção 6.57, pedido do Pedro): trocar o mês não mexe no ano
+// da confiabilidade, e vice-versa. Precisa de <Suspense> em volta
+// (useSearchParams numa página pré-renderizada).
 export function PainelMapas({
   mosaicos,
   porAno,
@@ -31,8 +32,7 @@ export function PainelMapas({
   const mesUrl = params.get("mes");
   const chave = mosaicos.some((m) => chaveMes(m) === mesUrl) ? (mesUrl as string) : (mesPadrao ?? "");
   const anoUrl = Number(params.get("ano"));
-  const anoDoMes = Number(chave.slice(0, 4));
-  const ano = anos.includes(anoUrl) ? anoUrl : anos.includes(anoDoMes) ? anoDoMes : (anos[0] ?? new Date().getFullYear());
+  const ano = anos.includes(anoUrl) ? anoUrl : (anos[0] ?? new Date().getFullYear());
 
   function atualizar(mudancas: Record<string, string>) {
     const busca = new URLSearchParams(params.toString());
@@ -41,8 +41,7 @@ export function PainelMapas({
   }
 
   function escolherMes(nova: string) {
-    const anoNovo = Number(nova.slice(0, 4));
-    atualizar(anos.includes(anoNovo) ? { mes: nova, ano: String(anoNovo) } : { mes: nova });
+    atualizar({ mes: nova });
   }
 
   return (

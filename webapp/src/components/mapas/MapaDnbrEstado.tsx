@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import type { MosaicoDnbr } from "@/lib/types";
 import { MESES_CURTOS, MESES_LONGOS, chaveMes, rotuloMes } from "@/lib/meses";
+import { avisoSemLeitura } from "@/lib/mapas";
 import { Dica, EsqueletoMapa, FONTE_MALHA, retanguloNoMapa, useMalhaSP } from "./malha";
 
 // Leitura de satélite (dNBR) do estado inteiro num mês (docs/DECISIONS.md
@@ -11,7 +12,11 @@ import { Dica, EsqueletoMapa, FONTE_MALHA, retanguloNoMapa, useMalhaSP } from ".
 // desliga. Mesma paleta das miniaturas municipais (verde = sem sinal, até
 // preto = dNBR de 0,70 ou mais).
 
-export function LegendaDnbr() {
+// Onde a imagem do mês não tem pixel (nenhuma cena limpa: nuvem o mês todo),
+// aparece a hachura por baixo — sem leitura, e não "sem mudança" (seção 6.57).
+const HACHURA = "bg-[repeating-linear-gradient(135deg,var(--faint)_0_1px,transparent_1px_4px)]";
+
+export function LegendaDnbr({ semLeitura = false }: { semLeitura?: boolean }) {
   return (
     <div className="space-y-1">
       <span
@@ -23,6 +28,12 @@ export function LegendaDnbr() {
         <span>0,10 ou menos</span>
         <span>0,70 ou mais</span>
       </div>
+      {semLeitura && (
+        <p className="flex items-center gap-1.5 text-[11px] text-faint">
+          <span className={`h-3 w-3 rounded-sm border border-faint ${HACHURA}`} aria-hidden="true" />
+          sem leitura (nuvem)
+        </p>
+      )}
     </div>
   );
 }
@@ -83,6 +94,7 @@ export function MapaDnbrEstado({
   }
 
   const mesesDoAno = mosaicos.filter((m) => m.ano === mosaico.ano);
+  const aviso = avisoSemLeitura(mosaico.coberturaPct);
 
   return (
     <div className="space-y-2.5">
@@ -162,9 +174,15 @@ export function MapaDnbrEstado({
             onPointerMove={interativo ? aoMoverPonteiro : undefined}
             onPointerLeave={interativo ? () => setDica(null) : undefined}
           >
-            {/* Fundo neutro: onde a imagem é transparente (nuvem, sem cena), aparece o município. */}
+            <defs>
+              <pattern id="hachura-sem-leitura" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <rect width="5" height="5" className="fill-[var(--background)]" />
+                <line x1="0" y1="0" x2="0" y2="5" className="stroke-[var(--faint)]" strokeWidth="1.2" />
+              </pattern>
+            </defs>
+            {/* Por baixo da imagem: onde ela é transparente (sem cena limpa no mês), aparece a hachura. */}
             {Object.entries(malha.municipios).map(([codigo, d]) => (
-              <path key={`f${codigo}`} d={d} className="fill-[var(--border)]" />
+              <path key={`f${codigo}`} d={d} fill="url(#hachura-sem-leitura)" />
             ))}
             {(() => {
               const r = retanguloNoMapa(malha, [mosaico.oeste, mosaico.sul, mosaico.leste, mosaico.norte]);
@@ -191,7 +209,14 @@ export function MapaDnbrEstado({
                 />
               );
               return interativo ? (
-                <a key={codigo} href={`/municipio/${codigo}`} tabIndex={-1} aria-hidden="true">
+                // O clique abre o município no mês do mapa (seção 6.57): o ano
+                // no painel e a leitura de satélite daquele mês na consulta.
+                <a
+                  key={codigo}
+                  href={`/municipio/${codigo}?periodo=${mosaico.ano}&ano=${mosaico.ano}&mes=${mosaico.mes}#consulta`}
+                  tabIndex={-1}
+                  aria-hidden="true"
+                >
                   {caminho}
                 </a>
               ) : (
@@ -203,7 +228,8 @@ export function MapaDnbrEstado({
         <Dica dica={dica} />
       </div>
 
-      <LegendaDnbr />
+      <LegendaDnbr semLeitura={aviso !== null} />
+      {aviso && <p className="text-[11px] font-medium text-muted">{aviso}</p>}
       {!compacto && (
         <p className="text-[11px] text-faint">
           dNBR entre {MESES_LONGOS[(mosaico.mes + 10) % 12]} e {MESES_LONGOS[mosaico.mes - 1]}: quanto mais alto, maior

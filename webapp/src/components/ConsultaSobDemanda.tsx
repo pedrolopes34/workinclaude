@@ -207,7 +207,7 @@ export function ConsultaSobDemanda({
     : `${NOMES_MESES[mes - 1]}/${ano}`;
 
   return (
-    <section className="space-y-3 rounded-2xl border border-border bg-surface p-5 shadow-sm">
+    <section id="consulta" className="scroll-mt-24 space-y-3 rounded-2xl border border-border bg-surface p-5 shadow-sm">
       <div>
         <h2 className="text-sm font-medium text-foreground">Consultar outro período</h2>
         <p className="mt-1 text-xs text-muted">

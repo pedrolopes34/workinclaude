@@ -4,7 +4,7 @@ import { urlPublicaDnbr, urlPublicaR2 } from "./imagensR2";
 import type {
   Confiabilidade,
   ConfiabilidadeNoAno,
-  ContagemConfiabilidade,
+  LinhaFocosAno,
   Municipio,
   MunicipioResumo,
   MunicipioDetalhe,
@@ -68,19 +68,6 @@ export async function listMunicipios(
   `;
 }
 
-export async function contarPorConfiabilidade(): Promise<ContagemConfiabilidade> {
-  const linhas = await sql<{ confiabilidade: Confiabilidade; total: number }[]>`
-    SELECT v.confiabilidade, count(*)::int AS total
-    FROM municipios m
-    ${ultimaValidacao}
-    WHERE v.confiabilidade IS NOT NULL
-    GROUP BY v.confiabilidade
-  `;
-  const contagem: ContagemConfiabilidade = { Alta: 0, Média: 0, Baixa: 0, Insuficiente: 0 };
-  for (const l of linhas) contagem[l.confiabilidade] = l.total;
-  return contagem;
-}
-
 // Todas as comparações com o MapBiomas (município × ano), pro mapa de
 // confiabilidade com seletor de ano.
 export const listarConfiabilidadePorAno = cache(async function listarConfiabilidadePorAno(): Promise<
@@ -122,13 +109,27 @@ export const listarMunicipiosNoMapa = cache(async function listarMunicipiosNoMap
   `;
 });
 
+// Focos de calor por município em cada ano desde 2018, pro mapa de focos com
+// seletor de ano (docs/DECISIONS.md seção 6.57). Em 2024, as 63 linhas da
+// amostra são as da pesquisa (só agosto) — por isso o na_amostra junto.
+export const listarFocosPorAno = cache(async function listarFocosPorAno(): Promise<LinhaFocosAno[]> {
+  return sql<LinhaFocosAno[]>`
+    SELECT m.codigo_ibge, m.na_amostra, a.ano::int, a.num_focos_calor
+    FROM municipios m
+    JOIN metricas_anuais a ON a.codigo_ibge = m.codigo_ibge
+    WHERE a.ano >= 2018
+    ORDER BY m.codigo_ibge, a.ano
+  `;
+});
+
 // Meses com mosaico estadual de leitura de satélite. A tabela nasce na
 // primeira rodada de run_dnbr_estado.py — antes disso, lista vazia.
 export const listarMosaicos = cache(async function listarMosaicos(): Promise<MosaicoDnbr[]> {
   const [existe] = await sql<{ existe: boolean }[]>`SELECT to_regclass('mosaicos_dnbr') IS NOT NULL AS existe`;
   if (!existe?.existe) return [];
   const linhas = await sql<MosaicoDnbr[]>`
-    SELECT ano::int, mes::int, imagem_url, oeste, sul, leste, norte, colecao
+    SELECT ano::int, mes::int, imagem_url, oeste, sul, leste, norte, colecao,
+           cobertura_pct::float AS cobertura_pct
     FROM mosaicos_dnbr
     ORDER BY ano, mes
   `;

@@ -70,6 +70,14 @@ export interface MunicipioNoMapa {
   dnbrImagemUrl: string | null;
 }
 
+// Focos de um município num ano, pro mapa de focos (seção 6.57).
+export interface LinhaFocosAno {
+  codigoIbge: string;
+  naAmostra: boolean;
+  ano: number;
+  numFocosCalor: number | null;
+}
+
 // Uma comparação com o MapBiomas por município × ano, pro mapa de
 // confiabilidade com seletor de ano (seção 6.55).
 export interface ConfiabilidadeNoAno {
@@ -123,4 +131,6 @@ export interface MosaicoDnbr {
   leste: number;
   norte: number;
   colecao: string;
+  // % do estado com leitura no mês; o resto ficou sem imagem limpa (nuvem).
+  coberturaPct: number | null;
 }

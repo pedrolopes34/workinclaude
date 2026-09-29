@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
 import { Hero } from "@/components/Hero";
-import { MapaSPComCamadaNaUrl, type MunicipioMapa } from "@/components/MapaSP";
+import { MapaFocosComAnoNaUrl } from "@/components/MapaSP";
 import { PainelMapas } from "@/components/mapas/PainelMapas";
 import { chaveMes } from "@/lib/meses";
-import { listarConfiabilidadePorAno, listarMosaicos, listarMunicipiosNoMapa } from "@/lib/queries";
-import { agruparConfiabilidade } from "@/lib/mapas";
+import { listarConfiabilidadePorAno, listarFocosPorAno, listarMosaicos, listarMunicipiosNoMapa } from "@/lib/queries";
+import { agruparConfiabilidade, montarFocosPorAno } from "@/lib/mapas";
 
 export const metadata: Metadata = {
   title: "Mapa de São Paulo — Painel de Queimadas SP",
@@ -19,22 +19,17 @@ export const metadata: Metadata = {
 export const revalidate = 3600;
 
 export default async function MapaPage() {
-  const [municipios, confiabilidades, mosaicos] = await Promise.all([
+  const [municipios, confiabilidades, mosaicos, linhasFocos] = await Promise.all([
     listarMunicipiosNoMapa(),
     listarConfiabilidadePorAno(),
     listarMosaicos(),
+    listarFocosPorAno(),
   ]);
   const anoAtual = new Date().getFullYear();
-  const anos = { anterior: anoAtual - 1, atual: anoAtual };
   const nomes = Object.fromEntries(municipios.map((m) => [m.codigoIbge, m.nome]));
   const porAno = agruparConfiabilidade(confiabilidades);
   const ultimoMosaico = mosaicos[mosaicos.length - 1];
-  const focos: MunicipioMapa[] = municipios.map((m) => ({
-    codigoIbge: m.codigoIbge,
-    nome: m.nome,
-    focosAnoAnterior: m.focosAnoAnterior,
-    focosAnoAtual: m.focosAnoAtual,
-  }));
+  const focos = montarFocosPorAno(linhasFocos);
 
   return (
     <div className="space-y-6">
@@ -59,7 +54,7 @@ export default async function MapaPage() {
         <Suspense
           fallback={<div className="w-full animate-pulse rounded-xl bg-background" style={{ aspectRatio: "1000 / 740" }} />}
         >
-          <MapaSPComCamadaNaUrl arquivo="/mapa/sp.json" municipios={focos} anos={anos} />
+          <MapaFocosComAnoNaUrl arquivo="/mapa/sp.json" focos={focos} nomes={nomes} anoAtual={anoAtual} />
         </Suspense>
         <p className="mt-3 text-[11px] text-faint">As faixas são fixas: não mudam de um ano para o outro.</p>
       </section>
@@ -72,8 +67,8 @@ export default async function MapaPage() {
             <dd>
               A diferença do índice de queima (NBR) do Sentinel-2 entre o mês anterior e o mês escolhido, no estado
               inteiro. Verde é sem sinal; do amarelo ao preto, mudança cada vez maior na vegetação. Mostra onde a
-              vegetação mudou, e não só fogo: colheita também muda o sinal. Onde houve nuvem demais, o município
-              fica sem cor.
+              vegetação mudou, e não só fogo: colheita também muda o sinal. Onde as nuvens não deixaram o satélite
+              enxergar o solo durante o mês, a área fica hachurada e o mapa diz quanto do estado ficou sem leitura.
             </dd>
           </div>
           <div>
@@ -88,9 +83,9 @@ export default async function MapaPage() {
           <div>
             <dt className="font-semibold text-foreground">Focos de calor</dt>
             <dd>
-              Pontos quentes detectados pelo satélite de referência do INPE, o mesmo da pesquisa, somados no ano (
-              {anos.anterior} completo; {anos.atual} até agora). Foco de calor não é incêndio confirmado, e zero focos
-              não prova que não houve fogo.
+              Pontos quentes detectados pelo satélite de referência do INPE, o mesmo da pesquisa, somados no ano
+              escolhido, de 2018 a {anoAtual} ({anoAtual} até agora). Foco de calor não é incêndio confirmado, e zero
+              focos não prova que não houve fogo.
             </dd>
           </div>
         </dl>

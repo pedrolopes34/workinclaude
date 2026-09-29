@@ -170,8 +170,9 @@ export function MapaConfiabilidade({
               );
               return interativo ? (
                 // tabIndex -1 e aria-hidden: 645 paradas de Tab seriam inúteis;
-                // a busca e a lista por nível são o caminho acessível.
-                <a key={codigo} href={`/municipio/${codigo}`} tabIndex={-1} aria-hidden="true">
+                // a busca e a lista por nível são o caminho acessível. O clique
+                // abre o município no ano do mapa (seção 6.57), não no padrão.
+                <a key={codigo} href={`/municipio/${codigo}?periodo=${ano}#ano`} tabIndex={-1} aria-hidden="true">
                   {caminho}
                 </a>
               ) : (

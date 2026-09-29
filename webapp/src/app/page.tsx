@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import Link from "next/link";
 import {
   NIVEIS_CONFIABILIDADE,
-  contarPorConfiabilidade,
   getResumoCobertura,
   listMunicipios,
   listarConfiabilidadePorAno,
@@ -10,8 +9,14 @@ import {
   listarMunicipiosNoMapa,
 } from "@/lib/queries";
 import { REGRA_CONFIABILIDADE, formatData, formatPct } from "@/lib/format";
-import { agruparConfiabilidade, anoMaisRecente, mesDeVitrine } from "@/lib/mapas";
-import type { Confiabilidade, MunicipioResumo } from "@/lib/types";
+import {
+  agruparConfiabilidade,
+  anosComConfiabilidade,
+  confiabilidadeDoAno,
+  contarNiveis,
+  mesDeVitrine,
+} from "@/lib/mapas";
+import type { Confiabilidade, ConfiabilidadeNoAno, MunicipioResumo } from "@/lib/types";
 import { Hero } from "@/components/Hero";
 import { BuscaMunicipio } from "@/components/BuscaMunicipio";
 import { MapaConfiabilidade } from "@/components/mapas/MapaConfiabilidade";
@@ -42,10 +47,12 @@ function ListaCompacta({
   municipios,
   maximo,
   comInterseccao,
+  ano,
 }: {
   municipios: MunicipioResumo[];
   maximo: number;
   comInterseccao: boolean;
+  ano: number;
 }) {
   if (municipios.length === 0) {
     return <p className="border-t border-border px-4 py-3 text-sm text-muted">Nenhum município neste nível.</p>;
@@ -55,7 +62,7 @@ function ListaCompacta({
       {municipios.map((m) => (
         <li key={m.codigoIbge}>
           <Link
-            href={`/municipio/${m.codigoIbge}`}
+            href={`/municipio/${m.codigoIbge}?periodo=${ano}#ano`}
             className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-sm text-foreground hover:bg-background"
           >
             <span className="truncate">{m.nome}</span>
@@ -75,11 +82,13 @@ function GrupoNivel({
   municipios,
   maximo,
   aberto,
+  ano,
 }: {
   nivel: Confiabilidade;
   municipios: MunicipioResumo[];
   maximo: number;
   aberto: boolean;
+  ano: number;
 }) {
   return (
     <details
@@ -101,15 +110,35 @@ function GrupoNivel({
           </span>
         </span>
       </summary>
-      <ListaCompacta municipios={municipios} maximo={maximo} comInterseccao={nivel !== "Insuficiente"} />
+      <ListaCompacta municipios={municipios} maximo={maximo} comInterseccao={nivel !== "Insuficiente"} ano={ano} />
     </details>
   );
 }
 
 // Com busca: lista direta dos que casam. Sem busca: os 645 agrupados por
-// nível (docs/DECISIONS.md seção 6.55).
-async function ListaMunicipios({ termo, nivelAberto }: { termo?: string; nivelAberto?: Confiabilidade }) {
-  const municipios = await listMunicipios(termo);
+// nível (docs/DECISIONS.md seção 6.55). Sempre a classificação do ano
+// escolhido no seletor (seção 6.57), não a mais recente de cada município.
+async function ListaMunicipios({
+  termo,
+  nivelAberto,
+  ano,
+  doAno,
+}: {
+  termo?: string;
+  nivelAberto?: Confiabilidade;
+  ano: number;
+  doAno: Map<string, ConfiabilidadeNoAno>;
+}) {
+  const municipios = (await listMunicipios(termo)).map((m) => {
+    const v = doAno.get(m.codigoIbge);
+    return {
+      ...m,
+      confiabilidade: v?.confiabilidade ?? null,
+      interseccaoPct: v?.interseccaoPct ?? null,
+      fonte: v?.fonte ?? null,
+      ano: v ? ano : null,
+    };
+  });
   const maximo = Math.max(1, ...municipios.map((m) => (m.interseccaoPct === null ? 0 : Number(m.interseccaoPct))));
 
   if (termo) {
@@ -128,7 +157,7 @@ async function ListaMunicipios({ termo, nivelAberto }: { termo?: string; nivelAb
             {municipios.map((m) => (
               <li key={m.codigoIbge}>
                 <Link
-                  href={`/municipio/${m.codigoIbge}`}
+                  href={`/municipio/${m.codigoIbge}?periodo=${ano}#ano`}
                   className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-surface px-4 py-3.5 shadow-sm transition-colors hover:border-acento/40"
                 >
                   <div className="min-w-0">
@@ -164,15 +193,21 @@ async function ListaMunicipios({ termo, nivelAberto }: { termo?: string; nivelAb
   const semClassificacao = municipios
     .filter((m) => !m.confiabilidade)
     .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
-  const ano = municipios.reduce<number | null>((max, m) => (m.ano && (!max || m.ano > max) ? m.ano : max), null);
 
   return (
     <section className="space-y-2.5" aria-labelledby="titulo-lista">
       <h2 id="titulo-lista" className="text-sm font-medium text-muted">
-        Os {municipios.length} municípios por confiabilidade{ano ? ` (${ano})` : ""}
+        Os {municipios.length} municípios por confiabilidade ({ano})
       </h2>
       {NIVEIS_CONFIABILIDADE.map((nivel) => (
-        <GrupoNivel key={nivel} nivel={nivel} municipios={doNivel(nivel)} maximo={maximo} aberto={nivelAberto === nivel} />
+        <GrupoNivel
+          key={nivel}
+          nivel={nivel}
+          municipios={doNivel(nivel)}
+          maximo={maximo}
+          aberto={nivelAberto === nivel}
+          ano={ano}
+        />
       ))}
       {semClassificacao.length > 0 && (
         <details className="group rounded-2xl border border-border bg-surface shadow-sm">
@@ -184,7 +219,7 @@ async function ListaMunicipios({ termo, nivelAberto }: { termo?: string; nivelAb
               ▾
             </span>
           </summary>
-          <ListaCompacta municipios={semClassificacao} maximo={maximo} comInterseccao={false} />
+          <ListaCompacta municipios={semClassificacao} maximo={maximo} comInterseccao={false} ano={ano} />
         </details>
       )}
     </section>
@@ -202,21 +237,56 @@ function ListaSkeleton() {
   );
 }
 
+// Seletor do ano da confiabilidade (seção 6.57): links que trocam ?ano= e
+// mantêm a busca, sem JavaScript — dá pra compartilhar a visão de um ano.
+function SeletorAno({ anos, atual, termo }: { anos: number[]; atual: number; termo?: string }) {
+  return (
+    <nav aria-label="Ano da confiabilidade" className="flex flex-wrap items-center gap-1.5">
+      <span className="mr-1 text-xs text-muted">Ano:</span>
+      {anos.map((a) => {
+        const busca = new URLSearchParams();
+        if (termo) busca.set("q", termo);
+        busca.set("ano", String(a));
+        return (
+          <Link
+            key={a}
+            href={`/?${busca.toString()}#lista`}
+            aria-current={a === atual ? "page" : undefined}
+            scroll={false}
+            className={`rounded-full border px-3 py-1 text-xs font-semibold tabular-nums ${
+              a === atual
+                ? "border-foreground bg-foreground text-background"
+                : "border-border bg-surface text-muted hover:text-foreground"
+            }`}
+          >
+            {a}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; nivel?: string }>;
+  searchParams: Promise<{ q?: string; nivel?: string; ano?: string }>;
 }) {
-  const { q, nivel: nivelBruto } = await searchParams;
+  const { q, nivel: nivelBruto, ano: anoBruto } = await searchParams;
   const nivelAberto = lerNivel(nivelBruto);
-  const [cobertura, contagem, todos, confiabilidades, mosaicos] = await Promise.all([
+  const [cobertura, todos, confiabilidades, mosaicos] = await Promise.all([
     getResumoCobertura(),
-    contarPorConfiabilidade(),
     listarMunicipiosNoMapa(),
     listarConfiabilidadePorAno(),
     listarMosaicos(),
   ]);
-  const anoConfiabilidade = anoMaisRecente(confiabilidades) ?? new Date().getFullYear();
+  // Ano da confiabilidade: o pedido na URL, ou o mais recente.
+  const anosConfiabilidade = anosComConfiabilidade(confiabilidades);
+  const anoConfiabilidade = anosConfiabilidade.includes(Number(anoBruto))
+    ? Number(anoBruto)
+    : (anosConfiabilidade.at(-1) ?? new Date().getFullYear());
+  const doAno = confiabilidadeDoAno(confiabilidades, anoConfiabilidade);
+  const contagem = contarNiveis(doAno);
   const porAno = agruparConfiabilidade(confiabilidades, anoConfiabilidade);
   const vitrine = mesDeVitrine(mosaicos);
 
@@ -265,7 +335,11 @@ export default async function Home({
           <li className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <strong className="text-foreground">Confiabilidade {anoConfiabilidade}:</strong>
             {NIVEIS_CONFIABILIDADE.map((n) => (
-              <Link key={n} href={`/?nivel=${encodeURIComponent(n)}#nivel-${n}`} className="hover:underline">
+              <Link
+                key={n}
+                href={`/?ano=${anoConfiabilidade}&nivel=${encodeURIComponent(n)}#nivel-${n}`}
+                className="hover:underline"
+              >
                 <span className="tabular-nums">{contagem[n]}</span> {n}
               </Link>
             ))}
@@ -319,6 +393,7 @@ export default async function Home({
           ) : (
             <p className="text-xs text-muted">Abra um nível para ver os municípios. A barra é a Interseção com o MapBiomas.</p>
           )}
+          <SeletorAno anos={anosConfiabilidade} atual={anoConfiabilidade} termo={q} />
           <a
             href="/dados/municipios.csv"
             download
@@ -328,8 +403,8 @@ export default async function Home({
           </a>
         </div>
 
-        <Suspense key={`${q ?? ""}|${nivelAberto ?? ""}`} fallback={<ListaSkeleton />}>
-          <ListaMunicipios termo={q} nivelAberto={nivelAberto} />
+        <Suspense key={`${q ?? ""}|${nivelAberto ?? ""}|${anoConfiabilidade}`} fallback={<ListaSkeleton />}>
+          <ListaMunicipios termo={q} nivelAberto={nivelAberto} ano={anoConfiabilidade} doAno={doAno} />
         </Suspense>
       </div>
     </div>

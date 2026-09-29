@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { agruparConfiabilidade, anoMaisRecente, mesDeVitrine } from "./mapas";
+import {
+  agruparConfiabilidade,
+  anoMaisRecente,
+  anosComConfiabilidade,
+  avisoSemLeitura,
+  confiabilidadeDoAno,
+  contarNiveis,
+  mesDeVitrine,
+  montarFocosPorAno,
+} from "./mapas";
 import { chaveMes, rotuloMes } from "./meses";
 import { urlPublicaDnbr, urlPublicaR2, R2_BASE_PUBLICA } from "./imagensR2";
 import type { ConfiabilidadeNoAno, MosaicoDnbr } from "./types";
@@ -73,5 +82,46 @@ describe("endereço público das imagens no R2", () => {
     expect(urlPublicaR2("/dnbr-pitangueiras.png")).toBe("/dnbr-pitangueiras.png");
     expect(urlPublicaR2(null)).toBeNull();
     expect(urlPublicaDnbr(null)).toBeNull();
+  });
+});
+
+describe("mapa de focos por ano", () => {
+  it("códigos uma vez, um vetor por ano na mesma ordem, lacunas como nulo", () => {
+    const focos = montarFocosPorAno([
+      { codigoIbge: "3539509", naAmostra: true, ano: 2024, numFocosCalor: 12 },
+      { codigoIbge: "3500105", naAmostra: false, ano: 2024, numFocosCalor: 40 },
+      { codigoIbge: "3500105", naAmostra: false, ano: 2018, numFocosCalor: 3 },
+    ]);
+    expect(focos.codigos).toEqual(["3500105", "3539509"]);
+    expect(focos.anos).toEqual([2018, 2024]);
+    expect(focos.valores[2024]).toEqual([40, 12]);
+    expect(focos.valores[2018]).toEqual([3, null]); // Pitangueiras sem linha em 2018
+    expect(focos.amostra).toEqual(["3539509"]);
+  });
+});
+
+describe("confiabilidade por ano (página inicial)", () => {
+  it("anos em ordem, classificação e contagem só do ano escolhido", () => {
+    expect(anosComConfiabilidade(linhas)).toEqual([2021, 2024]);
+    const de2024 = confiabilidadeDoAno(linhas, 2024);
+    expect([...de2024.keys()].sort()).toEqual(["3500105", "3539509"]);
+    expect(contarNiveis(de2024)).toEqual({ Alta: 1, Média: 0, Baixa: 0, Insuficiente: 1 });
+    expect(contarNiveis(confiabilidadeDoAno(linhas, 2021))).toEqual({ Alta: 0, Média: 0, Baixa: 1, Insuficiente: 0 });
+    expect(confiabilidadeDoAno(linhas, 2019).size).toBe(0);
+  });
+});
+
+describe("aviso de falta de leitura no mapa do estado", () => {
+  it("diz quanto do estado ficou sem leitura por causa das nuvens", () => {
+    expect(avisoSemLeitura(53)).toBe(
+      "Nas áreas hachuradas (47% do estado), as nuvens impediram o satélite de enxergar o solo neste mês: não há leitura."
+    );
+    expect(avisoSemLeitura(99.2)).toMatch(/\(1% do estado\)/);
+  });
+
+  it("sem aviso quando o estado está coberto ou a cobertura é desconhecida", () => {
+    expect(avisoSemLeitura(99.6)).toBeNull();
+    expect(avisoSemLeitura(100)).toBeNull();
+    expect(avisoSemLeitura(null)).toBeNull();
   });
 });

@@ -2,17 +2,19 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import type { FocosPorAno } from "@/lib/mapas";
 
-// Mapa dos focos de calor por município (docs/DECISIONS.md seções 6.52, 6.54
-// e 6.55). A geometria é um arquivo estático pré-projetado
+// Mapa dos focos de calor por município (docs/DECISIONS.md seções 6.52, 6.54,
+// 6.55 e 6.57). A geometria é um arquivo estático pré-projetado
 // (geodata/gerar_mapa_sp.py, malha do IBGE) em /public/mapa, baixado e
 // desenhado no navegador: fica em cache e não vai duplicada no HTML e no
 // payload de hidratação. Sem biblioteca de mapa.
 //
-// Camadas: focos de calor do ano anterior completo e do ano corrente, nos 645,
-// numa escala azul sequencial validada (tokens --mapa-* no globals.css) com
-// faixas FIXAS, que não mudam com o dado. A leitura de satélite e a
-// confiabilidade ganharam mapas próprios (components/mapas, seção 6.55).
+// Um ano por vez, de 2018 ao ano corrente (pedido do Pedro, seção 6.57), nos
+// 645, numa escala azul sequencial validada (tokens --mapa-* no globals.css)
+// com faixas FIXAS, que não mudam de um ano para o outro — num ano ruim, mais
+// municípios caem na faixa de cima, e isso é a informação. O clique abre o
+// município no ano escolhido.
 interface DadosMapa {
   largura: number;
   altura: number;
@@ -21,16 +23,9 @@ interface DadosMapa {
   municipios: Record<string, string>;
 }
 
-export interface MunicipioMapa {
-  codigoIbge: string;
-  nome?: string;
-  focosAnoAnterior: number | null;
-  focosAnoAtual: number | null;
-}
-
-export type CamadaMapa = "focos-anterior" | "focos-atual";
-
 export const FONTE_MALHA = "Malha municipal: IBGE, via geodata-br (CC0)";
+// Ano em que a linha dos 63 da amostra é a da pesquisa: só agosto.
+const ANO_DA_PESQUISA = 2024;
 
 // Classes escritas por extenso: o Tailwind só gera o que aparece no código.
 const PREENCHIMENTO_ESCALA = [
@@ -52,7 +47,8 @@ const AMOSTRA_ESCALA = [
 const SEM_DADO = "fill-[var(--border)]";
 
 // Faixas fixas, escolhidas pela distribuição real de produção (inventário,
-// seção 6.54): focos por município têm mediana 1 e p99 31 em 2025.
+// seções 6.54 e 6.57): a mediana de focos por município vai de 1 (2022, 2023,
+// 2025) a 6 (2024); o p90, de 6 a 28.
 const FAIXAS_FOCOS = [
   { ate: 0, rotulo: "0" },
   { ate: 2, rotulo: "1–2" },
@@ -71,58 +67,55 @@ interface Classificacao {
   texto: string; // o que a dica mostra
 }
 
-function classificar(camada: CamadaMapa, m: MunicipioMapa, anos: { anterior: number; atual: number }): Classificacao {
-  const anterior = camada === "focos-anterior";
-  const valor = anterior ? m.focosAnoAnterior : m.focosAnoAtual;
-  const ano = anterior ? anos.anterior : anos.atual;
+function classificar(valor: number | null, ano: number, anoAtual: number, daPesquisa: boolean): Classificacao {
   if (valor === null) return { classe: SEM_DADO, legenda: "sem-dado", texto: `sem dado de ${ano}` };
   const i = faixa(FAIXAS_FOCOS, valor);
+  const periodo = daPesquisa ? `agosto de ${ano} (pesquisa)` : ano === anoAtual ? `${ano} (até agora)` : String(ano);
   return {
     classe: PREENCHIMENTO_ESCALA[i],
     legenda: FAIXAS_FOCOS[i].rotulo,
-    texto: `${valor} foco${valor === 1 ? "" : "s"} de calor em ${ano}${anterior ? "" : " (até agora)"}`,
+    texto: `${valor} foco${valor === 1 ? "" : "s"} de calor em ${periodo}`,
   };
 }
 
-const CAMADAS: CamadaMapa[] = ["focos-anterior", "focos-atual"];
-
-export const CAMADA_PADRAO: CamadaMapa = "focos-anterior";
-
 interface PropsMapa {
   arquivo: "/mapa/sp.json" | "/mapa/sp-leve.json";
-  municipios: MunicipioMapa[];
-  anos: { anterior: number; atual: number };
+  focos: FocosPorAno;
+  nomes: Record<string, string>;
+  anoAtual: number;
 }
 
-// Página /mapa: a camada vem da URL (?camada=), pra um link reproduzir a
-// mesma visão, e trocar de camada reescreve a URL sem recarregar. Precisa de
-// <Suspense> em volta (useSearchParams numa página pré-renderizada).
-export function MapaSPComCamadaNaUrl(props: PropsMapa) {
+// Página /mapa: o ano vem da URL (?focos=AAAA — o ?ano= é o da
+// confiabilidade), pra um link reproduzir a mesma visão, e trocar de ano
+// reescreve a URL sem recarregar. Precisa de <Suspense> em volta
+// (useSearchParams numa página pré-renderizada). Padrão: o último ano
+// completo.
+export function MapaFocosComAnoNaUrl(props: PropsMapa) {
   const params = useSearchParams();
-  const camada = CAMADAS.find((c) => c === params.get("camada")) ?? CAMADA_PADRAO;
+  const pedido = Number(params.get("focos"));
+  const padrao = props.focos.anos.includes(props.anoAtual - 1) ? props.anoAtual - 1 : props.focos.anos.at(-1);
+  const ano = props.focos.anos.includes(pedido) ? pedido : (padrao ?? props.anoAtual);
 
-  function escolher(nova: CamadaMapa) {
+  function escolher(novo: number) {
     const busca = new URLSearchParams(params.toString());
-    busca.set("camada", nova);
+    busca.set("focos", String(novo));
     window.history.replaceState(null, "", `?${busca.toString()}`);
   }
 
-  return <MapaSP {...props} camada={camada} aoEscolherCamada={escolher} />;
+  return <MapaSP {...props} ano={ano} aoEscolherAno={escolher} />;
 }
 
 export function MapaSP({
   arquivo,
-  municipios,
-  anos,
-  camada,
-  aoEscolherCamada,
+  focos,
+  nomes,
+  anoAtual,
+  ano,
+  aoEscolherAno,
 }: PropsMapa & {
-  camada: CamadaMapa;
-  // Com seletor (página /mapa): seletor de camada, links, dica. Sem ele
-  // (prévia da home): só o desenho da camada pedida.
-  aoEscolherCamada?: (camada: CamadaMapa) => void;
+  ano: number;
+  aoEscolherAno: (ano: number) => void;
 }) {
-  const interativo = Boolean(aoEscolherCamada);
   const [dados, setDados] = useState<DadosMapa | null>(null);
   const [falhou, setFalhou] = useState(false);
   const [dica, setDica] = useState<{ x: number; y: number; texto: string } | null>(null);
@@ -139,13 +132,16 @@ export function MapaSP({
     return () => controle.abort();
   }, [arquivo]);
 
+  const amostra = useMemo(() => new Set(focos.amostra), [focos.amostra]);
   const classificados = useMemo(() => {
-    const porCodigo = new Map<string, Classificacao & { municipio: MunicipioMapa }>();
-    for (const m of municipios) {
-      porCodigo.set(m.codigoIbge, { ...classificar(camada, m, anos), municipio: m });
-    }
+    const valores = focos.valores[ano] ?? [];
+    const porCodigo = new Map<string, Classificacao>();
+    focos.codigos.forEach((codigo, i) => {
+      const daPesquisa = ano === ANO_DA_PESQUISA && amostra.has(codigo);
+      porCodigo.set(codigo, classificar(valores[i] ?? null, ano, anoAtual, daPesquisa));
+    });
     return porCodigo;
-  }, [municipios, camada, anos]);
+  }, [focos, ano, anoAtual, amostra]);
 
   const contagem = useMemo(() => {
     const c = new Map<string, number>();
@@ -156,10 +152,7 @@ export function MapaSP({
   const legenda = FAIXAS_FOCOS.map((f, i) => ({ rotulo: f.rotulo, amostra: AMOSTRA_ESCALA[i], n: contagem.get(f.rotulo) ?? 0 }));
   const semDado = contagem.get("sem-dado") ?? 0;
 
-  const titulo = {
-    "focos-anterior": `Focos de calor em ${anos.anterior}`,
-    "focos-atual": `Focos de calor em ${anos.atual}, até agora`,
-  }[camada];
+  const titulo = `Focos de calor em ${ano}${ano === anoAtual ? ", até agora" : ""}`;
   const descricaoAcessivel = `${titulo}, nos 645 municípios de São Paulo: ${legenda
     .map((l) => `${l.rotulo}: ${l.n}`)
     .join("; ")}${semDado ? `; sem dado: ${semDado}` : ""}.`;
@@ -168,37 +161,27 @@ export function MapaSP({
     const alvo = (e.target as Element).closest("[data-codigo]");
     const caixa = caixaRef.current?.getBoundingClientRect();
     if (!alvo || !caixa) return setDica(null);
-    const item = classificados.get(alvo.getAttribute("data-codigo") ?? "");
+    const codigo = alvo.getAttribute("data-codigo") ?? "";
+    const item = classificados.get(codigo);
     if (!item) return setDica(null);
-    setDica({
-      x: e.clientX - caixa.left,
-      y: e.clientY - caixa.top,
-      texto: `${item.municipio.nome ?? item.municipio.codigoIbge}: ${item.texto}`,
-    });
+    setDica({ x: e.clientX - caixa.left, y: e.clientY - caixa.top, texto: `${nomes[codigo] ?? codigo}: ${item.texto}` });
   }
 
   return (
     <div className="space-y-3">
-      {interativo && (
-        <div role="group" aria-label="Escolher camada do mapa" className="flex flex-wrap gap-1.5">
-          {CAMADAS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              aria-pressed={camada === c}
-              onClick={() => aoEscolherCamada?.(c)}
-              className={`rounded-full border px-3 py-1 text-xs font-semibold ${camada === c ? "border-foreground bg-foreground text-background" : "border-border bg-surface text-muted hover:text-foreground"}`}
-            >
-              {
-                {
-                  "focos-anterior": `Focos ${anos.anterior}`,
-                  "focos-atual": `Focos ${anos.atual}`,
-                }[c]
-              }
-            </button>
-          ))}
-        </div>
-      )}
+      <div role="group" aria-label="Ano dos focos de calor" className="flex flex-wrap gap-1.5">
+        {focos.anos.map((a) => (
+          <button
+            key={a}
+            type="button"
+            aria-pressed={ano === a}
+            onClick={() => aoEscolherAno(a)}
+            className={`rounded-full border px-3 py-1 text-xs font-semibold tabular-nums ${ano === a ? "border-foreground bg-foreground text-background" : "border-border bg-surface text-muted hover:text-foreground"}`}
+          >
+            {a}
+          </button>
+        ))}
+      </div>
 
       <div className="space-y-1.5">
         <p className="text-sm font-medium text-foreground">{titulo}</p>
@@ -231,34 +214,26 @@ export function MapaSP({
         ) : (
           <svg
             viewBox={`0 0 ${dados.largura} ${dados.altura}`}
-            // Versão com links: "group", porque "img" torna os filhos
-            // apresentacionais e não pode conter elementos interativos.
-            role={interativo ? "group" : "img"}
+            // "group", porque "img" torna os filhos apresentacionais e não pode
+            // conter elementos interativos.
+            role="group"
             aria-label={descricaoAcessivel}
             className="h-auto w-full"
-            onPointerMove={interativo ? aoMoverPonteiro : undefined}
-            onPointerLeave={interativo ? () => setDica(null) : undefined}
+            onPointerMove={aoMoverPonteiro}
+            onPointerLeave={() => setDica(null)}
           >
-            {Object.entries(dados.municipios).map(([codigo, d]) => {
-              const item = classificados.get(codigo);
-              const caminho = (
+            {Object.entries(dados.municipios).map(([codigo, d]) => (
+              // tabIndex -1 e aria-hidden: 645 paradas de Tab seriam inúteis
+              // pra quem navega por teclado — a busca e a lista da página
+              // inicial são o caminho acessível pros mesmos municípios.
+              <a key={codigo} href={`/municipio/${codigo}?periodo=${ano}#ano`} tabIndex={-1} aria-hidden="true">
                 <path
                   d={d}
                   data-codigo={codigo}
-                  className={`${item?.classe ?? SEM_DADO} stroke-[var(--mapa-contorno)] transition-opacity [stroke-width:0.6] ${interativo ? "hover:opacity-75" : ""}`}
+                  className={`${classificados.get(codigo)?.classe ?? SEM_DADO} stroke-[var(--mapa-contorno)] transition-opacity [stroke-width:0.6] hover:opacity-75`}
                 />
-              );
-              return interativo ? (
-                // tabIndex -1 e aria-hidden: 645 paradas de Tab seriam inúteis
-                // pra quem navega por teclado — a busca e a lista da página
-                // inicial são o caminho acessível pros mesmos municípios.
-                <a key={codigo} href={`/municipio/${codigo}`} tabIndex={-1} aria-hidden="true">
-                  {caminho}
-                </a>
-              ) : (
-                <g key={codigo}>{caminho}</g>
-              );
-            })}
+              </a>
+            ))}
           </svg>
         )}
         {dica && (
@@ -270,6 +245,12 @@ export function MapaSP({
           </div>
         )}
       </div>
+      {ano === ANO_DA_PESQUISA && focos.amostra.length > 0 && (
+        <p className="text-[11px] text-faint">
+          Em {ANO_DA_PESQUISA}, os {focos.amostra.length} municípios estudados na pesquisa mostram os focos de agosto
+          (o período da pesquisa); os demais, o ano inteiro.
+        </p>
+      )}
     </div>
   );
 }
