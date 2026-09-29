@@ -382,6 +382,9 @@ export default async function MunicipioPage({
   // Padrão: o ano mais recente com confiabilidade; sem nenhuma, o mais recente com dado.
   const anoPadrao = ultimaValidacao?.ano ?? metricas.find((m) => m.numFocosCalor !== null)?.ano ?? anoAtual;
   const anoSelecionado = anos.includes(Number(periodo)) ? Number(periodo) : anoPadrao;
+  // O selo do cabeçalho é o do ano escolhido (seção 6.57, pedido do Pedro:
+  // "mostrar a confiabilidade do ano escolhido, e não de 2024").
+  const validacaoDoAno = validacoes.find((v) => v.ano === anoSelecionado) ?? null;
 
   // Mantém ?ano=&mes= da consulta por mês ao trocar o ano do painel.
   function hrefAno(ano: number): string {
@@ -411,11 +414,18 @@ export default async function MunicipioPage({
           <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
             {municipio.nome} <span className="text-lg font-normal text-muted">· SP</span>
           </h1>
-          {ultimaValidacao && (
+          {validacaoDoAno ? (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted">Confiabilidade {ultimaValidacao.ano}</span>
-              <SeloConfiabilidade nivel={ultimaValidacao.confiabilidade} />
+              <span className="text-xs text-muted">Confiabilidade {anoSelecionado}</span>
+              <SeloConfiabilidade nivel={validacaoDoAno.confiabilidade} />
             </div>
+          ) : (
+            ultimaValidacao && (
+              <p className="max-w-xs text-right text-xs text-muted">
+                Confiabilidade {anoSelecionado}: ainda sem comparação — o MapBiomas Fogo vai até{" "}
+                {ultimaValidacao.ano}.
+              </p>
+            )
           )}
         </div>
         <dl className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted">

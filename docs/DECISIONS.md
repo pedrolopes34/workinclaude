@@ -3481,6 +3481,15 @@ recente: ago → set/2026"), e quem chega pelo mapa do estado com um mês
 satélite de março de 2026, o mês que você escolheu no mapa do estado, está
 em Consultar outro período, mais abaixo."
 
+**Selo do cabeçalho do município segue o ano escolhido (Pedro, 29/09: "vc
+tem que mostrar a confiabilidade do ano escolhido, e não de 2024"):** o
+selo ao lado do nome era sempre o da validação mais recente (2024 pra
+todos), mesmo com `?periodo=2021`. Agora é o do ano do painel; em 2025 e
+2026, que ainda não têm comparação (a coleção do MapBiomas Fogo vai até
+2024, seção 6.22), o cabeçalho diz "Confiabilidade 2025: ainda sem
+comparação — o MapBiomas Fogo vai até 2024." Sem ano na URL, continua
+abrindo no ano mais recente com comparação.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)
