@@ -47,6 +47,16 @@ DIAS_TOLERANCIA_MENSAL = 2  # as rodadas do dia 1 atrasam no Actions
 WORKFLOWS_FORA_DA_VERIFICACAO = ("consulta-sob-demanda.yml", "saude-diaria.yml")
 TITULO_ISSUE = "Alerta do painel"
 _MARCA = re.compile(r"<!-- falhas: (.*?) -->")
+# @vercel/analytics 2.x (webapp/package.json): com o Analytics ligado, a
+# Vercel embute no JS do site, no build, a configuração do projeto —
+# NEXT_PUBLIC_VERCEL_OBSERVABILITY_CLIENT_CONFIG, ex.
+# '{"analytics":{"scriptSrc":"<caminho do projeto>/script.js",...}}' — ou um
+# caminho base (NEXT_PUBLIC_VERCEL_OBSERVABILITY_BASEPATH). Só sem nenhum dos
+# dois o script sai de /_vercel/insights/script.js (seção 6.56: conferir esse
+# endereço fixo dava 404 com o Analytics ligado).
+_CONFIG_ANALYTICS = re.compile(r'\\?"analytics\\?":\{[^{}]*?\\?"scriptSrc\\?":\\?"([^"\\]+)')
+_BASE_ANALYTICS = re.compile(r'basePath:function\(\)\{[^{}]*?return"(/[^"]*)"\}')
+SCRIPT_ANALYTICS_PADRAO = "/_vercel/insights/script.js"
 
 
 @dataclass(frozen=True)
@@ -174,6 +184,40 @@ def avaliar_fonte_inpe(ultima_modificacao: datetime | None, agora: datetime) -> 
     horas = (agora - ultima_modificacao).total_seconds() / 3600
     detalhe = f"atualizado em {ultima_modificacao:%d/%m %H:%M} UTC (há {horas:.0f} h)"
     return Resultado(nome, "atencao" if horas > 72 else "ok", detalhe)
+
+
+def endereco_script_analytics(textos_js: list[str]) -> tuple[str | None, str]:
+    """(endereço do script de métricas, de onde veio), na mesma ordem da
+    biblioteca: `scriptSrc` da configuração embutida, caminho base embutido
+    ou o padrão. None quando a biblioteca nem está no JS do site."""
+    for js in textos_js:
+        achado = _CONFIG_ANALYTICS.search(js)
+        if achado:
+            src = achado.group(1)
+            return (src if src.startswith(("http://", "https://", "/")) else f"/{src}"), "configuração da Vercel no build"
+    for js in textos_js:
+        achado = _BASE_ANALYTICS.search(js)
+        if achado:
+            return f"{achado.group(1).rstrip('/')}/insights/script.js", "caminho base da Vercel no build"
+    if any("/insights/script.js" in js for js in textos_js):
+        return SCRIPT_ANALYTICS_PADRAO, "padrão"
+    return None, "biblioteca de métricas não encontrada no JS do site"
+
+
+def avaliar_analytics(endereco: str | None, origem: str, status: int | str | None) -> Resultado:
+    nome = "Vercel Analytics"
+    if endereco is None:
+        return Resultado(nome, "atencao", origem)
+    if status == 200:
+        return Resultado(nome, "ok", f"ativo — script em {endereco} ({origem})")
+    if origem == "padrão":
+        return Resultado(
+            nome,
+            "atencao",
+            f"{endereco} → {status}, sem configuração da Vercel no JS do site: "
+            "Analytics desligado, ou ligado depois do último deploy",
+        )
+    return Resultado(nome, "atencao", f"{endereco} → {status} ({origem})")
 
 
 def chave_das_falhas(resultados: list[Resultado]) -> str:
@@ -327,12 +371,18 @@ def _coletar_site() -> list[Resultado]:
 
     resultados.insert(0, avaliar_site(respostas, municipios_no_sitemap))
 
-    analytics = _status(f"{SITE_PUBLICADO}/_vercel/insights/script.js")
-    resultados.append(
-        Resultado("Vercel Analytics", "ok", "ativo (script de métricas respondendo)")
-        if analytics == 200
-        else Resultado("Vercel Analytics", "atencao", f"script de métricas → {analytics}: aba Analytics desligada na Vercel?")
-    )
+    # O endereço do script de métricas sai do JS que a página inicial carrega.
+    try:
+        inicio = requests.get(SITE_PUBLICADO, timeout=30).text
+        scripts = sorted(set(re.findall(r'<script[^>]+src="([^"]+\.js)"', inicio)))[:40]
+        textos = [requests.get(s if s.startswith("http") else SITE_PUBLICADO + s, timeout=30).text for s in scripts]
+        endereco, origem = endereco_script_analytics(textos)
+        status = None
+        if endereco:
+            status = _status(endereco if endereco.startswith("http") else SITE_PUBLICADO + endereco)
+        resultados.append(avaliar_analytics(endereco, origem, status))
+    except requests.RequestException as e:
+        resultados.append(Resultado("Vercel Analytics", "atencao", f"não deu pra verificar: {type(e).__name__}"))
     return resultados
 
 

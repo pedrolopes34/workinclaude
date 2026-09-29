@@ -272,3 +272,45 @@ def test_alertar_ignora_pull_request_e_issue_de_outro_titulo(github):
         {**ISSUE_ABERTA, "pull_request": {"url": "..."}},
     ]
     assert v.alertar(RESULTADOS) == "abrir"
+
+
+# Trecho real do JS publicado (29/09/2026, investigação da seção 6.56): o
+# @vercel/analytics 2.x com a configuração que a Vercel embute no build.
+_CHUNK_BIBLIOTECA = (
+    'src:(n=o).scriptSrc?l(n.scriptSrc):a()?"https://va.vercel-scripts.com/v1/script.debug.js":'
+    'n.basePath?l(`${n.basePath}/insights/script.js`):"/_vercel/insights/script.js",dataset:u}'
+)
+_CHUNK_CONFIG = (
+    "basePath:function(){if(void 0!==t.default&&void 0!==t.default.env)return "
+    "t.default.env.NEXT_PUBLIC_VERCEL_OBSERVABILITY_BASEPATH}(),configString:function(){if(void 0!==t.default"
+    '&&void 0!==t.default.env)return\'{"analytics":{"scriptSrc":"fb8fa6a264f1635a/script.js",'
+    '"viewEndpoint":"fb8fa6a264f1635a/view"}}\'}()'
+)
+
+
+def test_script_do_analytics_sai_da_configuracao_embutida():
+    endereco, origem = v.endereco_script_analytics(["outro chunk", _CHUNK_BIBLIOTECA + _CHUNK_CONFIG])
+    assert endereco == "/fb8fa6a264f1635a/script.js"
+    assert origem == "configuração da Vercel no build"
+
+
+def test_configuracao_com_aspas_escapadas_tambem_vale():
+    chunk = 'x="{\\"analytics\\":{\\"scriptSrc\\":\\"abc123/script.js\\"}}"'
+    assert v.endereco_script_analytics([chunk])[0] == "/abc123/script.js"
+
+
+def test_caminho_base_embutido():
+    chunk = _CHUNK_BIBLIOTECA + 'basePath:function(){if(void 0!==t.default)return"/meu-caminho"}()'
+    assert v.endereco_script_analytics([chunk]) == ("/meu-caminho/insights/script.js", "caminho base da Vercel no build")
+
+
+def test_sem_configuracao_usa_o_padrao_e_sem_biblioteca_nao_ha_endereco():
+    assert v.endereco_script_analytics([_CHUNK_BIBLIOTECA]) == ("/_vercel/insights/script.js", "padrão")
+    assert v.endereco_script_analytics(["nada aqui"])[0] is None
+
+
+def test_avaliar_analytics():
+    assert v.avaliar_analytics("/fb8fa6a264f1635a/script.js", "configuração da Vercel no build", 200).nivel == "ok"
+    desligado = v.avaliar_analytics("/_vercel/insights/script.js", "padrão", 404)
+    assert desligado.nivel == "atencao" and "desligado" in desligado.detalhe
+    assert v.avaliar_analytics(None, "biblioteca de métricas não encontrada no JS do site", None).nivel == "atencao"
