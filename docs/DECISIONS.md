@@ -3373,9 +3373,94 @@ abrir alerta (run `36503509465`). A ingestão agendada pras 09:17 UTC saiu
 os atrasos do GitHub neste repositório — a janela de 36 h da verificação
 continua sendo o que evita alarme falso. O Pedro **ativou o Vercel
 Analytics** em 29/09; às 17:51 UTC a verificação (run `36607886920`) ainda
-via o script de métricas em 404, porque a Vercel só cria as rotas
-`/_vercel/insights/*` no deploy seguinte à ativação — o deploy veio com o
-commit deste registro.
+via o script de métricas em 404, e a primeira hipótese foi o deploy (a
+Vercel diz que as rotas do Analytics nascem no deploy seguinte à
+ativação); o deploy veio com o commit desse registro e o 404 continuou.
+
+**Correção (29/09): a checagem do Analytics olhava o endereço errado — e o
+"desligado" de 28/09 não era confiável.** O `@vercel/analytics` 2.x, com o
+Analytics ligado, pega o endereço do script da configuração que a Vercel
+embute no JS no build (`NEXT_PUBLIC_VERCEL_OBSERVABILITY_CLIENT_CONFIG`,
+com `scriptSrc` num caminho próprio do projeto, ou um caminho base); só sem
+ela usa `/_vercel/insights/script.js`, que era o que a verificação pedia.
+Uma investigação descartável no runner (workflow
+`investigar-analytics.yml`, run `36608421938`, apagado em seguida) achou no
+JS publicado `{"analytics":{"scriptSrc":"fb8fa6a264f1635a/script.js",...}}`
+— ou seja, **a ativação chegou ao site**. A verificação agora segue a mesma
+ordem da biblioteca a partir dos scripts da página inicial
+(`endereco_script_analytics`, 5 testes com o trecho real). Não dá pra
+dizer se o Analytics já estava ligado em 28/09: o teste daquele dia não
+distinguia. Em aberto: o caminho certo (`/fb8fa6a264f1635a/script.js`)
+também responde 404 a um pedido simples do runner (run `36608737956`); a
+confirmação definitiva é o Pedro abrir o site e ver a visita aparecer na
+aba Analytics da Vercel.
+
+### 6.57 Mapas: a data escolhida manda, focos de todos os anos, confiabilidade por ano e o mapa do estado sem nuvem (29/09/2026)
+
+**Pedidos do Pedro** (29/09): "preciso do mapa dos focos de calor dos outros
+anos (2018-2024)"; "quando eu clico num mapa referente a outro ano, ele
+corresponde a 2024. eu preciso que o mapa corresponda a data que eu
+preciso"; "quando a pessoa muda a data da confiabilidade ou dnbr, o mapa ao
+lado muda igualmente para a mesma data. eles devem ser independentes";
+"[o mapa do estado] está borrado ou sem marcação em alguns trechos e é
+quase maioria em alguns recortes [...] preciso que todo o estado seja
+exibido em todos os cenários. se impossível, informe que as nuvens [...]
+impediram a ação do satélite"; e, na página inicial, "tem que exibir a
+confiabilidade por ano. selecionar o ano, e ter a confiabilidade".
+
+**Causa do "corresponde a 2024":** os três mapas levavam pra
+`/municipio/{código}` sem data, e a página do município abre, sem data, no
+ano da validação mais recente — 2024 pra todos. Agora o clique leva a data:
+confiabilidade e focos → `?periodo=AAAA#ano`; leitura de satélite →
+`?periodo=AAAA&ano=AAAA&mes=M#consulta`, que abre o painel do ano e a
+consulta por mês já naquele mês (mostra o resultado se já foi calculado;
+senão, o botão Calcular com o mês preenchido). A seção da consulta ganhou a
+âncora `#consulta`. As listas da página inicial também levam o ano.
+
+**Mapas independentes (/mapa):** trocar o mês da leitura de satélite levava
+a confiabilidade pro mesmo ano (decisão minha na seção 6.55, não pedido do
+Pedro). Agora os dois são independentes: a confiabilidade abre no ano mais
+recente e só muda pelo próprio seletor.
+
+**Focos de todos os anos:** o mapa de focos só tinha o ano anterior e o
+corrente; agora vai de 2018 ao ano corrente (`?focos=AAAA`, padrão o último
+ano completo), com os dados em formato compacto (os 645 códigos uma vez e um
+vetor por ano). As faixas fixas (0, 1–2, 3–5, 6–10, 11–20, 21+) ficaram: a
+distribuição real de 2018 a 2026 (inventário, run `36609276475`) tem
+mediana de 1 (2022, 2023, 2025) a 6 (2024) e p90 de 6 a 28 — num ano ruim,
+mais municípios na faixa de cima, que é a informação. Em 2024, os 63 da
+pesquisa têm só agosto (a linha da pesquisa): o mapa mostra esse número, e
+a dica e uma nota dizem que é agosto.
+
+**Confiabilidade por ano na página inicial:** seletor de ano (2018–2024,
+`?ano=AAAA`, links sem JavaScript) acima da lista por nível; o ano vale pra
+lista, pra contagem do cabeçalho e pra prévia do mapa. A contagem passou a
+sair do próprio ano (a consulta `contarPorConfiabilidade`, que contava a
+classificação mais recente de cada município, saiu).
+
+**Mapa do estado — "borrado ou sem marcação":** a cobertura gravada de cada
+mês (inventário) tinha mediana de 96%, mas **35 dos 104 meses abaixo de
+90%**, os piores em meses de chuva (jun/2018 51%, mar/2023 53%, jan/2026 55%,
+dez/2024 56%). Causa: o mosaico usava o cálculo dos notebooks
+(`calcular_dnbr`), que filtra a **cena inteira** pela nuvem e aceita o
+primeiro nível (20, 40, 60, 80%) que cobre **50% da área** — num município
+isso é quase sempre a área toda (por isso "quando clicado, ele retorna um
+mapa real": a consulta do município faz o mesmo cálculo, que ali fecha),
+mas no estado deixava até metade vazia; e, sem máscara por pixel, a nuvem
+que sobrava dentro das cenas entrava na mediana — nuvem derruba o NBR, e no
+dNBR vira mancha de falso sinal de queima (o "borrado"). Novo cálculo só
+pro mosaico (`calcular_dnbr_sem_nuvem`): nuvem tirada **pixel a pixel** pela
+máscara **Cloud Score+** do Google (`GOOGLE/CLOUD_SCORE_PLUS/V1/S2_HARMONIZED`,
+banda `cs_cdf` ≥ 0,60, o limiar recomendado; serve pra L1C e SR), todas as
+cenas do mês com menos de 90% de nuvem entram na mediana com os pixels
+limpos que tiverem, e a cobertura gravada passa a ser a real (fração do
+estado com ao menos uma observação limpa nas duas janelas). Até jan/2019
+calcula SR e L1C e fica com a que cobre mais. O que ainda faltar (nuvem o
+mês inteiro) fica transparente, e o site mostra **hachura**, a legenda "sem
+leitura (nuvem)" e o aviso "Nas áreas hachuradas (X% do estado), as nuvens
+impediram o satélite de enxergar o solo neste mês: não há leitura." Os
+números de cada município (20 m, `calcular_dnbr`) não mudam — é mudança só
+na visualização do estado, e por isso não mexe no método da pesquisa.
 
 ---
 

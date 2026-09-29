@@ -74,9 +74,14 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
       **No ar: 104 de 104 meses** (jan/2018 a ago/2026, 0 erro) e
       confiabilidade de 2018 a 2024 calculada pros 645 (0 erro; as 63 linhas
       da pesquisa em 2024 intactas), conferidos no site publicado em
-      28/09/2026
+      28/09/2026. **29/09 (seção 6.57):** o clique abre o município na data
+      do mapa (antes caía sempre em 2024); os dois mapas são independentes;
+      focos de 2018 ao ano corrente; mapa do estado sem nuvem pixel a pixel
+      (Cloud Score+), e onde nem assim há leitura, hachura e aviso de que as
+      nuvens impediram o satélite
 - [x] Busca com sugestões próprias até o último município (o `<datalist>`
-      do Chrome parava no 521º) e lista agrupada por nível de confiabilidade
+      do Chrome parava no 521º) e lista agrupada por nível de confiabilidade,
+      com seletor de ano (2018–2024, seção 6.57)
 - [x] Página do município ano a ano — anos clicáveis, painel por ano sem
       campos zerados, origem de cada número em poucas palavras
 - [x] Texto alternativo em todas as imagens — mapas dNBR com `alt` que
@@ -184,9 +189,10 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
       Pedro precisa criar
 - [~] Analytics — **decidido**: Vercel Analytics (ver `docs/DECISIONS.md`,
       2.2); `@vercel/analytics` já instalado e no `layout.tsx` do webapp.
-      **Conferido em 28/09/2026 (seção 6.56): ainda desligado** — o script
-      de métricas responde 404. Falta o Pedro ativar em Vercel → projeto →
-      Analytics; a verificação diária mostra quando passar a funcionar
+      **Ativado pelo Pedro em 29/09/2026**, e a configuração chegou ao JS do
+      site publicado (seção 6.56 — o "desligado" de 28/09 vinha de uma
+      checagem no endereço errado). Falta confirmar que as visitas estão
+      sendo contadas: abrir o site e ver a visita na aba Analytics da Vercel
 
 ## Documentação e citação
 
@@ -234,11 +240,14 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 ---
 
 **Contagem atual:** 27 itens feitos, 9 parciais, 4 pendentes —
-atualizado em 28/09/2026 à tarde (`docs/DECISIONS.md` seção 6.56):
+atualizado em 29/09/2026 (`docs/DECISIONS.md` seções 6.56 e 6.57): Vercel
+Analytics ativado pelo Pedro (falta ver as visitas no painel); mapas com a
+data escolhida, focos de todos os anos, confiabilidade por ano na página
+inicial e mapa do estado sem nuvem. Em 28/09 à tarde (seção 6.56):
 testes automatizados do webapp no CI (feito), verificação diária de saúde
 com alerta por issue (monitoramento parcial), o que é coletado definido
-(retenção parcial), rascunho dos Termos de Uso escrito de fato, Vercel
-Analytics conferido (desligado). De manhã (seção 6.55): backfill do mapa
+(retenção parcial), rascunho dos Termos de Uso escrito de fato. De manhã
+(seção 6.55): backfill do mapa
 do estado completo (104 meses) e confiabilidade 2018–2024 dos 645 no ar,
 sitemap com os 645, "Quem somos" com foto, orientação e grupo; 151 testes
 pytest. Em 27/09/2026 à noite entraram

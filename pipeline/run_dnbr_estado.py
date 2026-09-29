@@ -7,20 +7,25 @@
 O mapa do estado inteiro do site (docs/DECISIONS.md seção 6.55, pedido do
 Pedro: "um mapa de todo o estado de São Paulo com os dNBR mensais de todos
 os municípios", com os limites municipais liga/desliga, pra comparar com o
-mapa de confiabilidade). Mesmo cálculo das miniaturas municipais
-(dnbr/sentinel2.py::calcular_dnbr: mediana do Sentinel-2 do mês anterior
-contra a do mês alvo, NBR com B8/B12, fallback de nuvem, cobertura mínima de
-50%) e a mesma paleta (VIS_PARAMS, 0,10 → 0,70), numa imagem só do estado
-recortada pelo contorno de SP. É visualização, em ~380 m por pixel: os
-números de cada município continuam vindo do cálculo em 20 m (run_dnbr.py).
+mapa de confiabilidade). Mediana do Sentinel-2 do mês anterior contra a do
+mês alvo, NBR com B8/B12 e a mesma paleta das miniaturas (VIS_PARAMS, 0,10 →
+0,70), numa imagem só do estado recortada pelo contorno de SP. Desde a seção
+6.57 a nuvem sai pixel a pixel (dnbr/sentinel2.py::calcular_dnbr_sem_nuvem,
+máscara Cloud Score+), com todas as cenas do mês — antes era o mesmo cálculo
+das miniaturas, que filtra a cena inteira e deixava até metade do estado
+vazio. O que ainda falta (nuvem o mês todo) fica transparente, e o site
+hachura e avisa. É visualização, em ~380 m por pixel: os números de cada
+município continuam vindo do cálculo em 20 m (run_dnbr.py).
 
 A imagem cobre exatamente o retângulo do viewBox do mapa do site
 (`limites` de geodata/sp_contorno.geojson, gerado junto com
 webapp/public/mapa/sp.json), com a mesma proporção largura/altura, então o
 site só estica a imagem sobre o desenho — sem reprojetar nada.
 
-Meses sem Sentinel-2 com correção atmosférica no Brasil (antes de dez/2018)
-usam a coleção sem correção (L1C) — anotado na linha do banco.
+Até jan/2019 o Sentinel-2 com correção atmosférica (SR) ainda não cobria o
+Brasil inteiro: nesses meses as duas coleções são calculadas e fica a que
+cobrir mais do estado (a sem correção, L1C, na maioria) — anotado na linha
+do banco.
 
 Saída: `dnbr-estado/AAAA-MM.webp` no R2 (WebP com transparência fora de SP
 e onde não houve imagem válida; ~10x menor que o PNG do Earth Engine) e uma
@@ -42,6 +47,14 @@ LARGURA_PX = 2400
 LARGURAS_RESERVA_PX = (1800, 1200)  # se o Earth Engine recusar o tamanho
 QUALIDADE_WEBP = 82
 PRIMEIRO_MES = (2018, 1)
+
+
+def colecoes_para_o_mes(ano: int, mes: int) -> tuple[str, ...]:
+    """SR sempre; até jan/2019 (janela "antes" em dez/2018) também a L1C,
+    pra escolher a que cobrir mais do estado."""
+    from pipeline.dnbr.constants import COLECAO_L1C, COLECAO_SR
+
+    return (COLECAO_SR, COLECAO_L1C) if (ano, mes) <= (2019, 1) else (COLECAO_SR,)
 
 
 def limites_e_proporcao(contorno: dict) -> tuple[list[float], float]:
@@ -192,7 +205,7 @@ def gerar_mes(ano: int, mes: int, contorno: dict) -> dict | None:
     import ee
     import requests
 
-    from pipeline.dnbr.sentinel2 import COLECAO_L1C, COLECAO_SR, VIS_PARAMS, SemImagemValida, calcular_dnbr
+    from pipeline.dnbr.sentinel2 import VIS_PARAMS, SemImagemValida, calcular_dnbr_sem_nuvem
     from pipeline.run_dnbr import janela_mes_especifico, subir_r2
 
     limites, proporcao = limites_e_proporcao(contorno)
@@ -202,12 +215,18 @@ def gerar_mes(ano: int, mes: int, contorno: dict) -> dict | None:
     janela_antes, janela_depois = janela_mes_especifico(ano, mes)
 
     resultado, colecao = None, None
-    for colecao in (COLECAO_SR, COLECAO_L1C):
+    for candidata in colecoes_para_o_mes(ano, mes):
         try:
-            resultado = calcular_dnbr(estado, janela_antes, janela_depois, colecao=colecao)
-            break
+            tentativa = calcular_dnbr_sem_nuvem(estado, janela_antes, janela_depois, colecao=candidata)
         except SemImagemValida as e:
-            print(f"[AVISO] {ano}-{mes:02d} sem imagem válida em {colecao}: {e}")
+            print(f"[AVISO] {ano}-{mes:02d} sem imagem válida em {candidata}: {e}")
+            continue
+        print(
+            f"{ano}-{mes:02d} {candidata}: {tentativa.n_cenas_antes} cenas antes, {tentativa.n_cenas_depois} depois, "
+            f"{tentativa.cobertura_pct:.1f}% do estado com leitura"
+        )
+        if resultado is None or tentativa.cobertura_pct > resultado.cobertura_pct:
+            resultado, colecao = tentativa, candidata
     if resultado is None:
         return None
 

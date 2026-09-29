@@ -74,3 +74,15 @@ def test_resumo_png_conta_cores_e_desenha():
     assert percentuais.startswith("verde 80.0%")
     assert "vermelho 20.0%" in percentuais and "com imagem 50.0% do retângulo" in percentuais
     assert desenho.splitlines()[0] == "...#    "
+
+
+def test_ate_jan_2019_compara_sr_e_l1c_depois_so_sr():
+    """Seção 6.57: SR ainda não cobria o Brasil inteiro antes de 2019 — nesses
+    meses fica a coleção que cobrir mais do estado."""
+    from pipeline.dnbr.constants import COLECAO_L1C, COLECAO_SR
+    from pipeline.run_dnbr_estado import colecoes_para_o_mes
+
+    assert colecoes_para_o_mes(2018, 6) == (COLECAO_SR, COLECAO_L1C)
+    assert colecoes_para_o_mes(2019, 1) == (COLECAO_SR, COLECAO_L1C)
+    assert colecoes_para_o_mes(2019, 2) == (COLECAO_SR,)
+    assert colecoes_para_o_mes(2026, 8) == (COLECAO_SR,)

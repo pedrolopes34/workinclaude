@@ -130,7 +130,7 @@ def main() -> None:
             )
             linhas = cur.fetchall()
             total = sum(len(meses) for _, meses, _ in linhas)
-            # Quanto do estado cada mês cobre (seção 6.56: o Pedro viu lacunas).
+            # Quanto do estado cada mês cobre (seção 6.57: o Pedro viu lacunas).
             cur.execute("SELECT ano, mes, round(cobertura_pct::numeric) FROM mosaicos_dnbr ORDER BY ano, mes")
             coberturas = cur.fetchall()
             valores = sorted(c for _, _, c in coberturas if c is not None)
