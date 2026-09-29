@@ -3366,6 +3366,17 @@ parado no começo do projeto (o README ainda listava mapa, páginas
 institucionais e testes como "o que falta"); os dois e o README do
 pipeline foram atualizados.
 
+**29/09 — 1ª rodada agendada na main e Analytics.** A verificação agendada
+pras 20:41 UTC saiu às 00:31 UTC de 29/09 (3h50 de atraso), verde, sem
+abrir alerta (run `36503509465`). A ingestão agendada pras 09:17 UTC saiu
+às 15:58 UTC (6h41 de atraso): tirar o cron da hora cheia não acabou com
+os atrasos do GitHub neste repositório — a janela de 36 h da verificação
+continua sendo o que evita alarme falso. O Pedro **ativou o Vercel
+Analytics** em 29/09; às 17:51 UTC a verificação (run `36607886920`) ainda
+via o script de métricas em 404, porque a Vercel só cria as rotas
+`/_vercel/insights/*` no deploy seguinte à ativação — o deploy veio com o
+commit deste registro.
+
 ---
 
 ## 7. Pendências em aberto (nada decidido ainda)
