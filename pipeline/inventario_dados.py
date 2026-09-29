@@ -89,7 +89,7 @@ def main() -> None:
 
         # Distribuição pra escolher as faixas do mapa (seção 6.54): focos por
         # município em cada ano automático e a área de leitura de satélite.
-        for ano in (2025, 2026):
+        for ano in range(2018, 2027):
             cur.execute(
                 """
                 SELECT count(*), count(*) FILTER (WHERE num_focos_calor = 0),
@@ -130,6 +130,17 @@ def main() -> None:
             )
             linhas = cur.fetchall()
             total = sum(len(meses) for _, meses, _ in linhas)
+            # Quanto do estado cada mês cobre (seção 6.56: o Pedro viu lacunas).
+            cur.execute("SELECT ano, mes, round(cobertura_pct::numeric) FROM mosaicos_dnbr ORDER BY ano, mes")
+            coberturas = cur.fetchall()
+            valores = sorted(c for _, _, c in coberturas if c is not None)
+            if valores:
+                anotar(
+                    "Cobertura dos mosaicos (% do estado com leitura)",
+                    f"min {valores[0]} | p25 {valores[len(valores) // 4]} | mediana {valores[len(valores) // 2]} | "
+                    f"abaixo de 90%: {sum(v < 90 for v in valores)} de {len(valores)} | "
+                    + " ".join(f"{a}-{m:02d}:{c}" for a, m, c in coberturas),
+                )
             anotar(
                 "Mosaicos dNBR",
                 f"{total} meses | " + " | ".join(
