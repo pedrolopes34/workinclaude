@@ -187,12 +187,11 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
       auditorias anuais e o histórico das consultas. Proposta: cópia
       semanal do banco pra um bucket privado (o atual é público), que o
       Pedro precisa criar
-- [~] Analytics — **decidido**: Vercel Analytics (ver `docs/DECISIONS.md`,
-      2.2); `@vercel/analytics` já instalado e no `layout.tsx` do webapp.
-      **Ativado pelo Pedro em 29/09/2026**, e a configuração chegou ao JS do
-      site publicado (seção 6.56 — o "desligado" de 28/09 vinha de uma
-      checagem no endereço errado). Falta confirmar que as visitas estão
-      sendo contadas: abrir o site e ver a visita na aba Analytics da Vercel
+- [x] Analytics — Vercel Analytics (ver `docs/DECISIONS.md`, 2.2),
+      `@vercel/analytics` no `layout.tsx` do webapp. **Ativado pelo Pedro em
+      29/09/2026 e funcionando:** o script de métricas responde no caminho
+      próprio do projeto (verificação diária de 29/09, seção 6.56 — o
+      "desligado" de 28/09 vinha de uma checagem no endereço errado)
 
 ## Documentação e citação
 
@@ -239,9 +238,9 @@ Legenda: `[x]` feito · `[~]` parcial (feito só no mockup ou parcialmente) ·
 
 ---
 
-**Contagem atual:** 27 itens feitos, 9 parciais, 4 pendentes —
+**Contagem atual:** 28 itens feitos, 8 parciais, 4 pendentes —
 atualizado em 29/09/2026 (`docs/DECISIONS.md` seções 6.56 e 6.57): Vercel
-Analytics ativado pelo Pedro (falta ver as visitas no painel); mapas com a
+Analytics ativado pelo Pedro e funcionando; mapas com a
 data escolhida, focos de todos os anos, confiabilidade por ano na página
 inicial e mapa do estado sem nuvem. Em 28/09 à tarde (seção 6.56):
 testes automatizados do webapp no CI (feito), verificação diária de saúde

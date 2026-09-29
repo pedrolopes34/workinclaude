@@ -3390,10 +3390,11 @@ JS publicado `{"analytics":{"scriptSrc":"fb8fa6a264f1635a/script.js",...}}`
 ordem da biblioteca a partir dos scripts da página inicial
 (`endereco_script_analytics`, 5 testes com o trecho real). Não dá pra
 dizer se o Analytics já estava ligado em 28/09: o teste daquele dia não
-distinguia. Em aberto: o caminho certo (`/fb8fa6a264f1635a/script.js`)
-também responde 404 a um pedido simples do runner (run `36608737956`); a
-confirmação definitiva é o Pedro abrir o site e ver a visita aparecer na
-aba Analytics da Vercel.
+distinguia. Às 17:56 UTC o caminho certo (`/fb8fa6a264f1635a/script.js`)
+ainda respondia 404 (run `36608737956`); **às 18:4x UTC, depois do deploy
+seguinte, passou a responder 200** (run `36614139368`, "Vercel Analytics:
+ativo") — as rotas do projeto demoraram um deploy pra existir. Analytics
+funcionando.
 
 ### 6.57 Mapas: a data escolhida manda, focos de todos os anos, confiabilidade por ano e o mapa do estado sem nuvem (29/09/2026)
 
@@ -3467,7 +3468,16 @@ sinal 0,9%), mar/2023 **53% → 86,9%** (285 + 404; sinal 11,2%, concentrado
 no sudoeste — época de colheita de soja e milho), ago/2024 99% → 98,5%
 (sinal 4,1%, contra 4,9% no cálculo antigo: o mês limpo quase não muda, o
 que mostra que o método novo é coerente). ~3–5 min por mês. Lote dos 104
-meses disparado na main (run `36612885732`).
+meses disparado na main (run `36612885732`, 29/09 18:33 → 21:00 UTC):
+**104 de 104 meses refeitos, 0 erro, 0 mês sem imagem**. Cobertura (inventário,
+run `36630431441`), antes → depois: mínimo **51% → 73%**, p25 **82% → 95%**,
+mediana **96% → 99%**, meses abaixo de 90% **35 → 12**. Os 12 que sobram são
+meses de chuva (jan/2018 73%, jan/2021 75%, nov/2018 80%, fev/2023 82%,
+fev/2018 83%, dez/2020 85%, out/2018, fev/2021 e nov/2023 86%, mar/2023 e
+out/2023 87%, fev/2026 88%) — nuvem de verdade o mês inteiro, que o site
+agora hachura e avisa. Exemplos do que o Pedro viu: mar/2026 70% → 91%,
+jun/2018 51% → 99%, jan/2026 55% → 95%. Com a escolha por cobertura, os 12
+meses de 2018 e jan/2019 ficaram com a coleção sem correção atmosférica (L1C).
 
 **"Selecionei SP no mapa geral e não tinha nada; na página do município,
 tinha" (Pedro, 29/09):** eram meses diferentes. No mapa do estado ele via
