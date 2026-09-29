@@ -127,13 +127,19 @@ export const listarFocosPorAno = cache(async function listarFocosPorAno(): Promi
 export const listarMosaicos = cache(async function listarMosaicos(): Promise<MosaicoDnbr[]> {
   const [existe] = await sql<{ existe: boolean }[]>`SELECT to_regclass('mosaicos_dnbr') IS NOT NULL AS existe`;
   if (!existe?.existe) return [];
-  const linhas = await sql<MosaicoDnbr[]>`
+  const linhas = await sql<(MosaicoDnbr & { versao: number })[]>`
     SELECT ano::int, mes::int, imagem_url, oeste, sul, leste, norte, colecao,
-           cobertura_pct::float AS cobertura_pct
+           cobertura_pct::float AS cobertura_pct, extract(epoch FROM gerado_em)::bigint::float AS versao
     FROM mosaicos_dnbr
     ORDER BY ano, mes
   `;
-  return linhas.map((l) => ({ ...l, imagemUrl: urlPublicaR2(l.imagemUrl) ?? l.imagemUrl }));
+  // ?v= com a hora em que o mosaico foi gerado: refazer um mês grava no mesmo
+  // endereço (dnbr-estado/AAAA-MM.webp), e sem isso o navegador podia seguir
+  // mostrando a imagem antiga por horas (seção 6.57).
+  return linhas.map(({ versao, ...l }) => ({
+    ...l,
+    imagemUrl: `${urlPublicaR2(l.imagemUrl) ?? l.imagemUrl}?v=${versao}`,
+  }));
 });
 
 export async function getResumoCobertura(): Promise<ResumoCobertura> {

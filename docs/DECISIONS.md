@@ -3478,6 +3478,9 @@ out/2023 87%, fev/2026 88%) — nuvem de verdade o mês inteiro, que o site
 agora hachura e avisa. Exemplos do que o Pedro viu: mar/2026 70% → 91%,
 jun/2018 51% → 99%, jan/2026 55% → 95%. Com a escolha por cobertura, os 12
 meses de 2018 e jan/2019 ficaram com a coleção sem correção atmosférica (L1C).
+Refazer um mês grava no mesmo endereço (`dnbr-estado/AAAA-MM.webp`), e o
+navegador podia seguir mostrando a imagem antiga por horas: o site agora
+pede `...webp?v=<hora em que o mosaico foi gerado>`.
 
 **"Selecionei SP no mapa geral e não tinha nada; na página do município,
 tinha" (Pedro, 29/09):** eram meses diferentes. No mapa do estado ele via
