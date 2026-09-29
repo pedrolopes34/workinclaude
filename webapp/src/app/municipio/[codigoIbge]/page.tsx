@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getMunicipioDetalhe } from "@/lib/queries";
+import { MESES_LONGOS } from "@/lib/meses";
 import {
   formatKm2,
   formatPct,
@@ -110,23 +111,43 @@ const CODIGO_IBGE_COM_MAPA_REAL = "3539509"; // Pitangueiras
 // em qualquer ano de metricas_anuais, em vez de exigir que bata com o ano
 // de alguma validação — a busca antiga fazia isso e o mapa nunca aparecia
 // pra ninguém (bug real reportado pelo Pedro, seção 6.45).
+// O rótulo diz a janela exata (seção 6.57): "(2026)" só dava o ano, e o Pedro
+// clicou em São Paulo no mapa do estado de março, viu aqui o mapa de agosto →
+// setembro e achou que era o mesmo mês. Quem chega pelo mapa do estado com
+// um mês (?ano=&mes=) é avisado de onde está a leitura daquele mês.
 function MapaDnbrAtual({
   nomeMunicipio,
   codigoIbge,
   metricas,
+  mesPedido,
 }: {
   nomeMunicipio: string;
   codigoIbge: string;
   metricas: MetricasAnuais[];
+  mesPedido: { ano: number; mes: number } | null;
 }) {
   const maisRecente = metricas.find((m) => m.dnbrImagemUrl);
   const imagemUrl =
     maisRecente?.dnbrImagemUrl ??
     (codigoIbge === CODIGO_IBGE_COM_MAPA_REAL ? "/dnbr-pitangueiras.png" : null);
-  const rotuloAno = maisRecente ? String(maisRecente.ano) : "ago/2024";
+  const rotuloAno = maisRecente?.dnbrImagemUrl ? rotuloJanelaDnbr([maisRecente.dnbrImagemUrl]) : "ago/2024";
+  const chaveMaisRecente = maisRecente?.dnbrImagemUrl?.match(/-(\d{4})-(\d{2})\.png$/);
+  const outroMes =
+    mesPedido &&
+    !(chaveMaisRecente && Number(chaveMaisRecente[1]) === mesPedido.ano && Number(chaveMaisRecente[2]) === mesPedido.mes);
 
   return (
     <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+      {outroMes && mesPedido && (
+        <p className="border-b border-border bg-background px-3 py-2 text-xs text-foreground">
+          Este é o mapa mais recente ({rotuloAno}). A leitura de satélite de {MESES_LONGOS[mesPedido.mes - 1]} de{" "}
+          {mesPedido.ano}, o mês que você escolheu no mapa do estado, está em{" "}
+          <a href="#consulta" className="font-semibold text-acento-texto underline">
+            Consultar outro período
+          </a>
+          , mais abaixo.
+        </p>
+      )}
       {imagemUrl ? (
         <>
           <ImagemComFallback
@@ -159,8 +180,8 @@ function MapaDnbrAtual({
             <p className="px-3 py-2 text-[11px] text-faint">Imagem da pesquisa original, com paleta própria.</p>
           )}
           <p className="border-t border-border px-3 py-2 text-xs text-muted">
-            Mapa dNBR mais recente ({rotuloAno}) · Sentinel-2/ESA, processado no Google Earth Engine. A cor
-            mostra mudança espectral, não a causa do fogo.
+            Leitura de satélite (dNBR) mais recente: {rotuloAno} · Sentinel-2/ESA, processado no Google Earth
+            Engine. A cor mostra mudança espectral, não a causa do fogo.
           </p>
         </>
       ) : (
@@ -427,6 +448,11 @@ export default async function MunicipioPage({
         nomeMunicipio={municipio.nome}
         codigoIbge={municipio.codigoIbge}
         metricas={metricas}
+        mesPedido={
+          Number(anoConsulta) >= 2018 && Number(mesConsulta) >= 1 && Number(mesConsulta) <= 12
+            ? { ano: Number(anoConsulta), mes: Number(mesConsulta) }
+            : null
+        }
       />
 
       <section id="ano" className="scroll-mt-24 space-y-4" aria-labelledby="titulo-ano-a-ano">

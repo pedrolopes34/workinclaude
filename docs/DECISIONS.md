@@ -3461,6 +3461,25 @@ leitura (nuvem)" e o aviso "Nas áreas hachuradas (X% do estado), as nuvens
 impediram o satélite de enxergar o solo neste mês: não há leitura." Os
 números de cada município (20 m, `calcular_dnbr`) não mudam — é mudança só
 na visualização do estado, e por isso não mexe no método da pesquisa.
+Testado na branch antes do lote (runs `36611954417`, `36611977916`,
+`36611982914`): jan/2026 **55% → 95,2%** de cobertura (431 + 411 cenas;
+sinal 0,9%), mar/2023 **53% → 86,9%** (285 + 404; sinal 11,2%, concentrado
+no sudoeste — época de colheita de soja e milho), ago/2024 99% → 98,5%
+(sinal 4,1%, contra 4,9% no cálculo antigo: o mês limpo quase não muda, o
+que mostra que o método novo é coerente). ~3–5 min por mês. Lote dos 104
+meses disparado na main (run `36612885732`).
+
+**"Selecionei SP no mapa geral e não tinha nada; na página do município,
+tinha" (Pedro, 29/09):** eram meses diferentes. No mapa do estado ele via
+**mar/2026**, ainda na versão antiga do mosaico (o lote não tinha chegado
+em 2026): retângulos hachurados são cenas inteiras que o método antigo
+descartou. A página do município mostra no topo a **miniatura mais
+recente** (ago → set/2026, seca, sem nuvem), com a legenda "(2026)" — sem o
+mês. Agora a legenda diz a janela exata ("Leitura de satélite (dNBR) mais
+recente: ago → set/2026"), e quem chega pelo mapa do estado com um mês
+(`?ano=&mes=`) vê um aviso: "Este é o mapa mais recente (...). A leitura de
+satélite de março de 2026, o mês que você escolheu no mapa do estado, está
+em Consultar outro período, mais abaixo."
 
 ---
 
