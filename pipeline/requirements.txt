@@ -8,7 +8,7 @@ python-dotenv>=1.0
 numpy>=1.26
 scikit-learn>=1.4
 geopandas>=0.14
-shapely>=2.0
+shapely>=2.1.2
 pyproj>=3.6
 
 # dNBR (Sentinel-2 / Google Earth Engine)
